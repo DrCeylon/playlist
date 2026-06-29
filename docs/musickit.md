@@ -36,3 +36,10 @@ export APPLE_MUSIC_USER_TOKEN="..."
 ## Limite actuelle
 
 Le moteur MusicKit est prêt côté code, mais il nécessite de générer et fournir les tokens Apple. Une fois les tokens configurés, il peut chercher les morceaux dans le catalogue et créer ou mettre à jour la playlist dans la bibliothèque utilisateur.
+
+## Optimisations
+
+- Cache JSON des identifiants catalogue (`cache/musickit_catalog.json`)
+- Détection des doublons via lecture unique de la playlist existante (aucun appel catalogue pour les morceaux déjà présents)
+- Retry automatique sur HTTP 429 avec backoff
+- Scoring unifié avec le moteur iTunes (`playlist_builder/catalog/scoring.py`)

@@ -52,10 +52,10 @@ def test_load_playlist_valid(tmp_path):
         """,
         encoding="utf-8",
     )
-    name, tracks = load_playlist(path)
-    assert name == "Test Playlist"
-    assert len(tracks) == 1
-    assert tracks[0].key == "kygo::firestone"
+    playlist = load_playlist(path)
+    assert playlist.name == "Test Playlist"
+    assert len(playlist.tracks) == 1
+    assert playlist.tracks[0].key == "kygo::firestone"
 
 
 def test_load_playlist_missing_field(tmp_path):
