@@ -70,11 +70,25 @@ Ou :
 zsh tools/open_report.command
 ```
 
-## 2. Créer la playlist depuis les morceaux déjà disponibles dans ta bibliothèque
+## 2. Créer la playlist
+
+### Option A — AppleScript (macOS, bibliothèque locale)
 
 ```bash
 python3 create_playlist.py
 ```
+
+### Option B — MusicKit (catalogue direct, sans étape manuelle)
+
+Nécessite des tokens Apple Developer. Voir [docs/musickit.md](docs/musickit.md).
+
+```bash
+export APPLE_MUSIC_DEVELOPER_TOKEN="..."
+export APPLE_MUSIC_USER_TOKEN="..."
+python3 create_playlist.py --engine musickit --storefront us
+```
+
+MusicKit fonctionne aussi hors macOS. Le cache catalogue est stocké dans `cache/musickit_catalog.json`.
 
 ## 3. Compléter les morceaux manquants
 

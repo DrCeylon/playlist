@@ -6,13 +6,14 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from playlist_builder import __version__
 from playlist_builder.catalog.cache import JsonCache
 from playlist_builder.catalog.rate_limiter import RateLimiter
 from playlist_builder.catalog.retry_policy import RetryPolicy
 from playlist_builder.catalog.scoring import pick_best_match
 from playlist_builder.core.models import CatalogMatch, TrackRef
 
-USER_AGENT = "PlaylistBuilder/0.4.0 (macOS; Python; +https://github.com)"
+USER_AGENT = f"PlaylistBuilder/{__version__} (macOS; Python)"
 
 
 class AppleCatalogSearch:
