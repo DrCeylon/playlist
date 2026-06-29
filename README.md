@@ -6,17 +6,15 @@ Petit outil macOS pour créer automatiquement des playlists Apple Music à parti
 
 - **🏝 Orlando Pool Party 2026** : pool party Floride, bonne humeur, montée progressive, environ 6 h, sans reggaeton.
 
-## Ce que fait réellement l'outil
+## Workflow recommandé pour le moment
 
-AppleScript peut créer une playlist et ajouter des titres qui sont déjà présents dans ta bibliothèque Apple Music/iCloud. En revanche, il ne peut pas ajouter automatiquement à ta bibliothèque des titres du catalogue streaming qui n'y sont pas encore.
+Le workflow gratuit reste basé sur AppleScript :
 
-La V2 ajoute donc un deuxième outil :
+1. `check_catalog.py` vérifie que les morceaux existent dans le catalogue public Apple/iTunes ;
+2. le rapport HTML permet d'ouvrir les titres manquants dans Apple Music ;
+3. `create_playlist.py` ajoute à la playlist les morceaux déjà présents dans ta bibliothèque Apple Music/iCloud.
 
-- `check_catalog.py` vérifie les titres dans le catalogue public Apple/iTunes ;
-- il génère un rapport HTML avec les liens Apple Music ;
-- tu peux ouvrir les titres manquants, les ajouter à ta bibliothèque, puis relancer `create_playlist.py`.
-
-C'est le workflow le plus fiable sans passer par un vrai accès MusicKit développeur Apple.
+MusicKit reste présent dans le code, mais il est considéré comme **expérimental** tant que nous ne configurons pas de compte Apple Developer.
 
 ## Pré-requis
 
@@ -27,7 +25,7 @@ C'est le workflow le plus fiable sans passer par un vrai accès MusicKit dévelo
 
 `check_catalog.py` peut aussi être exécuté hors macOS pour préparer les rapports catalogue.
 
-## Installation (optionnelle)
+## Installation optionnelle
 
 ```bash
 pip install -e ".[dev]"
@@ -70,25 +68,13 @@ Ou :
 zsh tools/open_report.command
 ```
 
-## 2. Créer la playlist
-
-### Option A — AppleScript (macOS, bibliothèque locale)
+## 2. Créer la playlist avec AppleScript
 
 ```bash
 python3 create_playlist.py
 ```
 
-### Option B — MusicKit (catalogue direct, sans étape manuelle)
-
-Nécessite des tokens Apple Developer. Voir [docs/musickit.md](docs/musickit.md).
-
-```bash
-export APPLE_MUSIC_DEVELOPER_TOKEN="..."
-export APPLE_MUSIC_USER_TOKEN="..."
-python3 create_playlist.py --engine musickit --storefront us
-```
-
-MusicKit fonctionne aussi hors macOS. Le cache catalogue est stocké dans `cache/musickit_catalog.json`.
+Le script évite les doublons par défaut.
 
 ## 3. Compléter les morceaux manquants
 
@@ -103,7 +89,11 @@ Si beaucoup de titres sont non trouvés :
 python3 create_playlist.py
 ```
 
-Le script évite les doublons par défaut.
+## Option expérimentale — MusicKit
+
+MusicKit permettrait à terme de créer ou mettre à jour une playlist directement depuis le catalogue, sans étape manuelle. Cette option nécessite cependant un compte Apple Developer payant et des tokens MusicKit.
+
+Voir [docs/musickit.md](docs/musickit.md).
 
 ## Téléchargement hors connexion
 
@@ -112,6 +102,13 @@ Une fois la playlist créée dans Apple Music :
 1. ouvrir la playlist **🏝 Orlando Pool Party 2026** ;
 2. cliquer sur le bouton de téléchargement ;
 3. laisser Apple Music télécharger les morceaux.
+
+## Principes produit
+
+- Création de playlists : autorisée.
+- Mise à jour de playlists : autorisée.
+- Suppression de playlists : non supportée.
+- Le workflow par défaut doit rester non destructif.
 
 ## Notes importantes
 
