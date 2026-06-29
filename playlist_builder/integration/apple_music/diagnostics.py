@@ -62,6 +62,5 @@ def trace_from_candidates(
         queries=tuple(AppleMusicQueryTrace(query, count) for query, count in query_counts.items()),
         candidates=candidates,
         accepted=accepted,
-        cache_hit=cache_hit,
         reason=reason,
     )
