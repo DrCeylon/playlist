@@ -9,6 +9,10 @@ from playlist_builder.canonical.models import CanonicalTrack
 from playlist_builder.core.models import TrackRef
 from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
+from playlist_builder.integration.apple_music.diagnostics import (
+    AppleMusicResolutionTrace,
+    trace_from_candidates,
+)
 from playlist_builder.integration.apple_music.mapper import resolution_candidates_from_apple_music_tracks
 from playlist_builder.scoring.resolution import ResolutionCandidate, select_best_resolution
 
@@ -29,6 +33,7 @@ class AppleMusicResolutionOutcome:
     candidates: tuple[ResolutionCandidate, ...] = ()
     selected_query: str = ""
     error: str = ""
+    trace: AppleMusicResolutionTrace = AppleMusicResolutionTrace()
 
 
 class AppleMusicResolver:
@@ -51,56 +56,7 @@ class AppleMusicResolver:
         *,
         section: str = "Playlist",
     ) -> AppleMusicResolutionOutcome:
-        cached = self._identity_cache.get(track, self._provider_id)
-        if cached is not None:
-            return AppleMusicResolutionOutcome(
-                track=track,
-                persistent_id=cached.external_id,
-                status=AppleMusicResolutionStatus.RESOLVED,
-                cache_hit=True,
-                score=cached.confidence,
-            )
-
-        legacy = legacy_track_from_canonical(track, section=section)
-        try:
-            candidate_groups = self._applescript.collect_candidates_batch([legacy])
-        except RuntimeError as exc:
-            return AppleMusicResolutionOutcome(
-                track=track,
-                persistent_id=None,
-                status=AppleMusicResolutionStatus.ERROR,
-                error=str(exc),
-            )
-
-        library_candidates = candidate_groups[0] if candidate_groups else []
-        resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
-        decision = select_best_resolution(legacy, resolution_candidates)
-
-        if decision.selected is None:
-            return AppleMusicResolutionOutcome(
-                track=track,
-                persistent_id=None,
-                status=AppleMusicResolutionStatus.NOT_FOUND,
-                candidates=decision.candidates,
-            )
-
-        selected = decision.selected
-        self._identity_cache.put_identity(
-            track,
-            provider_id=self._provider_id,
-            external_id=selected.persistent_id,
-            confidence=float(selected.score),
-        )
-
-        return AppleMusicResolutionOutcome(
-            track=track,
-            persistent_id=selected.persistent_id,
-            status=AppleMusicResolutionStatus.RESOLVED,
-            cache_hit=False,
-            score=float(selected.score),
-            candidates=decision.candidates,
-            selected_query=selected.query,
-        )
+        return self.resolve_batch([(track, section)])[0]
 
     def resolve_batch(
         self,
@@ -118,13 +74,21 @@ class AppleMusicResolver:
                     status=AppleMusicResolutionStatus.RESOLVED,
                     cache_hit=True,
                     score=cached.confidence,
+                    trace=AppleMusicResolutionTrace(cache_hit=True),
                 )
                 continue
             pending.append((index, track, section))
 
-        if not pending:
-            return [outcome for outcome in outcomes if outcome is not None]
+        if pending:
+            self._resolve_pending(outcomes, pending)
 
+        return [outcome for outcome in outcomes if outcome is not None]
+
+    def _resolve_pending(
+        self,
+        outcomes: list[AppleMusicResolutionOutcome | None],
+        pending: list[tuple[int, CanonicalTrack, str]],
+    ) -> None:
         legacy_tracks = [
             legacy_track_from_canonical(track, section=section) for _, track, section in pending
         ]
@@ -138,15 +102,20 @@ class AppleMusicResolver:
                     persistent_id=None,
                     status=AppleMusicResolutionStatus.ERROR,
                     error=error,
+                    trace=AppleMusicResolutionTrace(reason=error),
                 )
-            return [outcome for outcome in outcomes if outcome is not None]
+            return
 
-        for (index, track, section), legacy, library_candidates in zip(
+        for (index, track, _section), legacy, library_candidates in zip(
             pending, legacy_tracks, candidate_groups, strict=True
         ):
-            del section
             resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
             decision = select_best_resolution(legacy, resolution_candidates)
+            trace = trace_from_candidates(
+                candidates=decision.candidates,
+                accepted=decision.selected,
+                cache_hit=False,
+            )
 
             if decision.selected is None:
                 outcomes[index] = AppleMusicResolutionOutcome(
@@ -154,6 +123,8 @@ class AppleMusicResolver:
                     persistent_id=None,
                     status=AppleMusicResolutionStatus.NOT_FOUND,
                     candidates=decision.candidates,
+                    error=trace.summary(),
+                    trace=trace,
                 )
                 continue
 
@@ -172,6 +143,5 @@ class AppleMusicResolver:
                 score=float(selected.score),
                 candidates=decision.candidates,
                 selected_query=selected.query,
+                trace=trace,
             )
-
-        return [outcome for outcome in outcomes if outcome is not None]
