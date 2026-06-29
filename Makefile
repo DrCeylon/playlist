@@ -1,4 +1,4 @@
-.PHONY: venv install-dev test check catalog create
+.PHONY: venv install-dev test check catalog create generate
 
 venv:
 	python3 -m venv .venv
@@ -17,3 +17,6 @@ catalog:
 
 create:
 	python3 create_playlist.py
+
+generate:
+	python3 generate_playlist.py --help
