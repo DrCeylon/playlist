@@ -1,6 +1,8 @@
 # Apple Music Playlist Builder
 
-Petit outil macOS pour créer automatiquement des playlists Apple Music à partir de fichiers JSON.
+Génère des playlists Apple Music à partir de **mots-clés**, de **morceaux de référence**, ou d'un fichier JSON que tu prépares.
+
+📖 **[Documentation complète (Wiki)](https://github.com/DrCeylon/playlist/wiki)** — vision, guides, architecture, FAQ.
 
 ## Playlist incluse
 
