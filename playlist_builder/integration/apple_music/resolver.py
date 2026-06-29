@@ -14,6 +14,7 @@ from playlist_builder.integration.apple_music.diagnostics import (
     trace_from_candidates,
 )
 from playlist_builder.integration.apple_music.mapper import resolution_candidates_from_apple_music_tracks
+from playlist_builder.resolver.query import generate_query_variants
 from playlist_builder.scoring.resolution import ResolutionCandidate, select_best_resolution
 
 
@@ -111,8 +112,10 @@ class AppleMusicResolver:
         ):
             resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
             decision = select_best_resolution(legacy, resolution_candidates)
+            expected_queries = tuple(variant.term for variant in generate_query_variants(legacy))
             trace = trace_from_candidates(
                 candidates=decision.candidates,
+                expected_queries=expected_queries,
                 accepted=decision.selected,
                 cache_hit=False,
             )
