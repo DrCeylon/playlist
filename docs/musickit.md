@@ -1,10 +1,16 @@
 # MusicKit / Apple Music API
 
-Objectif : créer ou mettre à jour une playlist Apple Music directement depuis le catalogue, sans étape manuelle d'ajout des morceaux dans la bibliothèque locale.
-
 ## Statut
 
-Le moteur `musickit` est introduit comme alternative au moteur `applescript`.
+Le moteur `musickit` est conservé dans le code, mais il est actuellement **expérimental**.
+
+La raison est simple : MusicKit nécessite un compte Apple Developer pour générer un Developer Token. Tant que nous ne souhaitons pas payer cette licence, le workflow recommandé reste le moteur AppleScript.
+
+```bash
+python3 create_playlist.py
+```
+
+## Usage expérimental
 
 ```bash
 python3 create_playlist.py --engine musickit --storefront us
@@ -29,17 +35,17 @@ export APPLE_MUSIC_USER_TOKEN="..."
 
 ## Architecture cible
 
-- `music/client.py` : moteur local AppleScript, utile pour fallback macOS.
-- `music/musickit_client.py` : moteur Apple Music API / MusicKit.
+- `music/client.py` : moteur local AppleScript, utile pour le workflow gratuit macOS.
+- `music/musickit_client.py` : moteur Apple Music API / MusicKit, gardé comme option future.
 - futurs clients iOS/iPadOS : même logique métier, interface SwiftUI.
 
 ## Limite actuelle
 
-Le moteur MusicKit est prêt côté code, mais il nécessite de générer et fournir les tokens Apple. Une fois les tokens configurés, il peut chercher les morceaux dans le catalogue et créer ou mettre à jour la playlist dans la bibliothèque utilisateur.
+Le moteur MusicKit est prêt côté code, mais il nécessite les tokens Apple. Sans licence Apple Developer, il ne doit pas être considéré comme le workflow principal.
 
-## Optimisations
+## Optimisations déjà prévues
 
-- Cache JSON des identifiants catalogue (`cache/musickit_catalog.json`)
-- Détection des doublons via lecture unique de la playlist existante (aucun appel catalogue pour les morceaux déjà présents)
-- Retry automatique sur HTTP 429 avec backoff
-- Scoring unifié avec le moteur iTunes (`playlist_builder/catalog/scoring.py`)
+- Cache JSON des identifiants catalogue (`cache/musickit_catalog.json`).
+- Détection des doublons via lecture unique de la playlist existante.
+- Retry automatique sur HTTP 429 avec backoff.
+- Scoring unifié avec le moteur iTunes (`playlist_builder/catalog/scoring.py`).
