@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from playlist_builder.core.applescript import apple_escape, run_applescript
 from playlist_builder.core.models import TrackAddResult, TrackAddStatus, TrackRef
+from playlist_builder.resolver.applescript import (
+    FIELD_DELIMITER,
+    RESULT_DELIMITER,
+    build_resolve_batch_script,
+)
 
-RESULT_DELIMITER = "\x1f"
 BATCH_SIZE = 25
 
 
@@ -102,36 +106,8 @@ end tell
 
     def _add_tracks_batch(self, playlist_name: str, tracks: list[TrackRef]) -> list[TrackAddResult]:
         escaped_playlist = apple_escape(playlist_name)
-        blocks: list[str] = []
-        for track in tracks:
-            title = apple_escape(track.title)
-            artist = apple_escape(track.artist)
-            blocks.append(
-                f'''
-        try
-            set foundTrack to first track of library playlist 1 whose name is "{title}" and artist is "{artist}"
-            duplicate foundTrack to targetPlaylist
-            set end of results to "added"
-        on error
-            try
-                set foundTrack to first track of library playlist 1 whose name contains "{title}" and artist contains "{artist}"
-                duplicate foundTrack to targetPlaylist
-                set end of results to "added"
-            on error
-                set end of results to "not_found"
-            end try
-        end try'''
-            )
+        script = build_resolve_batch_script(tracks).replace("{playlist_name}", escaped_playlist)
 
-        script = f'''
-tell application "Music"
-    set targetPlaylist to user playlist "{escaped_playlist}"
-    set results to {{}}
-{"".join(blocks)}
-    set AppleScript's text item delimiters to "{RESULT_DELIMITER}"
-    return results as text
-end tell
-'''
         try:
             output = run_applescript(script)
         except RuntimeError as exc:
@@ -140,8 +116,8 @@ end tell
                 for track in tracks
             ]
 
-        statuses = output.split(RESULT_DELIMITER) if output else []
-        if len(statuses) != len(tracks):
+        rows = output.split(RESULT_DELIMITER) if output else []
+        if len(rows) != len(tracks):
             return [
                 TrackAddResult(
                     track=track,
@@ -152,12 +128,27 @@ end tell
             ]
 
         batch_results: list[TrackAddResult] = []
-        for track, status in zip(tracks, statuses, strict=True):
+        for track, row in zip(tracks, rows, strict=True):
+            status, _, _resolved_title, detail = self._parse_result_row(row)
             if status == "added":
                 batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.ADDED))
-            else:
+            elif status == "not_found":
                 batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.NOT_FOUND))
+            else:
+                batch_results.append(
+                    TrackAddResult(
+                        track=track,
+                        status=TrackAddStatus.ERROR,
+                        error=detail or "Statut AppleScript inconnu.",
+                    )
+                )
         return batch_results
+
+    @staticmethod
+    def _parse_result_row(row: str) -> tuple[str, str, str, str]:
+        parts = row.split(FIELD_DELIMITER)
+        padded = parts + [""] * (4 - len(parts))
+        return padded[0], padded[1], padded[2], padded[3]
 
     @staticmethod
     def _normalize_key(value: str) -> str:
