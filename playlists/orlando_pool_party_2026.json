@@ -1,0 +1,137 @@
+{
+  "name": "🏝 Orlando Pool Party 2026",
+  "description": "Pool party à Orlando : montée progressive, bonne humeur maximale, sans reggaeton.",
+  "sections": [
+    {
+      "name": "🌴 Warm Up Tropical",
+      "songs": [
+        {"artist": "Kygo", "title": "Firestone"},
+        {"artist": "Lost Frequencies", "title": "Reality"},
+        {"artist": "Klingande", "title": "Jubel"},
+        {"artist": "Mr. Probz", "title": "Waves"},
+        {"artist": "Bakermat", "title": "One Day (Vandaag)"},
+        {"artist": "Felix Jaehn", "title": "Ain't Nobody (Loves Me Better)"},
+        {"artist": "Robin Schulz", "title": "Sugar"},
+        {"artist": "Kungs", "title": "This Girl"},
+        {"artist": "Lost Frequencies", "title": "Are You With Me"},
+        {"artist": "Kygo", "title": "Stole the Show"},
+        {"artist": "Petit Biscuit", "title": "Sunset Lover"},
+        {"artist": "Empire of the Sun", "title": "Walking On A Dream"},
+        {"artist": "Milky Chance", "title": "Stolen Dance"},
+        {"artist": "Glass Animals", "title": "Heat Waves"}
+      ]
+    },
+    {
+      "name": "☀️ Sunny Vibes",
+      "songs": [
+        {"artist": "Harry Styles", "title": "As It Was"},
+        {"artist": "Dua Lipa", "title": "Levitating"},
+        {"artist": "The Weeknd", "title": "Blinding Lights"},
+        {"artist": "Pharrell Williams", "title": "Happy"},
+        {"artist": "Bruno Mars", "title": "Treasure"},
+        {"artist": "Justin Timberlake", "title": "CAN'T STOP THE FEELING!"},
+        {"artist": "Mark Ronson", "title": "Uptown Funk"},
+        {"artist": "DNCE", "title": "Cake By The Ocean"},
+        {"artist": "Walk The Moon", "title": "Shut Up and Dance"},
+        {"artist": "Portugal. The Man", "title": "Feel It Still"},
+        {"artist": "Outkast", "title": "Hey Ya!"},
+        {"artist": "Toploader", "title": "Dancing in the Moonlight"},
+        {"artist": "Jamiroquai", "title": "Virtual Insanity"},
+        {"artist": "Earth, Wind & Fire", "title": "September"}
+      ]
+    },
+    {
+      "name": "🍹 Pool Party Rising",
+      "songs": [
+        {"artist": "Purple Disco Machine", "title": "Hypnotized"},
+        {"artist": "Purple Disco Machine", "title": "Substitution"},
+        {"artist": "Kungs", "title": "Never Going Home"},
+        {"artist": "Sigala", "title": "Sweet Lovin'"},
+        {"artist": "Jonas Blue", "title": "Perfect Strangers"},
+        {"artist": "Calvin Harris", "title": "Feel So Close"},
+        {"artist": "Calvin Harris", "title": "Summer"},
+        {"artist": "Calvin Harris", "title": "How Deep Is Your Love"},
+        {"artist": "David Guetta", "title": "Titanium"},
+        {"artist": "David Guetta", "title": "Memories"},
+        {"artist": "Meduza", "title": "Piece Of Your Heart"},
+        {"artist": "Topic", "title": "Breaking Me"},
+        {"artist": "Regard", "title": "Ride It"},
+        {"artist": "Joel Corry", "title": "Head & Heart"}
+      ]
+    },
+    {
+      "name": "🎉 Everybody In The Pool",
+      "songs": [
+        {"artist": "Avicii", "title": "The Nights"},
+        {"artist": "Avicii", "title": "Wake Me Up"},
+        {"artist": "Avicii", "title": "Levels"},
+        {"artist": "Swedish House Mafia", "title": "Don't You Worry Child"},
+        {"artist": "Martin Garrix", "title": "High On Life"},
+        {"artist": "Martin Solveig", "title": "Intoxicated"},
+        {"artist": "Daft Punk", "title": "Get Lucky"},
+        {"artist": "Daft Punk", "title": "One More Time"},
+        {"artist": "Stardust", "title": "Music Sounds Better With You"},
+        {"artist": "Modjo", "title": "Lady (Hear Me Tonight)"},
+        {"artist": "Bob Sinclar", "title": "Love Generation"},
+        {"artist": "Junior Senior", "title": "Move Your Feet"},
+        {"artist": "Gala", "title": "Freed From Desire"},
+        {"artist": "Black Eyed Peas", "title": "I Gotta Feeling"}
+      ]
+    },
+    {
+      "name": "🌅 Golden Hour",
+      "songs": [
+        {"artist": "Coldplay", "title": "A Sky Full of Stars"},
+        {"artist": "Coldplay", "title": "Adventure of a Lifetime"},
+        {"artist": "RÜFÜS DU SOL", "title": "Innerbloom"},
+        {"artist": "ODESZA", "title": "A Moment Apart"},
+        {"artist": "M83", "title": "Midnight City"},
+        {"artist": "The Temper Trap", "title": "Sweet Disposition"},
+        {"artist": "MGMT", "title": "Electric Feel"},
+        {"artist": "Foster The People", "title": "Pumped Up Kicks"},
+        {"artist": "Phoenix", "title": "Lisztomania"},
+        {"artist": "Two Door Cinema Club", "title": "What You Know"},
+        {"artist": "The Killers", "title": "Mr. Brightside"},
+        {"artist": "The White Stripes", "title": "Seven Nation Army"}
+      ]
+    },
+    {
+      "name": "💃 Dance & Sing Along",
+      "songs": [
+        {"artist": "Sophie Ellis-Bextor", "title": "Murder On The Dancefloor"},
+        {"artist": "Dua Lipa", "title": "Houdini"},
+        {"artist": "Dua Lipa", "title": "Don't Start Now"},
+        {"artist": "Lady Gaga", "title": "Just Dance"},
+        {"artist": "Katy Perry", "title": "Firework"},
+        {"artist": "Rihanna", "title": "Don't Stop The Music"},
+        {"artist": "Beyoncé", "title": "CUFF IT"},
+        {"artist": "Justin Timberlake", "title": "Rock Your Body"},
+        {"artist": "Michael Jackson", "title": "Don't Stop 'Til You Get Enough"},
+        {"artist": "Queen", "title": "Don't Stop Me Now"},
+        {"artist": "Bon Jovi", "title": "Livin' On A Prayer"},
+        {"artist": "Journey", "title": "Don't Stop Believin'"},
+        {"artist": "ABBA", "title": "Dancing Queen"},
+        {"artist": "Whitney Houston", "title": "I Wanna Dance with Somebody (Who Loves Me)"}
+      ]
+    },
+    {
+      "name": "🌙 Night Pool Finale",
+      "songs": [
+        {"artist": "Macklemore & Ryan Lewis", "title": "Can't Hold Us"},
+        {"artist": "Flo Rida", "title": "Good Feeling"},
+        {"artist": "Pitbull", "title": "Give Me Everything"},
+        {"artist": "LMFAO", "title": "Party Rock Anthem"},
+        {"artist": "Icona Pop", "title": "I Love It"},
+        {"artist": "Taio Cruz", "title": "Dynamite"},
+        {"artist": "Usher", "title": "DJ Got Us Fallin' In Love"},
+        {"artist": "Clean Bandit", "title": "Rather Be"},
+        {"artist": "Rudimental", "title": "Feel The Love"},
+        {"artist": "Disclosure", "title": "Latch"},
+        {"artist": "CamelPhat", "title": "Cola"},
+        {"artist": "The Knocks", "title": "Classic"},
+        {"artist": "Riton", "title": "Turn Me On"},
+        {"artist": "Purple Disco Machine", "title": "Dopamine"}
+      ]
+    }
+  ]
+}
