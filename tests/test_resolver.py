@@ -39,6 +39,14 @@ def test_query_variants_are_capped():
     assert len(variants) <= MAX_QUERY_VARIANTS
 
 
+def test_query_variants_include_title_token_for_firestone():
+    variants = generate_query_variants(TrackRef("Kygo", "Firestone"))
+    terms = [variant.term for variant in variants]
+
+    assert "Firestone" in terms
+    assert "Kygo" in terms
+
+
 def test_build_resolve_batch_script_uses_contains_fallback():
     script = build_resolve_batch_script([TrackRef("Kygo", "Firestone")])
 
