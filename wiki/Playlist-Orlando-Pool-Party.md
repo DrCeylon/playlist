@@ -1,12 +1,14 @@
 # Playlist Orlando Pool Party 2026
 
-*La playlist signature du projet — 6 heures de bonne humeur, zéro reggaeton.*
+*L'exemple fourni avec le projet — la pool party du créateur, pas un modèle imposé.*
+
+→ Tu veux autre chose ? Crée ton propre JSON. L'outil s'adapte à **tes** goûts.
 
 ## Concept
 
-Une **pool party à Orlando** avec une montée progressive sur environ **6 heures**. Pensée pour mettre l'ambiance sans tuer la conversation au début, puis emmener tout le monde dans la piscine quand il faut.
+Une **pool party à Orlando** avec montée progressive sur ~6 heures. C'est le cas d'usage qui a lancé le projet — et la playlist d'exemple incluse dans le repo.
 
-**Contrainte absolue** : pas de reggaeton. Décision de papa. Non négociable. (Arthur et Léonard survivront.)
+**Note du créateur** : cette version n'inclut pas de reggaeton. C'est **sa** préférence personnelle pour **cette** playlist. Toi, tu fais ce qui te plaît — l'outil ne t'impose rien.
 
 ## Chiffres clés
 
@@ -107,11 +109,18 @@ cp playlists/orlando_pool_party_2026.json playlists/ma_pool_party.json
 python3 create_playlist.py --playlist playlists/ma_pool_party.json
 ```
 
-## Idées pour Arthur et Léonard
+## Idées de playlists (pour tout le monde)
 
-- Section **« Kids Energy »** avec leurs morceaux préférés
-- Section **« Papa's Classics »** — Bon Jovi, Journey, Queen (déjà présents !)
-- Durée adaptée : moins de morceaux = pool party plus courte
+| Idée | Mots-clés suggérés | Exclusions possibles |
+|------|-------------------|---------------------|
+| Pool party | tropical, dance, rising | *(aucune obligation)* |
+| Running | énergique, steady, 45min | ballades |
+| Soirée reggaeton | reggaeton, party, latin | — |
+| Étude | chill, lo-fi, instrumental | explicit |
+| Anniversaire kids | happy, sing-along | explicit |
+| Jazz dinner | jazz, smooth, steady | — |
+
+*Chaque ligne est un exemple. Tes exclusions sont **tes** règles, pas celles du créateur.*
 
 ---
 

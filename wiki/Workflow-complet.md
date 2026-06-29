@@ -1,8 +1,19 @@
 # Workflow complet
 
-*Le parcours de bout en bout — de la définition JSON à la piscine.*
+*Le parcours de bout en bout — manuel aujourd'hui, assisté demain.*
 
-## Vue d'ensemble
+→ Vision : [Vision et objectif](Vision-et-Objectif)
+
+## Deux chemins, une destination
+
+| Chemin | Disponibilité | Tu fournis… |
+|--------|---------------|-------------|
+| **Manuel (JSON)** | ✅ Maintenant | Sections + morceaux choisis |
+| **Assisté (génération)** | 🚧 Phase 2 | Mots-clés + morceaux de référence |
+
+Les deux aboutissent à une playlist Apple Music.
+
+## Vue d'ensemble — mode manuel (actuel)
 
 ```mermaid
 flowchart LR

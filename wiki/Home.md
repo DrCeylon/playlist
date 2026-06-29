@@ -1,18 +1,23 @@
 # 🎧 Apple Music Playlist Builder
 
-*Bienvenue dans le wiki officiel — écrit par un papa qui code entre deux playlists.*
+*Bienvenue — génère tes playlists Apple Music à partir de mots-clés, de morceaux de référence, ou d'une liste que tu as préparée.*
 
 ---
 
 ## En une phrase
 
-**Apple Music Playlist Builder** transforme un fichier JSON en playlist Apple Music, section par section, morceau par morceau — sans prise de tête.
+**Générer des playlists Apple Music** à partir de **mots-clés** ou de **morceaux de référence** — pour tout le monde, gratuitement, sans prise de tête.
 
-## Pourquoi ce projet existe
+→ Vision complète : [Vision et objectif](Vision-et-Objectif)
 
-Entre deux journées d'architecture Guidewire (PolicyCenter le matin, ClaimCenter l'après-midi, et parfois les deux dans la même réunion), j'avais envie de construire quelque chose de **léger, fun et utile** : une playlist parfaite pour une pool party à Orlando, générée proprement, rejouable, documentée.
+## Deux façons d'utiliser l'app
 
-Comme en assurance non-vie : on part d'un **besoin réel**, on structure un **contrat** (le JSON), on **valide** les entrées, on **exécute** le process, et on produit un **rapport** clair. Sauf qu'ici, le sinistre c'est un morceau introuvable — et heureusement, personne n'appelle le service client.
+| Mode | Statut | Description |
+|------|--------|-------------|
+| **Manuel** | ✅ Disponible | Tu écris un JSON → l'app crée la playlist |
+| **Assisté** | 🚧 Phase 2 | Tu donnes des seeds + mots-clés → l'app génère et crée |
+
+Les deux coexistent. Choisis selon ton envie du moment.
 
 ## Ce que tu peux faire aujourd'hui
 
@@ -23,7 +28,7 @@ Comme en assurance non-vie : on part d'un **besoin réel**, on structure un **co
 | Prévisualiser sans toucher à Music | `--dry-run` | Gratuit |
 | MusicKit API (catalogue direct) | `--engine musickit` | **Expérimental** — licence Apple Developer payante |
 
-## Workflow recommandé (3 étapes)
+## Workflow manuel (3 étapes)
 
 ```
 1. check_catalog.py     →  Rapport HTML avec liens Apple Music
@@ -31,14 +36,16 @@ Comme en assurance non-vie : on part d'un **besoin réel**, on structure un **co
 3. create_playlist.py   →  Playlist créée dans l'app Musique
 ```
 
-## Playlist vedette
+## Exemple fourni : Orlando Pool Party 2026
 
-**🏝 Orlando Pool Party 2026** — 7 sections, 96 morceaux, montée progressive, bonne humeur maximale, **zéro reggaeton** (décision de papa approuvée par Arthur et Léonard… enfin, surtout par moi).
+Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive.  
+C'est **sa** pool party à Orlando, **ses** goûts. Toi, tu fais ce qui te plaît.
 
-→ Voir [Playlist Orlando Pool Party](Playlist-Orlando-Pool-Party)
+→ [Playlist Orlando Pool Party](Playlist-Orlando-Pool-Party)
 
 ## Navigation du wiki
 
+- [**Vision et objectif**](Vision-et-Objectif) ← commence ici
 - [À propos — qui je suis](A-propos)
 - [Guide de démarrage rapide](Guide-de-demarrage)
 - [Workflow complet](Workflow-complet)
@@ -53,10 +60,10 @@ Comme en assurance non-vie : on part d'un **besoin réel**, on structure un **co
 
 ## Vision long terme
 
-Une **app iOS** pour générer des playlists depuis l'iPhone — parce que construire quelque chose de solide pour mes garçons et pour moi, c'est aussi ça, la reconstruction.
+Une **app iOS** pour que **n'importe qui** génère une playlist depuis son iPhone — mots-clés, morceaux de référence, un tap, c'est dans Apple Music.
 
 → [Feuille de route iOS](Feuille-de-route-iOS)
 
 ---
 
-*« On ne supprime pas les playlists. On reconstruit. »* — principe fondateur du projet
+*Projet perso, ouvert à tous. Écoute ce que tu veux — l'outil s'adapte à toi, pas l'inverse.*

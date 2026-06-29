@@ -26,6 +26,7 @@ git push origin master
 |---------|-----------|
 | `Home.md` | Page d'accueil |
 | `_Sidebar.md` | Navigation latérale |
+| `Vision-et-Objectif.md` | **Vision et objectif** (page centrale) |
 | `A-propos.md` | À propos |
 | `Guide-de-demarrage.md` | Guide de démarrage |
 | `Workflow-complet.md` | Workflow complet |

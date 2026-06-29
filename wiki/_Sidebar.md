@@ -2,8 +2,12 @@
 
 ---
 
-**Démarrer**
+**Vision**
+- [**Vision et objectif**](Vision-et-Objectif)
 - [À propos](A-propos)
+- [Principes produit](Principes-Produit)
+
+**Démarrer**
 - [Guide de démarrage](Guide-de-demarrage)
 - [Workflow complet](Workflow-complet)
 
@@ -21,5 +25,4 @@
 - [Feuille de route iOS](Feuille-de-route-iOS)
 
 **Support**
-- [Principes produit](Principes-Produit)
 - [Dépannage & FAQ](Depannage-et-FAQ)

@@ -1,20 +1,43 @@
 # Phase 2 — Génération intelligente
 
-*De la playlist manuelle à la playlist assistée — le futur proche.*
+*Le cœur de la vision — de « j'ai une liste » à « j'ai une vibe ».*
 
-## Vision
+→ Contexte : [Vision et objectif](Vision-et-Objectif)
 
-Aujourd'hui (Phase 1), tu définis **chaque morceau** dans le JSON. C'est précis, contrôlé, prévisible — mon côté PolicyCenter adore.
+## Pourquoi la Phase 2 est centrale
 
-Demain (Phase 2), tu fournis des **morceaux seeds** et des **contraintes**, et le système propose une playlist complète.
+La Phase 1 répond à : *« J'ai ma tracklist, crée-la dans Apple Music. »*
 
-Comme passer de la saisie manuelle d'une police à un **questionnaire intelligent** qui pré-remplit les garanties.
+La Phase 2 répond à : **« Voici des mots-clés et des morceaux de référence — construis-moi une playlist. »**
+
+C'est l'objectif principal de l'application. La Phase 1 est le socle fiable ; la Phase 2 est la raison d'être long terme.
+
+## Input utilisateur (cible)
+
+```
+┌─────────────────────────────────────────┐
+│  Morceaux de référence (seeds)          │
+│  → Kygo – Firestone, Avicii – Levels    │
+├─────────────────────────────────────────┤
+│  Mots-clés / contraintes                │
+│  → tropical, dance, rising, 4h        │
+├─────────────────────────────────────────┤
+│  Exclusions (optionnel)                 │
+│  → reggaeton, explicit… (TON choix)    │
+└─────────────────────────────────────────┘
+                    │
+                    ▼
+           Playlist générée
+                    │
+                    ▼
+           Apple Music 🎧
+```
 
 ## Modules concernés
 
 ### `playlist_builder/planning/`
 
-Planification avec contraintes métier.
+Planification avec contraintes.
 
 ```python
 from playlist_builder.planning.planner import PlaylistPlanner
@@ -29,7 +52,7 @@ from playlist_builder.planning.models import (
 |--------|------|
 | `PlaylistRequest` | Nom + seeds + contraintes |
 | `SeedTrack` | Morceau de référence avec poids |
-| `GenerationConstraints` | Durée, énergie, exclusions |
+| `GenerationConstraints` | Durée, énergie, mots-clés, exclusions |
 | `CandidateTrack` | Morceau candidat scoré |
 | `GeneratedPlaylist` | Résultat de la planification |
 
@@ -39,32 +62,22 @@ from playlist_builder.planning.models import (
 |--------|-------------|
 | `chill` | Détendu |
 | `steady` | Constant |
-| `rising` | Montée progressive (comme Orlando) |
+| `rising` | Montée progressive |
 | `party` | Maximum |
 
-#### Contraintes disponibles
+#### Contraintes — liberté totale
 
 ```python
 GenerationConstraints(
-    target_track_count=30,           # ou target_duration_minutes=180
+    target_duration_minutes=240,
     energy_profile=EnergyProfile.RISING,
-    excluded_terms=("reggaeton",),   # exclusion explicite !
-    preferred_terms=("tropical", "dance"),
+    preferred_terms=("tropical", "dance"),    # mots-clés souhaités
+    excluded_terms=("reggaeton",),             # TON exclusion, pas celle du créateur
     allow_explicit=True,
 )
 ```
 
-#### API principale
-
-```python
-planner = PlaylistPlanner()
-
-# Depuis seeds uniquement (Phase 2 actuelle)
-playlist = planner.plan_from_seeds_only(request)
-
-# Avec candidats externes (futur)
-playlist = planner.plan(request, candidates)
-```
+*Chaque utilisateur définit ses propres `excluded_terms`. L'exemple Orlando sans reggaeton est un choix personnel, pas une règle du moteur.*
 
 ### `playlist_builder/generation/`
 
@@ -72,82 +85,56 @@ Générateur déterministe sans effet de bord.
 
 ```python
 from playlist_builder.generation.generator import PlaylistGenerator
-from playlist_builder.generation.models import (
-    PlaylistRequest, PlaylistCandidate, GenerationConstraint, EnergyProfile
-)
 ```
 
-#### Principes
+- Seeds préservés en premier
+- Candidats triés par score
+- Déduplication par clé morceau
+- Aucun appel Apple Music (pur calcul, testable)
 
-- **Aucun appel Apple Music** — pur calcul
-- **Seeds préservés en premier** — tes morceaux de référence passent toujours
-- **Déduplication** par clé `artiste::titre`
-- **Tri par score** pour les candidats additionnels
-- **Testable** à 100 %
-
-#### API
-
-```python
-generator = PlaylistGenerator()
-result = generator.build(request, candidates)
-# result.tracks → liste ordonnée de TrackRef
-```
-
-## État actuel (honest status)
+## État actuel
 
 | Fonctionnalité | Statut |
 |----------------|--------|
-| Modèles de contraintes | ✅ Implémenté |
-| Planification depuis seeds | ✅ Implémenté |
+| Modèles de contraintes (mots-clés, exclusions) | ✅ |
+| Planification depuis seeds | ✅ |
 | Scoring des candidats | ✅ Basique |
-| Découverte catalogue auto | 🚧 À venir |
-| Similarité musicale (IA/API) | 📋 Planifié |
-| Export JSON playlist | 📋 Planifié |
-| Interface CLI dédiée | 📋 Planifié |
+| Découverte catalogue via mots-clés | 🚧 À venir |
+| Similarité musicale | 📋 Planifié |
+| Export JSON → `create_playlist.py` | 📋 Planifié |
+| CLI dédiée | 📋 Planifié |
 
-## Roadmap Phase 2
+## Cible utilisateur (exemples)
 
-```
-Phase 2a (actuel)     Modèles + planner + generator déterministes
-Phase 2b              Branchement iTunes Search pour candidats
-Phase 2c              Scoring avancé (BPM, énergie, genre)
-Phase 2d              Export JSON → create_playlist.py
-Phase 2e              CLI : playlist-generate --seeds "Kygo:Firestone" --duration 360
-```
+| Profil | Input | Résultat attendu |
+|--------|-------|------------------|
+| Pool party | seeds tropical + `rising` + 6h | Playlist montée progressive |
+| Running | seeds énergiques + `steady` + 45min | Playlist tempo constant |
+| Soirée reggaeton | seeds reggaeton + `party` | Playlist festive *(légitime !)* |
+| Étude | seeds lo-fi + `chill` + 2h | Playlist calme |
+| Papa Orlando | seeds perso + exclusions perso | Playlist Orlando 🏝 |
 
-## Exemple futur (cible)
+## CLI cible (futur)
 
 ```bash
 python3 generate_playlist.py \
-  --name "🏝 Pool Party Arthur & Léonard" \
+  --name "Ma Pool Party" \
   --seed "Kygo:Firestone" \
   --seed "Avicii:Levels" \
+  --keywords "tropical,dance,rising" \
   --duration 240 \
-  --energy rising \
-  --exclude reggaeton \
-  --output playlists/pool_party_kids.json
-```
+  --exclude "country" \
+  --output playlists/ma_playlist.json
 
-Puis :
-
-```bash
-python3 create_playlist.py --playlist playlists/pool_party_kids.json
+python3 create_playlist.py --playlist playlists/ma_playlist.json
 ```
 
 ## Lien avec l'app iOS
 
-Ces modules sont **portables vers Swift** :
-
-| Python | Swift (futur) |
-|--------|---------------|
-| `planning/models.py` | `struct PlaylistRequest` |
-| `planning/scoring.py` | `func rankCandidates()` |
-| `generation/generator.py` | `class PlaylistGenerator` |
-
-L'UI iOS appellera la même logique métier — seul le moteur Music change (MusicKit natif).
+La Phase 2 est le **cœur de l'expérience mobile** : taper des mots-clés, glisser des morceaux de référence, appuyer sur « Générer ».
 
 → [Feuille de route iOS](Feuille-de-route-iOS)
 
 ---
 
-*Phase 2, c'est reconstruire plus intelligemment. Comme reprendre un projet Guidewire en legacy : d'abord les contrats, ensuite l'automatisation.*
+*Phase 2 = donner une intention, recevoir une playlist. Comme souscrire une police avec des critères — sauf que le sinistre ici, c'est une soirée réussie.*
