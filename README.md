@@ -2,6 +2,8 @@
 
 Petit outil macOS pour créer automatiquement des playlists Apple Music à partir de fichiers JSON.
 
+📖 **[Documentation complète (Wiki)](https://github.com/DrCeylon/playlist/wiki)** — guide, architecture, FAQ et feuille de route iOS.
+
 ## Playlist incluse
 
 - **🏝 Orlando Pool Party 2026** : pool party Floride, bonne humeur, montée progressive, environ 6 h, sans reggaeton.
