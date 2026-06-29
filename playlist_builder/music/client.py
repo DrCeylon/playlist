@@ -23,6 +23,22 @@ end tell
 '''
         )
 
+    def clear_playlist_tracks(self, playlist_name: str) -> None:
+        escaped = apple_escape(playlist_name)
+        run_applescript(
+            f'''
+tell application "Music"
+    if not (exists user playlist "{escaped}") then
+        return
+    end if
+    set targetPlaylist to user playlist "{escaped}"
+    repeat while (count of tracks of targetPlaylist) > 0
+        delete track 1 of targetPlaylist
+    end repeat
+end tell
+'''
+        )
+
     def load_playlist_keys(self, playlist_name: str) -> set[str]:
         escaped = apple_escape(playlist_name)
         output = run_applescript(
@@ -44,6 +60,14 @@ end tell
             return set()
         return {self._normalize_key(part) for part in output.split(RESULT_DELIMITER) if part}
 
+    def sync_playlist_order(
+        self,
+        playlist_name: str,
+        tracks: list[TrackRef],
+    ) -> list[TrackAddResult]:
+        self.clear_playlist_tracks(playlist_name)
+        return self.add_tracks(playlist_name, tracks, allow_duplicates=True)
+
     def add_tracks(
         self,
         playlist_name: str,
@@ -56,24 +80,25 @@ end tell
             return []
 
         known_keys = existing_keys if existing_keys is not None else set()
-        results: list[TrackAddResult] = []
-        pending: list[TrackRef] = []
+        results: list[TrackAddResult | None] = [None] * len(tracks)
+        pending: list[tuple[int, TrackRef]] = []
 
-        for track in tracks:
+        for index, track in enumerate(tracks):
             if not allow_duplicates and track.key in known_keys:
-                results.append(TrackAddResult(track=track, status=TrackAddStatus.SKIPPED))
+                results[index] = TrackAddResult(track=track, status=TrackAddStatus.SKIPPED)
                 continue
-            pending.append(track)
+            pending.append((index, track))
 
         for offset in range(0, len(pending), BATCH_SIZE):
             batch = pending[offset : offset + BATCH_SIZE]
-            batch_results = self._add_tracks_batch(playlist_name, batch)
-            for result in batch_results:
+            indices, batch_tracks = zip(*batch, strict=True)
+            batch_results = self._add_tracks_batch(playlist_name, list(batch_tracks))
+            for index, result in zip(indices, batch_results, strict=True):
                 if result.status == TrackAddStatus.ADDED:
                     known_keys.add(result.track.key)
-                results.append(result)
+                results[index] = result
 
-        return results
+        return [result for result in results if result is not None]
 
     def _add_tracks_batch(self, playlist_name: str, tracks: list[TrackRef]) -> list[TrackAddResult]:
         escaped_playlist = apple_escape(playlist_name)

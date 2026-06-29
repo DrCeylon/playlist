@@ -77,7 +77,3 @@ class PlaylistPlanner:
                 break
 
         return selected[:target]
-
-    @staticmethod
-    def _limit(candidates: list[CandidateTrack], request: PlaylistRequest) -> list[CandidateTrack]:
-        return candidates[: PlaylistPlanner._target_count(request)]
