@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from playlist_builder.canonical.identity import track_identity_key
 from playlist_builder.core.applescript import apple_escape, run_applescript
 from playlist_builder.core.models import TrackAddResult, TrackAddStatus, TrackRef
 from playlist_builder.resolver.applescript import (
@@ -153,4 +154,4 @@ end tell
     @staticmethod
     def _normalize_key(value: str) -> str:
         artist, _, title = value.partition("::")
-        return f"{artist.strip().lower()}::{title.strip().lower()}"
+        return track_identity_key(artist, title)
