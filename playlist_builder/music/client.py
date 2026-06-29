@@ -3,10 +3,12 @@ from __future__ import annotations
 from playlist_builder.core.applescript import apple_escape, run_applescript
 from playlist_builder.core.models import TrackAddResult, TrackAddStatus, TrackRef
 from playlist_builder.resolver.applescript import (
-    FIELD_DELIMITER,
-    RESULT_DELIMITER,
-    build_resolve_batch_script,
+    build_candidate_collection_script,
+    build_duplicate_batch_script,
 )
+from playlist_builder.resolver.constants import CANDIDATE_DELIMITER, FIELD_DELIMITER, RESULT_DELIMITER
+from playlist_builder.resolver.models import ResolverCandidate
+from playlist_builder.resolver.selection import select_best_candidate
 
 BATCH_SIZE = 25
 
@@ -105,48 +107,73 @@ end tell
         return [result for result in results if result is not None]
 
     def _add_tracks_batch(self, playlist_name: str, tracks: list[TrackRef]) -> list[TrackAddResult]:
-        escaped_playlist = apple_escape(playlist_name)
-        script = build_resolve_batch_script(tracks).replace("{playlist_name}", escaped_playlist)
-
         try:
-            output = run_applescript(script)
+            candidate_rows = self._collect_candidate_rows(tracks)
+            decisions = [
+                select_best_candidate(track, self._parse_candidates(track, row))
+                for track, row in zip(tracks, candidate_rows, strict=True)
+            ]
+            selected_ids = [decision.selected.persistent_id for decision in decisions if decision.selected]
+            duplicate_statuses = self._duplicate_selected_tracks(playlist_name, selected_ids)
         except RuntimeError as exc:
             return [
                 TrackAddResult(track=track, status=TrackAddStatus.ERROR, error=str(exc))
                 for track in tracks
             ]
 
-        rows = output.split(RESULT_DELIMITER) if output else []
-        if len(rows) != len(tracks):
-            return [
-                TrackAddResult(
-                    track=track,
-                    status=TrackAddStatus.ERROR,
-                    error="Réponse AppleScript inattendue.",
-                )
-                for track in tracks
-            ]
-
+        status_iter = iter(duplicate_statuses)
         batch_results: list[TrackAddResult] = []
-        for track, row in zip(tracks, rows, strict=True):
-            status, _, _resolved_title, detail = self._parse_result_row(row)
-            if status == "added":
-                batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.ADDED))
-            elif status == "not_found":
-                batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.NOT_FOUND))
+        for decision in decisions:
+            if not decision.selected:
+                batch_results.append(TrackAddResult(track=decision.wanted, status=TrackAddStatus.NOT_FOUND))
+                continue
+
+            duplicate_status = next(status_iter, "not_found")
+            if duplicate_status == "added":
+                batch_results.append(TrackAddResult(track=decision.wanted, status=TrackAddStatus.ADDED))
             else:
-                batch_results.append(
-                    TrackAddResult(
-                        track=track,
-                        status=TrackAddStatus.ERROR,
-                        error=detail or "Statut AppleScript inconnu.",
-                    )
-                )
+                batch_results.append(TrackAddResult(track=decision.wanted, status=TrackAddStatus.NOT_FOUND))
         return batch_results
 
+    def _collect_candidate_rows(self, tracks: list[TrackRef]) -> list[str]:
+        output = run_applescript(build_candidate_collection_script(tracks))
+        rows = output.split(RESULT_DELIMITER) if output else []
+        if len(rows) != len(tracks):
+            raise RuntimeError("Réponse AppleScript inattendue pendant la collecte des candidats.")
+        return rows
+
+    def _duplicate_selected_tracks(self, playlist_name: str, persistent_ids: list[str]) -> list[str]:
+        if not persistent_ids:
+            return []
+        output = run_applescript(build_duplicate_batch_script(playlist_name, persistent_ids))
+        statuses = output.split(RESULT_DELIMITER) if output else []
+        if len(statuses) != len(persistent_ids):
+            raise RuntimeError("Réponse AppleScript inattendue pendant l'ajout des morceaux.")
+        return statuses
+
     @staticmethod
-    def _parse_result_row(row: str) -> tuple[str, str, str, str]:
-        parts = row.split(FIELD_DELIMITER)
+    def _parse_candidates(wanted: TrackRef, row: str) -> list[ResolverCandidate]:
+        if not row:
+            return []
+        candidates: list[ResolverCandidate] = []
+        for payload in row.split(CANDIDATE_DELIMITER):
+            if not payload:
+                continue
+            artist, title, persistent_id, _query = MusicClient._parse_candidate_payload(payload)
+            if artist and title and persistent_id:
+                candidates.append(
+                    ResolverCandidate(
+                        wanted=wanted,
+                        artist=artist,
+                        title=title,
+                        persistent_id=persistent_id,
+                    )
+                )
+        return candidates
+
+    @staticmethod
+    def _parse_candidate_payload(payload: str) -> tuple[str, str, str, str]:
+        parts = payload.split(FIELD_DELIMITER)
         padded = parts + [""] * (4 - len(parts))
         return padded[0], padded[1], padded[2], padded[3]
 
