@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 
 
@@ -31,3 +32,17 @@ class CatalogMatch:
     @property
     def found(self) -> bool:
         return bool(self.url)
+
+
+class TrackAddStatus(str, Enum):
+    ADDED = "added"
+    NOT_FOUND = "not_found"
+    SKIPPED = "skipped"
+    ERROR = "error"
+
+
+@dataclass(frozen=True)
+class TrackAddResult:
+    track: TrackRef
+    status: TrackAddStatus
+    error: str = ""
