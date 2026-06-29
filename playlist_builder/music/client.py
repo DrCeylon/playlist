@@ -1,77 +1,57 @@
 from __future__ import annotations
 
-from playlist_builder.canonical.identity import track_identity_key
-from playlist_builder.core.applescript import apple_escape, run_applescript
+from pathlib import Path
+
+from playlist_builder.canonical.compat import canonical_track_from_legacy
+from playlist_builder.canonical.enums import ImportStatus
+from playlist_builder.canonical.models import CanonicalPlaylist, CanonicalPlaylistSection
 from playlist_builder.core.models import TrackAddResult, TrackAddStatus, TrackRef
-from playlist_builder.resolver.applescript import (
-    FIELD_DELIMITER,
-    RESULT_DELIMITER,
-    build_resolve_batch_script,
-)
+from playlist_builder.integration.apple_music.gateway import build_apple_music_import_service
+from playlist_builder.integration.apple_music.import_service import AppleMusicImportService
+from playlist_builder.integration.apple_music.resolver import AppleMusicResolutionStatus
+from playlist_builder.integration.compat import track_results_aligned_with_playlist
 
 BATCH_SIZE = 25
+DEFAULT_IDENTITY_CACHE = Path("cache/apple_music_identity.json")
 
 
 class MusicClient:
+    """Backward-compatible facade over the Apple Music import service."""
+
+    def __init__(
+        self,
+        *,
+        import_service: AppleMusicImportService | None = None,
+        identity_cache_path: Path | None = None,
+    ) -> None:
+        self._service = import_service or build_apple_music_import_service(
+            identity_cache_path=identity_cache_path or DEFAULT_IDENTITY_CACHE,
+        )
+
+    @property
+    def _applescript(self):
+        return self._service.applescript
+
     def ensure_running(self) -> None:
-        run_applescript('tell application "Music" to activate')
+        self._applescript.ensure_running()
 
     def ensure_playlist(self, name: str) -> None:
-        escaped = apple_escape(name)
-        run_applescript(
-            f'''
-tell application "Music"
-    if not (exists user playlist "{escaped}") then
-        make new user playlist with properties {{name:"{escaped}"}}
-    end if
-end tell
-'''
-        )
+        self._applescript.ensure_playlist(name)
 
     def clear_playlist_tracks(self, playlist_name: str) -> None:
-        escaped = apple_escape(playlist_name)
-        run_applescript(
-            f'''
-tell application "Music"
-    if not (exists user playlist "{escaped}") then
-        return
-    end if
-    set targetPlaylist to user playlist "{escaped}"
-    repeat while (count of tracks of targetPlaylist) > 0
-        delete track 1 of targetPlaylist
-    end repeat
-end tell
-'''
-        )
+        self._applescript.clear_playlist_tracks(playlist_name)
 
     def load_playlist_keys(self, playlist_name: str) -> set[str]:
-        escaped = apple_escape(playlist_name)
-        output = run_applescript(
-            f'''
-tell application "Music"
-    set keyList to {{}}
-    if not (exists user playlist "{escaped}") then
-        return ""
-    end if
-    repeat with t in (tracks of user playlist "{escaped}")
-        set end of keyList to ((artist of t) as text) & "::" & ((name of t) as text)
-    end repeat
-    set AppleScript's text item delimiters to "{RESULT_DELIMITER}"
-    return keyList as text
-end tell
-'''
-        )
-        if not output:
-            return set()
-        return {self._normalize_key(part) for part in output.split(RESULT_DELIMITER) if part}
+        return self._applescript.load_playlist_keys(playlist_name)
 
     def sync_playlist_order(
         self,
         playlist_name: str,
         tracks: list[TrackRef],
     ) -> list[TrackAddResult]:
-        self.clear_playlist_tracks(playlist_name)
-        return self.add_tracks(playlist_name, tracks, allow_duplicates=True)
+        playlist = _playlist_from_tracks(playlist_name, tracks)
+        report = self._service.import_playlist(playlist, sync=True)
+        return _results_for_tracks(tracks, report)
 
     def add_tracks(
         self,
@@ -106,52 +86,72 @@ end tell
         return [result for result in results if result is not None]
 
     def _add_tracks_batch(self, playlist_name: str, tracks: list[TrackRef]) -> list[TrackAddResult]:
-        escaped_playlist = apple_escape(playlist_name)
-        script = build_resolve_batch_script(tracks).replace("{playlist_name}", escaped_playlist)
+        rows = [(canonical_track_from_legacy(track), track.section) for track in tracks]
+        outcomes = self._service.resolver.resolve_batch(rows)
 
-        try:
-            output = run_applescript(script)
-        except RuntimeError as exc:
-            return [
-                TrackAddResult(track=track, status=TrackAddStatus.ERROR, error=str(exc))
-                for track in tracks
-            ]
+        persistent_ids: list[str | None] = []
+        for outcome in outcomes:
+            if outcome.status == AppleMusicResolutionStatus.RESOLVED:
+                persistent_ids.append(outcome.persistent_id)
+            else:
+                persistent_ids.append(None)
 
-        rows = output.split(RESULT_DELIMITER) if output else []
-        if len(rows) != len(tracks):
-            return [
-                TrackAddResult(
-                    track=track,
-                    status=TrackAddStatus.ERROR,
-                    error="Réponse AppleScript inattendue.",
-                )
-                for track in tracks
-            ]
+        delivery_statuses = self._applescript.add_tracks_by_persistent_id_batch(
+            playlist_name,
+            persistent_ids,
+        )
 
         batch_results: list[TrackAddResult] = []
-        for track, row in zip(tracks, rows, strict=True):
-            status, _, _resolved_title, detail = self._parse_result_row(row)
-            if status == "added":
+        for track, outcome, delivery_status in zip(tracks, outcomes, delivery_statuses, strict=True):
+            if outcome.status == AppleMusicResolutionStatus.ERROR:
+                batch_results.append(
+                    TrackAddResult(track=track, status=TrackAddStatus.ERROR, error=outcome.error)
+                )
+                continue
+            if outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
+                batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.NOT_FOUND))
+                continue
+            if delivery_status.startswith("added"):
                 batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.ADDED))
-            elif status == "not_found":
+            elif delivery_status.startswith("not_found"):
                 batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.NOT_FOUND))
             else:
                 batch_results.append(
                     TrackAddResult(
                         track=track,
                         status=TrackAddStatus.ERROR,
-                        error=detail or "Statut AppleScript inconnu.",
+                        error="Erreur AppleScript lors de l'ajout.",
                     )
                 )
         return batch_results
 
     @staticmethod
-    def _parse_result_row(row: str) -> tuple[str, str, str, str]:
-        parts = row.split(FIELD_DELIMITER)
-        padded = parts + [""] * (4 - len(parts))
-        return padded[0], padded[1], padded[2], padded[3]
-
-    @staticmethod
     def _normalize_key(value: str) -> str:
+        from playlist_builder.canonical.identity import track_identity_key
+
         artist, _, title = value.partition("::")
         return track_identity_key(artist, title)
+
+
+def _playlist_from_tracks(name: str, tracks: list[TrackRef]) -> CanonicalPlaylist:
+    section_order: list[str] = []
+    section_tracks: dict[str, list] = {}
+    for track in tracks:
+        if track.section not in section_tracks:
+            section_order.append(track.section)
+            section_tracks[track.section] = []
+        section_tracks[track.section].append(canonical_track_from_legacy(track))
+
+    return CanonicalPlaylist(
+        name=name,
+        sections=tuple(
+            CanonicalPlaylistSection(name=section_name, tracks=tuple(section_tracks[section_name]))
+            for section_name in section_order
+        ),
+    )
+
+
+def _results_for_tracks(tracks: list[TrackRef], report) -> list[TrackAddResult]:
+    from playlist_builder.integration.compat import track_results_aligned_with_playlist
+
+    return track_results_aligned_with_playlist(tracks, report)

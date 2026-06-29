@@ -4,9 +4,14 @@ import argparse
 import sys
 from pathlib import Path
 
+from playlist_builder.canonical.compat import canonical_playlist_from_legacy
+from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.catalog.cache import JsonCache
 from playlist_builder.core.models import PlaylistDefinition, TrackAddStatus, TrackRef
 from playlist_builder.core.platform import require_macos
+from playlist_builder.integration.apple_music.gateway import build_default_registry
+from playlist_builder.integration.compat import track_results_aligned_with_playlist
+from playlist_builder.integration.gateway.service import IntegrationGateway
 from playlist_builder.music.client import MusicClient
 from playlist_builder.music.musickit_client import MusicKitClient, MusicKitConfigurationError
 from playlist_builder.playlists.loader import PlaylistValidationError, load_playlist
@@ -14,6 +19,7 @@ from playlist_builder.reports.playlist import write_playlist_report
 
 DEFAULT_PLAYLIST = Path("playlists/orlando_pool_party_2026.json")
 DEFAULT_MUSICKIT_CACHE = Path("cache/musickit_catalog.json")
+DEFAULT_IDENTITY_CACHE = Path("cache/apple_music_identity.json")
 MUSICKIT_EXPERIMENTAL_NOTICE = (
     "MusicKit est expérimental et nécessite un compte Apple Developer payant (99 USD/an). "
     "Le workflow recommandé reste AppleScript + check_catalog.py."
@@ -48,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSON cache file for MusicKit catalog lookups.",
     )
     parser.add_argument("--no-cache", action="store_true", help="Disable MusicKit catalog caching.")
+    parser.add_argument(
+        "--identity-cache",
+        type=Path,
+        default=DEFAULT_IDENTITY_CACHE,
+        help="JSON cache file for Apple Music identity resolution mappings.",
+    )
     return parser
 
 
@@ -80,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         playlist,
         incremental=args.incremental,
         allow_duplicates=args.allow_duplicates,
+        identity_cache_path=args.identity_cache,
     )
 
 
@@ -127,14 +140,18 @@ def _run_applescript(
     *,
     incremental: bool,
     allow_duplicates: bool,
+    identity_cache_path: Path,
 ) -> int:
     require_macos("l'application Music")
 
-    client = MusicClient()
-    client.ensure_running()
-    client.ensure_playlist(playlist.name)
+    registry = build_default_registry(identity_cache_path=identity_cache_path)
+    gateway = IntegrationGateway(registry)
+    apple_gateway = registry.require(ProviderId.APPLE_MUSIC)
 
     if incremental:
+        client = MusicClient(identity_cache_path=identity_cache_path)
+        client.ensure_running()
+        client.ensure_playlist(playlist.name)
         existing_keys = None if allow_duplicates else client.load_playlist_keys(playlist.name)
         ordered_results = client.add_tracks(
             playlist.name,
@@ -142,9 +159,13 @@ def _run_applescript(
             existing_keys=existing_keys,
             allow_duplicates=allow_duplicates,
         )
+        apple_gateway.import_service.identity_cache.flush()
     else:
         print("🔁 Synchronisation de la playlist selon l'ordre des sections du JSON...")
-        ordered_results = client.sync_playlist_order(playlist.name, playlist.tracks)
+        canonical_playlist = canonical_playlist_from_legacy(playlist)
+        report = gateway.import_playlist(canonical_playlist, sync=True)
+        ordered_results = track_results_aligned_with_playlist(playlist.tracks, report)
+        apple_gateway.import_service.identity_cache.flush()
 
     _print_results(playlist.tracks, ordered_results)
     return _write_summary(playlist.name, ordered_results)
