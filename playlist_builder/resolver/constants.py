@@ -4,7 +4,7 @@ from playlist_builder.scoring.constants import MIN_ACCEPTABLE_SCORE
 
 FIELD_DELIMITER = "\x1e"
 RESULT_DELIMITER = "\x1f"
-MAX_QUERY_VARIANTS = 6
+MAX_QUERY_VARIANTS = 12
 
 _GENERIC_SECTIONS = frozenset({"playlist", "generated", "discovery"})
 
