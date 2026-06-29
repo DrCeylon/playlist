@@ -39,11 +39,12 @@ def test_query_variants_are_capped():
     assert len(variants) <= MAX_QUERY_VARIANTS
 
 
-def test_build_resolve_batch_script_uses_contains_fallback():
+def test_build_resolve_batch_script_collects_candidates():
     script = build_resolve_batch_script([TrackRef("Kygo", "Firestone")])
 
-    assert 'candidateName contains "Firestone"' in script
+    assert "set candidateRows to {}" in script
     assert "search library playlist 1" in script
+    assert "persistent ID of candidateTrack" in script
 
 
 def test_is_acceptable_match_rejects_unrelated_candidate():
