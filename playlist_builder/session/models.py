@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from playlist_builder.discovery.models import CandidatePool, DiscoveryResult
@@ -23,7 +23,7 @@ class GenerationSession:
     analysis: PlaylistAnalysis | None = None
     report: str = ""
     session_id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def candidate_pool(self) -> CandidatePool | None:
