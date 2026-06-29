@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from playlist_builder.discovery.models import merge_candidate_tracks
 from playlist_builder.discovery.pipeline import DiscoveryPipeline
 from playlist_builder.planning.analyzer import PlaylistAnalyzer
-from playlist_builder.planning.models import CandidateTrack, PlaylistRequest
+from playlist_builder.planning.models import CandidateTrack, PlaylistRequest, merge_candidate_tracks
 from playlist_builder.planning.planner import PlaylistPlanner
 from playlist_builder.planning.report import build_mad_scientist_report
 from playlist_builder.session.models import GenerationSession
@@ -31,7 +30,7 @@ class GenerationSessionEngine:
     def generate(self, request: PlaylistRequest, extra_candidates: list[CandidateTrack] | None = None) -> GenerationSession:
         seed_candidates = self.planner.seed_candidates(request)
         discovery_result = self.discovery.discover(request)
-        discovered = list(discovery_result.pool.candidates)
+        discovered = DiscoveryPipeline.to_planning_candidates(discovery_result)
         extras = list(extra_candidates or [])
 
         # Seeds are merged last so reference tracks always win deduplication.

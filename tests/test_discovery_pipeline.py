@@ -1,8 +1,17 @@
 from unittest.mock import MagicMock
 
+from playlist_builder.canonical.compat import canonical_track_from_legacy
+from playlist_builder.canonical.models import (
+    CanonicalAlbum,
+    CanonicalArtist,
+    CanonicalCandidate,
+    CanonicalSearchRequest,
+    CanonicalSearchResponse,
+    CanonicalTrack,
+)
 from playlist_builder.core.models import CatalogMatch, TrackRef
 from playlist_builder.discovery.itunes_provider import ITunesCandidateProvider, candidate_from_itunes_match
-from playlist_builder.discovery.models import CandidatePool, DiscoveryQuery
+from playlist_builder.discovery.models import CandidatePool, DiscoveryCandidate, DiscoveryQuery
 from playlist_builder.discovery.pipeline import DiscoveryPipeline
 from playlist_builder.discovery.probe import wanted_match_fields
 from playlist_builder.discovery.providers import StaticCandidateProvider
@@ -81,33 +90,41 @@ def test_candidate_from_itunes_match_maps_metadata():
     assert candidate.explicit is False
 
 
-def test_itunes_provider_uses_search_term_and_metadata():
-    search = MagicMock()
-    search.search_term.return_value = CatalogMatch(
-        query=TrackRef("Koji Kondo", "Gerudo Valley"),
-        matched_artist="Koji Kondo",
-        matched_title="Gerudo Valley",
-        url="https://music.apple.com/example",
-        raw={"primaryGenreName": "Soundtrack", "collectionName": "Zelda"},
+def test_itunes_provider_uses_catalog_search_and_metadata():
+    catalog = MagicMock()
+    catalog.search.return_value = CanonicalSearchResponse(
+        request=CanonicalSearchRequest(query="Koji Kondo - Gerudo Valley"),
+        candidates=(
+            CanonicalCandidate(
+                track=CanonicalTrack(
+                    artist=CanonicalArtist(name="Koji Kondo"),
+                    title="Gerudo Valley",
+                    album=CanonicalAlbum(title="Zelda", artist=CanonicalArtist(name="Koji Kondo")),
+                    genres=("Soundtrack",),
+                ),
+                source="apple_music_catalog",
+            ),
+        ),
     )
-    provider = ITunesCandidateProvider(search)
+    provider = ITunesCandidateProvider(catalog)
     query = DiscoveryQuery(term="Koji Kondo - Gerudo Valley", source="seed", weight=1.0)
 
     candidates = provider.discover(_request(), [query])
 
-    search.search_term.assert_called_once_with(
-        "Koji Kondo - Gerudo Valley",
-        wanted_artist="Koji Kondo",
-        wanted_title="Gerudo Valley",
-        limit=10,
-    )
+    catalog.search.assert_called_once()
+    search_request = catalog.search.call_args.args[0]
+    assert search_request.query == "Koji Kondo - Gerudo Valley"
+    assert search_request.wanted_artist == "Koji Kondo"
+    assert search_request.wanted_title == "Gerudo Valley"
+    assert search_request.limit == 10
     assert candidates[0].genre == "Soundtrack"
 
 
 def test_candidate_pool_deduplicates_and_merges_metadata():
     request = _request()
-    low = CandidateTrack(TrackRef("A", "Same"), score=10, genre="")
-    high = CandidateTrack(TrackRef("A", "Same"), score=80, genre="OST")
+    track = canonical_track_from_legacy(TrackRef("A", "Same"))
+    low = DiscoveryCandidate(track=track, score=10, genre="")
+    high = DiscoveryCandidate(track=track, score=80, genre="OST")
 
     pool = CandidatePool(request=request, candidates=(low, high)).deduplicated()
 

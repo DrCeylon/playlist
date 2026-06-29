@@ -138,6 +138,22 @@ class CandidateTrack:
         ).lower()
 
 
+def merge_candidate_tracks(existing: CandidateTrack, incoming: CandidateTrack) -> CandidateTrack:
+    winner, other = (incoming, existing) if incoming.score > existing.score else (existing, incoming)
+    return CandidateTrack(
+        track=winner.track,
+        score=winner.score,
+        source=winner.source,
+        reasons=tuple(dict.fromkeys((*winner.reasons, *other.reasons))),
+        album=winner.album or other.album,
+        genre=winner.genre or other.genre,
+        mood=winner.mood or other.mood,
+        language=winner.language or other.language,
+        energy=winner.energy if winner.energy is not None else other.energy,
+        explicit=winner.explicit or other.explicit,
+    )
+
+
 @dataclass(frozen=True)
 class GeneratedPlaylist:
     request: PlaylistRequest

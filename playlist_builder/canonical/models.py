@@ -77,6 +77,8 @@ class CanonicalSearchRequest:
     query: str
     limit: int = 10
     country_code: str = "us"
+    wanted_artist: str = ""
+    wanted_title: str = ""
 
 
 @dataclass(frozen=True, slots=True)

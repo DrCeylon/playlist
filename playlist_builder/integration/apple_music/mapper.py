@@ -1,0 +1,144 @@
+from __future__ import annotations
+
+from playlist_builder.canonical.enums import ProviderId
+from playlist_builder.canonical.models import (
+    CanonicalAlbum,
+    CanonicalArtist,
+    CanonicalCandidate,
+    CanonicalSearchRequest,
+    CanonicalSearchResponse,
+    CanonicalTrack,
+)
+from playlist_builder.core.models import CatalogMatch, TrackRef
+from playlist_builder.discovery.models import DiscoveryCandidate, DiscoveryQuery
+from playlist_builder.integration.apple_music.models import AppleITunesSearchHit
+from playlist_builder.planning.models import CandidateTrack
+from playlist_builder.scoring.match_engine import score_text_match
+
+
+def canonical_candidate_from_itunes_hit(
+    hit: AppleITunesSearchHit,
+    *,
+    source: str,
+    reasons: tuple[str, ...] = (),
+    request: CanonicalSearchRequest,
+    wanted_artist: str,
+    wanted_title: str,
+) -> CanonicalCandidate:
+    confidence = float(
+        score_text_match(wanted_artist or request.query, wanted_title or request.query, hit.artist_name, hit.track_name)
+    )
+    return CanonicalCandidate(
+        track=CanonicalTrack(
+            artist=CanonicalArtist(name=hit.artist_name),
+            title=hit.track_name,
+            album=CanonicalAlbum(title=hit.collection_name, artist=CanonicalArtist(name=hit.artist_name))
+            if hit.collection_name
+            else None,
+            explicit=hit.is_explicit,
+            genres=(hit.primary_genre_name,) if hit.primary_genre_name else (),
+        ),
+        source=source,
+        provider_hints=(hit.track_view_url,) if hit.track_view_url else (),
+        raw_confidence=confidence,
+        reasons=reasons,
+    )
+
+
+def discovery_candidate_from_canonical(
+    candidate: CanonicalCandidate,
+    *,
+    query: DiscoveryQuery,
+    album: str = "",
+    genre: str = "",
+) -> DiscoveryCandidate:
+    return DiscoveryCandidate(
+        track=candidate.track,
+        score=max(1.0, 40.0 * query.weight),
+        source=candidate.source or ProviderId.APPLE_MUSIC.value,
+        reasons=(*candidate.reasons, f"query:{query.source}:{query.term}"),
+        album=candidate.track.album.title if candidate.track.album else album,
+        genre=genre or (candidate.track.genres[0] if candidate.track.genres else ""),
+        explicit=candidate.track.explicit,
+        provider_id=ProviderId.APPLE_MUSIC,
+        catalog_url=candidate.provider_hints[0] if candidate.provider_hints else "",
+    )
+
+
+def discovery_candidate_to_planning(candidate: DiscoveryCandidate) -> CandidateTrack:
+    from playlist_builder.canonical.compat import legacy_track_from_canonical
+
+    return CandidateTrack(
+        track=legacy_track_from_canonical(
+            candidate.track,
+            section=candidate.section or "Discovery",
+        ),
+        score=candidate.score,
+        source=candidate.source,
+        reasons=candidate.reasons,
+        album=candidate.album,
+        genre=candidate.genre,
+        mood=candidate.mood,
+        language=candidate.language,
+        energy=candidate.energy,
+        explicit=candidate.explicit,
+    )
+
+
+def catalog_match_from_track_search(
+    track: TrackRef,
+    *,
+    hit: AppleITunesSearchHit | None,
+    error: str = "",
+) -> CatalogMatch:
+    if hit is None:
+        return CatalogMatch(query=track, error=error)
+    return CatalogMatch(
+        query=track,
+        matched_artist=hit.artist_name,
+        matched_title=hit.track_name,
+        url=hit.track_view_url,
+        raw=hit.raw,
+        error=error,
+    )
+
+
+def catalog_match_from_term_search(
+    *,
+    wanted_artist: str,
+    wanted_title: str,
+    term: str,
+    hit: AppleITunesSearchHit | None,
+    error: str = "",
+) -> CatalogMatch:
+    probe = TrackRef(artist=wanted_artist or term, title=wanted_title or term, section="Catalog")
+    if hit is None:
+        return CatalogMatch(query=probe, error=error)
+    return CatalogMatch(
+        query=probe,
+        matched_artist=hit.artist_name,
+        matched_title=hit.track_name,
+        url=hit.track_view_url,
+        raw=hit.raw,
+        error=error,
+    )
+
+
+def search_response_from_hit(
+    request: CanonicalSearchRequest,
+    hit: AppleITunesSearchHit | None,
+    *,
+    source: str,
+    reasons: tuple[str, ...] = (),
+) -> CanonicalSearchResponse:
+    if hit is None:
+        return CanonicalSearchResponse(request=request, candidates=())
+    candidate = canonical_candidate_from_itunes_hit(
+        hit,
+        source=source,
+        reasons=reasons,
+        request=request,
+        wanted_artist=request.wanted_artist,
+        wanted_title=request.wanted_title,
+    )
+    return CanonicalSearchResponse(request=request, candidates=(candidate,))

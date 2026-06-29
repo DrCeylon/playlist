@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 
 from playlist_builder.canonical.constants import DEFAULT_PLAYLIST_DESCRIPTION
-from playlist_builder.catalog.apple_search import AppleCatalogSearch
 from playlist_builder.catalog.cache import JsonCache
 from playlist_builder.catalog.rate_limiter import RateLimiter
 from playlist_builder.cli.generate_args import (
@@ -16,6 +15,7 @@ from playlist_builder.cli.generate_args import (
 from playlist_builder.discovery.itunes_provider import ITunesCandidateProvider
 from playlist_builder.discovery.pipeline import DiscoveryPipeline
 from playlist_builder.discovery.providers import StaticCandidateProvider
+from playlist_builder.integration.apple_music.gateway import build_apple_music_gateway
 from playlist_builder.playlists.exporter import write_generated_playlist
 from playlist_builder.session.engine import GenerationSessionEngine
 
@@ -172,12 +172,13 @@ def _build_engine(args: argparse.Namespace) -> tuple[GenerationSessionEngine, Js
         return GenerationSessionEngine(DiscoveryPipeline([StaticCandidateProvider([])])), None
 
     cache = None if args.no_cache else JsonCache(args.cache)
-    search = AppleCatalogSearch(
+    gateway = build_apple_music_gateway(
         country=args.country,
         cache=cache,
         rate_limiter=RateLimiter(minimum_interval_seconds=max(0.0, args.sleep)),
     )
-    return GenerationSessionEngine(DiscoveryPipeline([ITunesCandidateProvider(search)])), cache
+    provider = ITunesCandidateProvider(gateway.catalog, country_code=args.country)
+    return GenerationSessionEngine(DiscoveryPipeline([provider])), cache
 
 
 if __name__ == "__main__":
