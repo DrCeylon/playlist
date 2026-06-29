@@ -3,7 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from playlist_builder.core.models import TrackRef
+from playlist_builder.core.models import (
+    DEFAULT_PLAYLIST_DESCRIPTION,
+    PlaylistDefinition,
+    PlaylistSection,
+    TrackRef,
+)
 
 
 class PlaylistValidationError(ValueError):
@@ -29,7 +34,7 @@ def _require_text_field(item: dict, field: str, *, section: str, index: int) -> 
     return cleaned
 
 
-def load_playlist(path: Path) -> tuple[str, list[TrackRef]]:
+def load_playlist(path: Path) -> PlaylistDefinition:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -42,18 +47,23 @@ def load_playlist(path: Path) -> tuple[str, list[TrackRef]]:
     if not isinstance(playlist_name, str) or not playlist_name.strip():
         raise PlaylistValidationError("Le champ 'name' est requis et ne peut pas être vide.")
 
-    sections = data.get("sections", [])
-    if not isinstance(sections, list):
+    description = data.get("description", DEFAULT_PLAYLIST_DESCRIPTION)
+    if not isinstance(description, str) or not description.strip():
+        description = DEFAULT_PLAYLIST_DESCRIPTION
+
+    sections_data = data.get("sections", [])
+    if not isinstance(sections_data, list):
         raise PlaylistValidationError("Le champ 'sections' doit être une liste.")
 
-    tracks: list[TrackRef] = []
-    for section_index, section in enumerate(sections):
+    sections: list[PlaylistSection] = []
+    for section_index, section in enumerate(sections_data):
         if not isinstance(section, dict):
             raise PlaylistValidationError(f"La section #{section_index + 1} doit être un objet JSON.")
 
         section_name = section.get("name", "Playlist")
         if not isinstance(section_name, str) or not section_name.strip():
             section_name = "Playlist"
+        section_name = section_name.strip()
 
         songs = section.get("songs", [])
         if not isinstance(songs, list):
@@ -61,17 +71,24 @@ def load_playlist(path: Path) -> tuple[str, list[TrackRef]]:
                 f"Le champ 'songs' de la section '{section_name}' doit être une liste."
             )
 
+        section_tracks: list[TrackRef] = []
         for song_index, item in enumerate(songs):
             if not isinstance(item, dict):
                 raise PlaylistValidationError(
                     f"Le morceau #{song_index + 1} de la section '{section_name}' doit être un objet JSON."
                 )
-            tracks.append(
+            section_tracks.append(
                 TrackRef(
                     artist=_require_text_field(item, "artist", section=section_name, index=song_index),
                     title=_require_text_field(item, "title", section=section_name, index=song_index),
-                    section=section_name.strip(),
+                    section=section_name,
                 )
             )
 
-    return playlist_name.strip(), tracks
+        sections.append(PlaylistSection(name=section_name, tracks=tuple(section_tracks)))
+
+    return PlaylistDefinition(
+        name=playlist_name.strip(),
+        sections=tuple(sections),
+        description=description.strip(),
+    )

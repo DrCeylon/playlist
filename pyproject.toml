@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "playlist-builder"
-version = "0.4.0"
+version = "0.6.0"
 description = "Apple Music playlist builder from JSON definitions"
 readme = "README.md"
 requires-python = ">=3.10"

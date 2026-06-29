@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        playlist_name, tracks = load_playlist(args.playlist)
+        playlist = load_playlist(args.playlist)
     except PlaylistValidationError as exc:
         print(f"Playlist invalide: {exc}", file=sys.stderr)
         return 1
@@ -59,25 +59,25 @@ def main(argv: list[str] | None = None) -> int:
         rate_limiter=RateLimiter(minimum_interval_seconds=max(0.0, args.sleep)),
     )
 
-    print(f"🎧 {playlist_name}")
-    print(f"🔎 Vérification catalogue Apple/iTunes: {len(tracks)} morceaux")
+    print(f"🎧 {playlist.name}")
+    print(f"🔎 Vérification catalogue Apple/iTunes: {len(playlist.tracks)} morceaux")
 
     matches = []
     try:
-        for index, track in enumerate(tracks, 1):
+        for index, track in enumerate(playlist.tracks, 1):
             match = searcher.search_track(track)
             matches.append(match)
             if match.found:
-                print(f"✅ {index:03d}/{len(tracks)} {track.label}")
+                print(f"✅ {index:03d}/{len(playlist.tracks)} {track.label}")
             elif match.error:
-                print(f"⚠️  {index:03d}/{len(tracks)} {track.label}: {match.error}")
+                print(f"⚠️  {index:03d}/{len(playlist.tracks)} {track.label}: {match.error}")
             else:
-                print(f"❌ {index:03d}/{len(tracks)} {track.label}")
+                print(f"❌ {index:03d}/{len(playlist.tracks)} {track.label}")
     finally:
         if searcher.cache:
             searcher.cache.flush()
 
-    csv_path, html_path = write_catalog_reports(playlist_name, matches, Path("reports"))
+    csv_path, html_path = write_catalog_reports(playlist.name, matches, Path("reports"))
     found = sum(1 for match in matches if match.found)
 
     print("\nTerminé.")

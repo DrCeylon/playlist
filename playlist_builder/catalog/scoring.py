@@ -3,13 +3,22 @@ from __future__ import annotations
 from typing import Any
 
 MIN_MATCH_SCORE = 30
+MIN_MUSICKIT_MATCH_SCORE = 60
+
+
+def extract_artist_title(item: dict[str, Any]) -> tuple[str, str]:
+    attributes = item.get("attributes")
+    if isinstance(attributes, dict):
+        return attributes.get("artistName", ""), attributes.get("name", "")
+    return item.get("artistName", ""), item.get("trackName", "")
 
 
 def score_track_match(wanted_artist: str, wanted_title: str, item: dict[str, Any]) -> int:
-    artist = item.get("artistName", "").lower()
-    title = item.get("trackName", "").lower()
+    artist, title = extract_artist_title(item)
     wanted_artist = wanted_artist.lower()
     wanted_title = wanted_title.lower()
+    artist = artist.lower()
+    title = title.lower()
 
     value = 0
     if wanted_artist == artist:
@@ -33,7 +42,14 @@ def pick_best_match(
     if not results:
         return None
 
-    best = max(results, key=lambda item: score_track_match(wanted_artist, wanted_title, item))
-    if score_track_match(wanted_artist, wanted_title, best) < min_score:
+    best_score = -1
+    best: dict[str, Any] | None = None
+    for item in results:
+        score = score_track_match(wanted_artist, wanted_title, item)
+        if score > best_score:
+            best_score = score
+            best = item
+
+    if best is None or best_score < min_score:
         return None
     return best

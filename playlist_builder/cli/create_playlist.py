@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from playlist_builder.core.models import TrackAddStatus
+from playlist_builder.core.models import PlaylistDefinition, TrackAddStatus, TrackRef
 from playlist_builder.core.platform import require_macos
 from playlist_builder.music.client import MusicClient
 from playlist_builder.music.musickit_client import MusicKitClient, MusicKitConfigurationError
@@ -12,15 +12,37 @@ from playlist_builder.playlists.loader import PlaylistValidationError, load_play
 from playlist_builder.reports.playlist import write_playlist_report
 
 DEFAULT_PLAYLIST = Path("playlists/orlando_pool_party_2026.json")
+MUSICKIT_EXPERIMENTAL_NOTICE = (
+    "MusicKit est expérimental et nécessite un compte Apple Developer payant (99 USD/an). "
+    "Le workflow recommandé reste AppleScript + check_catalog.py."
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Create Apple Music playlists from JSON files.")
     parser.add_argument("--playlist", type=Path, default=DEFAULT_PLAYLIST)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--allow-duplicates", action="store_true")
-    parser.add_argument("--engine", choices=["applescript", "musickit"], default="applescript")
-    parser.add_argument("--storefront", default="us", help="Apple Music storefront for MusicKit, e.g. us, ch, fr")
+    parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="Ajoute uniquement les morceaux manquants sans réordonner la playlist.",
+    )
+    parser.add_argument(
+        "--allow-duplicates",
+        action="store_true",
+        help="En mode incrémental, autorise les doublons. Ignoré en mode sync (défaut).",
+    )
+    parser.add_argument(
+        "--engine",
+        choices=["applescript", "musickit"],
+        default="applescript",
+        help="Moteur de création. applescript (recommandé) ou musickit (expérimental, licence payante).",
+    )
+    parser.add_argument(
+        "--storefront",
+        default="us",
+        help="Storefront Apple Music pour le moteur musickit expérimental.",
+    )
     return parser
 
 
@@ -32,29 +54,47 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        playlist_name, tracks = load_playlist(args.playlist)
+        playlist = load_playlist(args.playlist)
     except PlaylistValidationError as exc:
         print(f"Playlist invalide: {exc}", file=sys.stderr)
         return 1
 
-    print(f"🎧 Playlist: {playlist_name}")
-    print(f"🎵 Morceaux: {len(tracks)}")
+    print(f"🎧 Playlist: {playlist.name}")
+    print(f"🎵 Morceaux: {len(playlist.tracks)}")
+    print(f"📂 Sections: {len(playlist.sections)}")
 
     if args.dry_run:
-        for index, track in enumerate(tracks, 1):
-            print(f"{index:03d}. [{track.section}] {track.label}")
+        _print_dry_run(playlist)
         return 0
 
     if args.engine == "musickit":
-        return _run_musickit(playlist_name, tracks, args.storefront)
+        print(f"⚠️  {MUSICKIT_EXPERIMENTAL_NOTICE}", file=sys.stderr)
+        return _run_musickit(playlist, args.storefront)
 
-    return _run_applescript(playlist_name, tracks, allow_duplicates=args.allow_duplicates)
+    return _run_applescript(
+        playlist,
+        incremental=args.incremental,
+        allow_duplicates=args.allow_duplicates,
+    )
 
 
-def _run_musickit(playlist_name: str, tracks, storefront: str) -> int:
+def _print_dry_run(playlist: PlaylistDefinition) -> None:
+    index = 1
+    for section in playlist.sections:
+        print(f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{section.name}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        for track in section.tracks:
+            print(f"{index:03d}. [{track.section}] {track.label}")
+            index += 1
+
+
+def _run_musickit(playlist: PlaylistDefinition, storefront: str) -> int:
     try:
         client = MusicKitClient.from_env(storefront=storefront)
-        ordered_results = client.create_or_update_playlist(playlist_name, tracks)
+        ordered_results = client.create_or_update_playlist(
+            playlist.name,
+            playlist.tracks,
+            description=playlist.description,
+        )
     except MusicKitConfigurationError as exc:
         print(f"Configuration MusicKit manquante: {exc}", file=sys.stderr)
         return 2
@@ -62,30 +102,39 @@ def _run_musickit(playlist_name: str, tracks, storefront: str) -> int:
         print(f"Erreur MusicKit: {exc}", file=sys.stderr)
         return 3
 
-    _print_results(tracks, ordered_results)
-    return _write_summary(playlist_name, ordered_results)
+    _print_results(playlist.tracks, ordered_results)
+    return _write_summary(playlist.name, ordered_results)
 
 
-def _run_applescript(playlist_name: str, tracks, *, allow_duplicates: bool) -> int:
+def _run_applescript(
+    playlist: PlaylistDefinition,
+    *,
+    incremental: bool,
+    allow_duplicates: bool,
+) -> int:
     require_macos("l'application Music")
 
     client = MusicClient()
     client.ensure_running()
-    client.ensure_playlist(playlist_name)
+    client.ensure_playlist(playlist.name)
 
-    existing_keys = None if allow_duplicates else client.load_playlist_keys(playlist_name)
-    ordered_results = client.add_tracks(
-        playlist_name,
-        tracks,
-        existing_keys=existing_keys,
-        allow_duplicates=allow_duplicates,
-    )
+    if incremental:
+        existing_keys = None if allow_duplicates else client.load_playlist_keys(playlist.name)
+        ordered_results = client.add_tracks(
+            playlist.name,
+            playlist.tracks,
+            existing_keys=existing_keys,
+            allow_duplicates=allow_duplicates,
+        )
+    else:
+        print("🔁 Synchronisation de la playlist selon l'ordre des sections du JSON...")
+        ordered_results = client.sync_playlist_order(playlist.name, playlist.tracks)
 
-    _print_results(tracks, ordered_results)
-    return _write_summary(playlist_name, ordered_results)
+    _print_results(playlist.tracks, ordered_results)
+    return _write_summary(playlist.name, ordered_results)
 
 
-def _print_results(tracks, ordered_results) -> None:
+def _print_results(tracks: list[TrackRef], ordered_results) -> None:
     current_section: str | None = None
     for index, result in enumerate(ordered_results, 1):
         if result.track.section != current_section:

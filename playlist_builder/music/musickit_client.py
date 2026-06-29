@@ -8,6 +8,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
+from playlist_builder.catalog.scoring import MIN_MUSICKIT_MATCH_SCORE, pick_best_match
 from playlist_builder.core.models import TrackAddResult, TrackAddStatus, TrackRef
 
 API_BASE = "https://api.music.apple.com/v1"
@@ -34,10 +35,10 @@ class MusicKitCredentials:
 
 
 class MusicKitClient:
-    """Apple Music API client.
+    """Prototype Apple Music API client (experimental).
 
-    This client intentionally supports create/update only. It does not expose playlist
-    deletion because the product direction explicitly excludes destructive actions.
+    Requires a paid Apple Developer Program membership. Not used in the
+    recommended free workflow (AppleScript + iTunes Search API).
     """
 
     def __init__(self, credentials: MusicKitCredentials, storefront: str = "us") -> None:
@@ -81,7 +82,12 @@ class MusicKitClient:
         query = urllib.parse.urlencode({"term": term, "types": "songs", "limit": "10"})
         data = self._request_json("GET", f"/catalog/{self.storefront}/search?{query}")
         candidates = data.get("results", {}).get("songs", {}).get("data", [])
-        best = self._pick_best(track, candidates)
+        best = pick_best_match(
+            track.artist,
+            track.title,
+            candidates,
+            min_score=MIN_MUSICKIT_MATCH_SCORE,
+        )
         if not best:
             return None, "Aucune correspondance MusicKit fiable."
         return best.get("id"), ""
@@ -137,27 +143,3 @@ class MusicKitClient:
             detail = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"MusicKit HTTP {exc.code}: {detail}") from exc
 
-    @staticmethod
-    def _pick_best(track: TrackRef, candidates: list[dict[str, Any]]) -> dict[str, Any] | None:
-        scored = sorted(candidates, key=lambda item: MusicKitClient._score(track, item), reverse=True)
-        if not scored:
-            return None
-        return scored[0] if MusicKitClient._score(track, scored[0]) >= 60 else None
-
-    @staticmethod
-    def _score(track: TrackRef, item: dict[str, Any]) -> int:
-        attributes = item.get("attributes", {})
-        artist = attributes.get("artistName", "").lower()
-        title = attributes.get("name", "").lower()
-        wanted_artist = track.artist.lower()
-        wanted_title = track.title.lower()
-        score = 0
-        if wanted_artist == artist:
-            score += 50
-        elif wanted_artist in artist or artist in wanted_artist:
-            score += 30
-        if wanted_title == title:
-            score += 50
-        elif wanted_title in title or title in wanted_title:
-            score += 30
-        return score

@@ -4,6 +4,7 @@ import pytest
 
 from playlist_builder.catalog.scoring import MIN_MATCH_SCORE, pick_best_match, score_track_match
 from playlist_builder.core.applescript import apple_escape
+from playlist_builder.core.models import TrackRef
 from playlist_builder.playlists.loader import PlaylistValidationError, load_playlist
 
 
@@ -42,20 +43,61 @@ def test_load_playlist_valid(tmp_path):
         """
         {
           "name": "Test Playlist",
+          "description": "Pool party",
           "sections": [
             {
-              "name": "Main",
+              "name": "Warm Up",
               "songs": [{"artist": "Kygo", "title": "Firestone"}]
+            },
+            {
+              "name": "Peak",
+              "songs": [{"artist": "Avicii", "title": "Levels"}]
             }
           ]
         }
         """,
         encoding="utf-8",
     )
-    name, tracks = load_playlist(path)
-    assert name == "Test Playlist"
-    assert len(tracks) == 1
-    assert tracks[0].key == "kygo::firestone"
+    playlist = load_playlist(path)
+    assert playlist.name == "Test Playlist"
+    assert playlist.description == "Pool party"
+    assert len(playlist.sections) == 2
+    assert playlist.sections[0].name == "Warm Up"
+    assert playlist.sections[1].name == "Peak"
+    assert [track.title for track in playlist.tracks] == ["Firestone", "Levels"]
+    assert playlist.tracks[0].key == "kygo::firestone"
+
+
+def test_load_playlist_preserves_section_track_order(tmp_path):
+    path = tmp_path / "playlist.json"
+    path.write_text(
+        """
+        {
+          "name": "Ordered",
+          "sections": [
+            {
+              "name": "A",
+              "songs": [
+                {"artist": "A1", "title": "One"},
+                {"artist": "A2", "title": "Two"}
+              ]
+            },
+            {
+              "name": "B",
+              "songs": [{"artist": "B1", "title": "Three"}]
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    playlist = load_playlist(path)
+    assert [track.label for track in playlist.tracks] == [
+        "A1 - One",
+        "A2 - Two",
+        "B1 - Three",
+    ]
+    assert [track.section for track in playlist.tracks] == ["A", "A", "B"]
 
 
 def test_load_playlist_missing_field(tmp_path):
