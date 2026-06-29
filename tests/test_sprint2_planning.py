@@ -24,14 +24,53 @@ def test_structured_exclusion_rejects_artist():
         ),
     )
     candidates = [
+        CandidateTrack(TrackRef("Kygo", "Firestone"), score=100, source="seed", reasons=("seed",)),
         CandidateTrack(TrackRef("Pitbull", "Give Me Everything"), score=80),
         CandidateTrack(TrackRef("Avicii", "Levels"), score=70),
     ]
 
     result = PlaylistPlanner().plan(request, candidates)
 
-    assert result.tracks == [TrackRef("Avicii", "Levels")]
+    assert result.tracks == [TrackRef("Kygo", "Firestone"), TrackRef("Avicii", "Levels")]
     assert result.rejected[0].track == TrackRef("Pitbull", "Give Me Everything")
+
+
+def test_structured_exclusion_rejects_genre_from_catalog_metadata():
+    request = PlaylistRequest(
+        name="No Soundtrack",
+        seeds=(SeedTrack(TrackRef("Kygo", "Firestone")),),
+        constraints=GenerationConstraints(
+            target_track_count=2,
+            exclusions=(ExclusionRule(ConstraintKind.GENRE, "Soundtrack"),),
+        ),
+    )
+    candidates = [
+        CandidateTrack(TrackRef("Kygo", "Firestone"), score=100, source="seed", reasons=("seed",)),
+        CandidateTrack(TrackRef("Koji Kondo", "Gerudo Valley"), score=80, genre="Soundtrack"),
+        CandidateTrack(TrackRef("Avicii", "Levels"), score=70, genre="Dance"),
+    ]
+
+    result = PlaylistPlanner().plan(request, candidates)
+
+    assert result.tracks == [TrackRef("Kygo", "Firestone"), TrackRef("Avicii", "Levels")]
+    assert result.rejected[0].genre == "Soundtrack"
+
+
+def test_planner_uses_duration_when_track_count_missing():
+    request = PlaylistRequest(
+        name="Duration",
+        seeds=(SeedTrack(TrackRef("A", "One")),),
+        constraints=GenerationConstraints(target_duration_minutes=7),
+    )
+    candidates = [
+        CandidateTrack(TrackRef("A", "One"), score=100, source="seed", reasons=("seed",)),
+        CandidateTrack(TrackRef("B", "Two"), score=90),
+        CandidateTrack(TrackRef("C", "Three"), score=80),
+    ]
+
+    result = PlaylistPlanner().plan(request, candidates)
+
+    assert len(result.tracks) == 2
 
 
 def test_structured_inclusion_boosts_candidate():
@@ -63,7 +102,7 @@ def test_report_has_mad_scientist_tone_and_suggestions():
         ),
     )
     candidates = [
-        CandidateTrack(TrackRef("Koji Kondo", "Gerudo Valley"), score=100, genre="OST", mood="adventure"),
+        CandidateTrack(TrackRef("Koji Kondo", "Gerudo Valley"), score=100, source="seed", reasons=("seed",), genre="OST", mood="adventure"),
         CandidateTrack(TrackRef("Koji Kondo", "Lost Woods"), score=80, genre="OST", mood="mischief"),
     ]
 
@@ -84,7 +123,7 @@ def test_analyzer_counts_metadata():
     result = PlaylistPlanner().plan(
         request,
         [
-            CandidateTrack(TrackRef("A", "Seed"), score=100, genre="OST", language="ja", energy=40),
+            CandidateTrack(TrackRef("A", "Seed"), score=100, source="seed", reasons=("seed",), genre="OST", language="ja", energy=40),
             CandidateTrack(TrackRef("B", "Track"), score=80, genre="OST", language="en", energy=80),
         ],
     )

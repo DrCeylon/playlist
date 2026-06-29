@@ -8,11 +8,7 @@ SUGGESTION_COUNT = 10
 
 
 class PlaylistPlanner:
-    """Builds a generated playlist from candidate tracks.
-
-    Phase 2 starts with deterministic planning. Candidate discovery will be added
-    behind this contract later, so the future UI can already target this API.
-    """
+    """Builds a generated playlist from candidate tracks."""
 
     def plan(self, request: PlaylistRequest, candidates: list[CandidateTrack]) -> GeneratedPlaylist:
         request.validate()
@@ -23,7 +19,7 @@ class PlaylistPlanner:
         if request.constraints.quality_over_quantity:
             eligible = [candidate for candidate in eligible if candidate.score >= MIN_QUALITY_SCORE]
 
-        selected = self._limit(eligible, request)
+        selected = self._select_candidates(eligible, request)
         selected_keys = {candidate.track.key for candidate in selected}
         suggestions = tuple(
             candidate for candidate in eligible if candidate.track.key not in selected_keys
@@ -52,9 +48,36 @@ class PlaylistPlanner:
         return self.plan(request, self.seed_candidates(request))
 
     @staticmethod
-    def _limit(candidates: list[CandidateTrack], request: PlaylistRequest) -> list[CandidateTrack]:
+    def _target_count(request: PlaylistRequest) -> int:
         target = request.constraints.target_track_count
         if target is None:
-            # Phase 2 approximation: 3.5 minutes per track until real durations are available.
             target = max(1, round((request.constraints.target_duration_minutes or 0) / 3.5))
-        return candidates[:target]
+        return target
+
+    @staticmethod
+    def _select_candidates(candidates: list[CandidateTrack], request: PlaylistRequest) -> list[CandidateTrack]:
+        target = PlaylistPlanner._target_count(request)
+        by_key = {candidate.track.key: candidate for candidate in candidates}
+
+        selected: list[CandidateTrack] = []
+        for seed in request.seeds:
+            candidate = by_key.get(seed.track.key)
+            if candidate is not None:
+                selected.append(candidate)
+
+        selected_keys = {candidate.track.key for candidate in selected}
+        remaining = max(0, target - len(selected))
+        for candidate in candidates:
+            if candidate.track.key in selected_keys:
+                continue
+            selected.append(candidate)
+            selected_keys.add(candidate.track.key)
+            remaining -= 1
+            if remaining == 0:
+                break
+
+        return selected[:target]
+
+    @staticmethod
+    def _limit(candidates: list[CandidateTrack], request: PlaylistRequest) -> list[CandidateTrack]:
+        return candidates[: PlaylistPlanner._target_count(request)]

@@ -22,10 +22,15 @@ class DiscoveryPipeline:
             stats[provider.name] = len(candidates)
             all_candidates.extend(candidates)
 
-        pool = CandidatePool(
+        raw_pool = CandidatePool(
             request=request,
             candidates=tuple(all_candidates),
             queries=tuple(queries),
-        ).deduplicated()
+        )
+        pool = raw_pool.deduplicated()
 
-        return DiscoveryResult(pool=pool, provider_stats=stats)
+        return DiscoveryResult(
+            pool=pool,
+            provider_stats=stats,
+            deduplicated_count=pool.size,
+        )

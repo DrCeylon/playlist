@@ -45,4 +45,12 @@ PlaylistRequest
 
 ## Prochaine étape
 
-Ajouter une vraie découverte multi-résultats via catalogue public Apple/iTunes, puis une CLI `generate_playlist.py` qui produira un JSON prêt à importer.
+- Brancher `ITunesCandidateProvider` dans une CLI `generate_playlist.py`
+- Exporter le `GeneratedPlaylist` en JSON prêt pour `create_playlist.py`
+- Ajouter une découverte multi-résultats par requête catalogue
+
+## Correctifs Sprint 2.1
+
+- Les **seeds** sont toujours injectés et priorisés dans la sélection finale
+- Le provider iTunes mappe désormais **genre / album / explicit** depuis les métadonnées brutes
+- Les requêtes catalogue sont **dédupliquées par terme** et plafonnées pour limiter la latence

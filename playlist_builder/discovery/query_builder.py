@@ -3,13 +3,11 @@ from __future__ import annotations
 from playlist_builder.discovery.models import DiscoveryQuery
 from playlist_builder.planning.models import ConstraintKind, PlaylistRequest
 
+MAX_DISCOVERY_QUERIES = 12
+
 
 def build_discovery_queries(request: PlaylistRequest) -> list[DiscoveryQuery]:
-    """Translate PlaylistRequest into catalog/search queries.
-
-    This first implementation is intentionally deterministic and explainable.
-    Later, a UI can show exactly which queries were produced from the request.
-    """
+    """Translate PlaylistRequest into catalog/search queries."""
 
     request.validate()
     queries: list[DiscoveryQuery] = []
@@ -22,7 +20,14 @@ def build_discovery_queries(request: PlaylistRequest) -> list[DiscoveryQuery]:
         queries.append(DiscoveryQuery(term=term, source="preferred_term", weight=0.7))
 
     for inclusion in request.constraints.inclusions:
-        if inclusion.kind in (ConstraintKind.ARTIST, ConstraintKind.ALBUM, ConstraintKind.GENRE, ConstraintKind.MOOD, ConstraintKind.LANGUAGE, ConstraintKind.TERM):
+        if inclusion.kind in (
+            ConstraintKind.ARTIST,
+            ConstraintKind.ALBUM,
+            ConstraintKind.GENRE,
+            ConstraintKind.MOOD,
+            ConstraintKind.LANGUAGE,
+            ConstraintKind.TERM,
+        ):
             queries.append(
                 DiscoveryQuery(
                     term=inclusion.value,
@@ -31,16 +36,23 @@ def build_discovery_queries(request: PlaylistRequest) -> list[DiscoveryQuery]:
                 )
             )
 
-    return _dedupe_queries(queries)
+    deduped = _dedupe_queries(queries)
+    return _limit_queries(deduped)
 
 
 def _dedupe_queries(queries: list[DiscoveryQuery]) -> list[DiscoveryQuery]:
-    by_key: dict[tuple[str, str], DiscoveryQuery] = {}
+    by_term: dict[str, DiscoveryQuery] = {}
     for query in queries:
-        key = (query.term.strip().lower(), query.source)
-        if not key[0]:
+        term = query.term.strip().lower()
+        if not term:
             continue
-        existing = by_key.get(key)
+        existing = by_term.get(term)
         if existing is None or query.weight > existing.weight:
-            by_key[key] = query
-    return list(by_key.values())
+            by_term[term] = query
+    return list(by_term.values())
+
+
+def _limit_queries(queries: list[DiscoveryQuery]) -> list[DiscoveryQuery]:
+    if len(queries) <= MAX_DISCOVERY_QUERIES:
+        return queries
+    return sorted(queries, key=lambda query: query.weight, reverse=True)[:MAX_DISCOVERY_QUERIES]

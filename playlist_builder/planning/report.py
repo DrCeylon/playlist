@@ -4,14 +4,14 @@ from playlist_builder.planning.analyzer import PlaylistAnalysis, PlaylistAnalyze
 from playlist_builder.planning.models import GeneratedPlaylist
 
 
-def build_mad_scientist_report(playlist: GeneratedPlaylist) -> str:
-    """Return a minimal, fun report for the future UI.
+def build_mad_scientist_report(
+    playlist: GeneratedPlaylist,
+    *,
+    analysis: PlaylistAnalysis | None = None,
+) -> str:
+    """Return a minimal, fun report for the future UI."""
 
-    The tone is intentionally "savant fou" without hiding the operational facts:
-    selected tracks, rejected tracks, suggestions and next action.
-    """
-
-    analysis = PlaylistAnalyzer().analyze(playlist)
+    analysis = analysis or PlaylistAnalyzer().analyze(playlist)
     lines = [
         "🧪 Rapport du labo musical",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
