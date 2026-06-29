@@ -137,7 +137,9 @@ end tell
 
     def _collect_candidate_rows(self, tracks: list[TrackRef]) -> list[str]:
         output = run_applescript(build_candidate_collection_script(tracks))
-        rows = output.split(RESULT_DELIMITER) if output else []
+        if output == "":
+            return [""] * len(tracks)
+        rows = output.split(RESULT_DELIMITER)
         if len(rows) != len(tracks):
             raise RuntimeError("Réponse AppleScript inattendue pendant la collecte des candidats.")
         return rows
