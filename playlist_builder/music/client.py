@@ -136,13 +136,14 @@ end tell
         return batch_results
 
     def _collect_candidate_rows(self, tracks: list[TrackRef]) -> list[str]:
-        output = run_applescript(build_candidate_collection_script(tracks))
-        if output == "":
-            return [""] * len(tracks)
+        return [self._collect_single_candidate_row(track) for track in tracks]
+
+    def _collect_single_candidate_row(self, track: TrackRef) -> str:
+        output = run_applescript(build_candidate_collection_script([track]))
+        if not output:
+            return ""
         rows = output.split(RESULT_DELIMITER)
-        if len(rows) != len(tracks):
-            raise RuntimeError("Réponse AppleScript inattendue pendant la collecte des candidats.")
-        return rows
+        return rows[0] if rows else ""
 
     def _duplicate_selected_tracks(self, playlist_name: str, persistent_ids: list[str]) -> list[str]:
         if not persistent_ids:
