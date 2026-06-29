@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from playlist_builder.canonical.constants import DEFAULT_PLAYLIST_DESCRIPTION
-from playlist_builder.canonical.enums import ImportStatus, ResolutionDecision
+from playlist_builder.canonical.enums import ImportStatus, ProviderId, ResolutionDecision
 from playlist_builder.canonical.identity import track_identity_key
 
 
@@ -91,6 +92,23 @@ class CanonicalResolution:
     confidence: float
     decision: ResolutionDecision
     alternatives: tuple[CanonicalCandidate, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderIdentity:
+    """Opaque provider-specific identity linked to a canonical track."""
+
+    provider_id: ProviderId
+    external_id: str
+    confidence: float
+    resolved_at: datetime
+    metadata: tuple[tuple[str, str], ...] = ()
+
+    def validate(self) -> None:
+        if not self.external_id.strip():
+            raise ValueError("ProviderIdentity.external_id must not be empty.")
+        if not 0.0 <= self.confidence <= 100.0:
+            raise ValueError("ProviderIdentity.confidence must be between 0 and 100.")
 
 
 @dataclass(frozen=True, slots=True)

@@ -36,6 +36,7 @@ from playlist_builder.canonical.models import (
     CanonicalSearchRequest,
     CanonicalSearchResponse,
     CanonicalTrack,
+    ProviderIdentity,
 )
 from playlist_builder.canonical.validation import (
     ValidationError,
@@ -63,6 +64,7 @@ __all__ = [
     "PlaylistDeliveryPort",
     "ProviderCapability",
     "ProviderGateway",
+    "ProviderIdentity",
     "ProviderId",
     "ResolutionDecision",
     "ValidationError",
