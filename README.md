@@ -20,10 +20,23 @@ C'est le workflow le plus fiable sans passer par un vrai accès MusicKit dévelo
 
 ## Pré-requis
 
-- macOS
+- macOS pour `create_playlist.py`
 - App **Music / Musique** ouverte ou installée
-- Python 3
+- Python 3.10+
 - Synchronisation de la bibliothèque Apple Music activée
+
+`check_catalog.py` peut aussi être exécuté hors macOS pour préparer les rapports catalogue.
+
+## Installation (optionnelle)
+
+```bash
+pip install -e ".[dev]"
+```
+
+Commandes disponibles après installation :
+
+- `playlist-check-catalog`
+- `playlist-create`
 
 ## Mise à jour locale
 

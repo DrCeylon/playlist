@@ -1,6 +1,7 @@
-reports/
-cache/
+/reports/
+/cache/
 .DS_Store
 __pycache__/
 *.pyc
 .pytest_cache/
+*.egg-info/
