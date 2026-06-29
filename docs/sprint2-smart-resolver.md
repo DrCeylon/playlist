@@ -38,4 +38,4 @@ TrackRef
 
 ## Limite V1
 
-La V1 ajoute plusieurs passes de recherche et choisit le premier résultat acceptable. La V2 exposera tous les candidats pour scoring Python complet et choix utilisateur en cas d'ambiguïté.
+La V1 ajoute plusieurs passes de recherche (exact → contains → premier résultat) et choisit le premier résultat acceptable. La V2 exposera tous les candidats pour scoring Python complet (`is_acceptable_match`) et choix utilisateur en cas d'ambiguïté.

@@ -2,19 +2,12 @@ from __future__ import annotations
 
 from playlist_builder.core.applescript import apple_escape
 from playlist_builder.core.models import TrackRef
+from playlist_builder.resolver.constants import FIELD_DELIMITER, RESULT_DELIMITER
 from playlist_builder.resolver.query import generate_query_variants
-
-FIELD_DELIMITER = "\x1e"
-RESULT_DELIMITER = "\x1f"
 
 
 def build_resolve_batch_script(tracks: list[TrackRef]) -> str:
-    """Build one AppleScript resolving many tracks with query variants.
-
-    Each result row is encoded as: status, artist, title, score-like marker. The
-    scoring is mostly performed by Apple Music search order here; Python can later
-    add deeper validation if we expose all candidates.
-    """
+    """Build one AppleScript resolving many tracks with query variants."""
 
     blocks = []
     for track in tracks:
@@ -38,6 +31,16 @@ def build_resolve_batch_script(tracks: list[TrackRef]) -> str:
                             exit repeat
                         end if
                     end repeat
+                    if foundTrack is missing value then
+                        repeat with candidateTrack in searchResults
+                            set candidateName to ((name of candidateTrack) as text)
+                            set candidateArtist to ((artist of candidateTrack) as text)
+                            if candidateName contains "{title}" and candidateArtist contains "{artist}" then
+                                set foundTrack to candidateTrack
+                                exit repeat
+                            end if
+                        end repeat
+                    end if
                     if foundTrack is missing value and (count of searchResults) > 0 then
                         set foundTrack to item 1 of searchResults
                     end if

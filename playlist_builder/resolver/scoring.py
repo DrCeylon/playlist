@@ -3,6 +3,7 @@ from __future__ import annotations
 from difflib import SequenceMatcher
 
 from playlist_builder.core.models import TrackRef
+from playlist_builder.resolver.constants import MIN_ACCEPTABLE_SCORE
 from playlist_builder.resolver.normalization import normalize_text, token_set
 
 
@@ -23,11 +24,7 @@ def token_overlap(left: str, right: str) -> float:
 
 
 def score_candidate(wanted: TrackRef, candidate_artist: str, candidate_title: str) -> int:
-    """Score a candidate on a 0-100 scale.
-
-    The score intentionally favors title match more than artist match because OST
-    and compilation content often has inconsistent artist metadata in Music.
-    """
+    """Score a candidate on a 0-100 scale."""
 
     title_similarity = similarity_ratio(wanted.title, candidate_title)
     title_tokens = token_overlap(wanted.title, candidate_title)
@@ -41,3 +38,9 @@ def score_candidate(wanted: TrackRef, candidate_artist: str, candidate_title: st
         + artist_tokens * 10
     )
     return round(score)
+
+
+def is_acceptable_match(wanted: TrackRef, candidate_artist: str, candidate_title: str) -> bool:
+    """Python-side guardrail for future multi-candidate resolution."""
+
+    return score_candidate(wanted, candidate_artist, candidate_title) >= MIN_ACCEPTABLE_SCORE

@@ -3,7 +3,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from playlist_builder.core.models import TrackRef
+from playlist_builder.resolver.constants import MAX_QUERY_VARIANTS, _GENERIC_SECTIONS
 from playlist_builder.resolver.normalization import normalize_text
+
+_CONTEXT_ALIASES: tuple[tuple[tuple[str, ...], tuple[tuple[str, float], ...]], ...] = (
+    (
+        ("gerudo", "zelda"),
+        (
+            ("Zelda {title}", "alias_zelda_title", 0.72),
+            ("Legend of Zelda {title}", "alias_legend_of_zelda_title", 0.70),
+        ),
+    ),
+    (
+        ("mario",),
+        (("Nintendo {title}", "alias_nintendo_title", 0.70),),
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -14,12 +29,7 @@ class QueryVariant:
 
 
 def generate_query_variants(track: TrackRef) -> list[QueryVariant]:
-    """Generate ordered search variants for Apple Music/library lookup.
-
-    The order goes from most precise to broadest. Variants are deduplicated after
-    normalization so the AppleScript layer does not waste time on equivalent
-    queries.
-    """
+    """Generate ordered search variants for Apple Music/library lookup."""
 
     title = track.title.strip()
     artist = track.artist.strip()
@@ -31,7 +41,13 @@ def generate_query_variants(track: TrackRef) -> list[QueryVariant]:
         QueryVariant(title, "title", 0.85),
     ]
 
-    if section and normalize_text(section) not in {"playlist", "generated", "discovery"}:
+    normalized_title = normalize_text(title)
+    for tokens, aliases in _CONTEXT_ALIASES:
+        if any(token in normalized_title for token in tokens):
+            for term_template, reason, weight in aliases:
+                raw_variants.append(QueryVariant(term_template.format(title=title), reason, weight))
+
+    if section and normalize_text(section) not in _GENERIC_SECTIONS:
         raw_variants.extend(
             [
                 QueryVariant(f"{section} {title}", "section_title", 0.78),
@@ -39,20 +55,7 @@ def generate_query_variants(track: TrackRef) -> list[QueryVariant]:
             ]
         )
 
-    # Helpful game/OST aliases for the first real-world use case. These are not
-    # hard-coded matches, only search hints with lower weight.
-    normalized_title = normalize_text(title)
-    if any(token in normalized_title for token in ("gerudo", "zelda")):
-        raw_variants.extend(
-            [
-                QueryVariant(f"Zelda {title}", "alias_zelda_title", 0.72),
-                QueryVariant(f"Legend of Zelda {title}", "alias_legend_of_zelda_title", 0.70),
-            ]
-        )
-    if "mario" in normalized_title:
-        raw_variants.append(QueryVariant(f"Nintendo {title}", "alias_nintendo_title", 0.70))
-
-    return _dedupe(raw_variants)
+    return _dedupe(raw_variants)[:MAX_QUERY_VARIANTS]
 
 
 def _dedupe(variants: list[QueryVariant]) -> list[QueryVariant]:
