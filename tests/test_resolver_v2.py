@@ -1,6 +1,6 @@
-from playlist_builder.core.models import TrackRef, TrackAddStatus
+from playlist_builder.core.models import TrackAddStatus, TrackRef
 from playlist_builder.music.client import MusicClient
-from playlist_builder.resolver.constants import CANDIDATE_DELIMITER, FIELD_DELIMITER
+from playlist_builder.resolver.constants import CANDIDATE_DELIMITER, FIELD_DELIMITER, RESULT_DELIMITER
 from playlist_builder.resolver.models import ResolverCandidate
 from playlist_builder.resolver.selection import rank_candidates, select_best_candidate
 
@@ -56,6 +56,39 @@ def test_parse_candidates_from_applescript_payload():
     candidates = MusicClient._parse_candidates(wanted, row)
 
     assert [candidate.persistent_id for candidate in candidates] == ["ABC", "XYZ"]
+
+
+def test_collect_single_candidate_row_accepts_empty_output(monkeypatch):
+    client = MusicClient()
+
+    monkeypatch.setattr("playlist_builder.music.client.run_applescript", lambda script: "")
+
+    assert client._collect_single_candidate_row(TrackRef("A", "B")) == ""
+
+
+def test_collect_single_candidate_row_takes_first_row(monkeypatch):
+    client = MusicClient()
+    output = RESULT_DELIMITER.join(["first", "second"])
+
+    monkeypatch.setattr("playlist_builder.music.client.run_applescript", lambda script: output)
+
+    assert client._collect_single_candidate_row(TrackRef("A", "B")) == "first"
+
+
+def test_collect_candidate_rows_is_per_track(monkeypatch):
+    client = MusicClient()
+    calls = []
+
+    def fake_collect(track):
+        calls.append(track.title)
+        return track.title
+
+    monkeypatch.setattr(client, "_collect_single_candidate_row", fake_collect)
+
+    rows = client._collect_candidate_rows([TrackRef("A", "One"), TrackRef("B", "Two")])
+
+    assert rows == ["One", "Two"]
+    assert calls == ["One", "Two"]
 
 
 def test_add_tracks_batch_uses_selected_candidate_ids(monkeypatch):
