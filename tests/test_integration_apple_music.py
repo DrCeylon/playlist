@@ -36,9 +36,10 @@ def test_build_apple_music_gateway_exposes_catalog_port():
 
     assert gateway.provider_id == ProviderId.APPLE_MUSIC
     assert ProviderCapability.CATALOG_SEARCH in gateway.capabilities
+    assert ProviderCapability.PLAYLIST_DELIVERY in gateway.capabilities
     assert gateway.catalog is not None
-    assert gateway.library is None
-    assert gateway.delivery is None
+    assert gateway.library is not None
+    assert gateway.delivery is not None
 
 
 def test_apple_catalog_gateway_maps_search_response():

@@ -11,9 +11,10 @@ from playlist_builder.canonical.models import (
 )
 from playlist_builder.core.models import CatalogMatch, TrackRef
 from playlist_builder.discovery.models import DiscoveryCandidate, DiscoveryQuery
-from playlist_builder.integration.apple_music.models import AppleITunesSearchHit
+from playlist_builder.integration.apple_music.models import AppleITunesSearchHit, AppleMusicTrack
 from playlist_builder.planning.models import CandidateTrack
 from playlist_builder.scoring.match_engine import score_text_match
+from playlist_builder.scoring.resolution import ResolutionCandidate
 
 
 def canonical_candidate_from_itunes_hit(
@@ -142,3 +143,51 @@ def search_response_from_hit(
         wanted_title=request.wanted_title,
     )
     return CanonicalSearchResponse(request=request, candidates=(candidate,))
+
+
+def apple_music_track_from_fields(
+    *,
+    persistent_id: str,
+    artist: str,
+    title: str,
+    query: str = "",
+) -> AppleMusicTrack | None:
+    if not persistent_id.strip():
+        return None
+    return AppleMusicTrack(
+        persistent_id=persistent_id.strip(),
+        artist=artist.strip(),
+        title=title.strip(),
+        query=query.strip(),
+    )
+
+
+def resolution_candidates_from_apple_music_tracks(
+    tracks: list[AppleMusicTrack],
+) -> list[ResolutionCandidate]:
+    return [
+        ResolutionCandidate(
+            artist=track.artist,
+            title=track.title,
+            persistent_id=track.persistent_id,
+            query=track.query,
+        )
+        for track in tracks
+    ]
+
+
+def canonical_candidate_from_apple_music_track(
+    track: AppleMusicTrack,
+    *,
+    score: float,
+) -> CanonicalCandidate:
+    return CanonicalCandidate(
+        track=CanonicalTrack(
+            artist=CanonicalArtist(name=track.artist),
+            title=track.title,
+        ),
+        source=ProviderId.APPLE_MUSIC.value,
+        provider_hints=(track.persistent_id,),
+        raw_confidence=score,
+        reasons=(f"query:{track.query}",) if track.query else (),
+    )

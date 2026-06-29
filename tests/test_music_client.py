@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from playlist_builder.core.models import TrackAddResult, TrackAddStatus, TrackRef
 from playlist_builder.music.client import MusicClient
@@ -36,18 +36,15 @@ def test_add_tracks_preserves_result_order_with_skips():
     batch_mock.assert_called_once()
 
 
-def test_sync_playlist_order_clears_then_adds():
+def test_sync_playlist_order_uses_import_service():
     tracks = [TrackRef(artist="Kygo", title="Firestone")]
     client = MusicClient()
 
-    with (
-        patch.object(client, "clear_playlist_tracks") as clear_mock,
-        patch.object(client, "add_tracks", return_value=[]) as add_mock,
-    ):
+    with patch.object(client._service, "import_playlist", return_value=MagicMock(results=())) as import_mock:
         client.sync_playlist_order("Test", tracks)
 
-    clear_mock.assert_called_once_with("Test")
-    add_mock.assert_called_once_with("Test", tracks, allow_duplicates=True)
+    import_mock.assert_called_once()
+    assert import_mock.call_args.kwargs.get("sync") is True
 
 
 def test_normalize_key():

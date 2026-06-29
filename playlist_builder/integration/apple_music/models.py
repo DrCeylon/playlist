@@ -1,6 +1,23 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
+
+
+@dataclass(frozen=True, slots=True)
+class AppleMusicTrack:
+    """Provider-specific Apple Music library track reference."""
+
+    persistent_id: str
+    artist: str
+    title: str
+    query: str = ""
+
+    def validate(self) -> None:
+        if not self.persistent_id.strip():
+            raise ValueError("AppleMusicTrack.persistent_id must not be empty.")
+        if not self.artist.strip() or not self.title.strip():
+            raise ValueError("AppleMusicTrack artist and title must not be empty.")
 
 
 class AppleITunesSearchHit:

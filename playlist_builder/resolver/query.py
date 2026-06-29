@@ -41,6 +41,9 @@ def generate_query_variants(track: TrackRef) -> list[QueryVariant]:
         QueryVariant(title, "title", 0.85),
     ]
 
+    if artist:
+        raw_variants.append(QueryVariant(artist, "artist", 0.75))
+
     normalized_title = normalize_text(title)
     for tokens, aliases in _CONTEXT_ALIASES:
         if any(token in normalized_title for token in tokens):
