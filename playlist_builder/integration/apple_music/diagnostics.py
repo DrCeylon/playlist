@@ -28,6 +28,8 @@ class AppleMusicResolutionTrace:
         return self.candidates[0].score if self.candidates else 0
 
     def summary(self) -> str:
+        if self.reason:
+            return self.reason
         if self.cache_hit:
             return "Cache hit IdentityCache."
         if not self.candidates:
@@ -45,10 +47,12 @@ class AppleMusicResolutionTrace:
 def trace_from_candidates(
     *,
     candidates: tuple[ResolutionCandidate, ...],
+    expected_queries: tuple[str, ...] = (),
     accepted: ResolutionCandidate | None = None,
     cache_hit: bool = False,
+    reason: str = "",
 ) -> AppleMusicResolutionTrace:
-    query_counts: dict[str, int] = {}
+    query_counts: dict[str, int] = {query: 0 for query in expected_queries}
     for candidate in candidates:
         if candidate.query:
             query_counts[candidate.query] = query_counts.get(candidate.query, 0) + 1
@@ -58,4 +62,6 @@ def trace_from_candidates(
         queries=tuple(AppleMusicQueryTrace(query, count) for query, count in query_counts.items()),
         candidates=candidates,
         accepted=accepted,
+        cache_hit=cache_hit,
+        reason=reason,
     )
