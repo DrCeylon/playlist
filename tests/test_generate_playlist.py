@@ -72,7 +72,10 @@ def test_export_playlist_json_round_trips_through_loader(tmp_path):
     request = PlaylistRequest(
         name="Pool Party",
         seeds=(SeedTrack(TrackRef("Kygo", "Firestone")),),
-        constraints=GenerationConstraints(target_track_count=2),
+        constraints=GenerationConstraints(
+            target_track_count=2,
+            energy_profile=EnergyProfile.STEADY,
+        ),
         description="Generated for tests",
     )
     generated = GeneratedPlaylist(
@@ -94,6 +97,31 @@ def test_export_playlist_json_round_trips_through_loader(tmp_path):
     assert playlist.name == "Pool Party"
     assert len(playlist.tracks) == 2
     assert playlist.tracks[0].artist == "Kygo"
+
+
+def test_export_splits_rising_energy_into_sections():
+    request = PlaylistRequest(
+        name="Rising Mix",
+        seeds=(SeedTrack(TrackRef("Kygo", "Firestone")),),
+        constraints=GenerationConstraints(
+            target_track_count=6,
+            energy_profile=EnergyProfile.RISING,
+        ),
+    )
+    generated = GeneratedPlaylist(
+        request=request,
+        candidates=tuple(
+            CandidateTrack(TrackRef(f"Artist {index}", f"Track {index}"), score=100 - index)
+            for index in range(6)
+        ),
+    )
+
+    payload = export_playlist_dict(generated)
+
+    assert len(payload["sections"]) == 3
+    assert payload["sections"][0]["name"] == "🌅 Warm Up"
+    assert len(payload["sections"][0]["songs"]) == 2
+    assert payload["sections"][2]["name"] == "🔥 Peak"
 
 
 def test_generate_cli_no_catalog_writes_json(tmp_path):

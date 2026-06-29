@@ -37,6 +37,7 @@ Commandes disponibles après installation :
 
 - `playlist-check-catalog`
 - `playlist-create`
+- `playlist-generate`
 
 ## Mise à jour locale
 
@@ -70,15 +71,32 @@ Ou :
 zsh tools/open_report.command
 ```
 
-## 2. Créer la playlist avec AppleScript
+## 2. Générer une playlist assistée (optionnel)
+
+```bash
+python3 generate_playlist.py \
+  --name "Ma Pool Party" \
+  --seed "Kygo:Firestone" \
+  --keywords "tropical,dance" \
+  --duration 240 \
+  --output playlists/ma_playlist.json
+```
+
+Le JSON généré est compatible avec `create_playlist.py`.
+
+## 3. Créer la playlist avec AppleScript
 
 ```bash
 python3 create_playlist.py
 ```
 
-Le script évite les doublons par défaut.
+Par défaut, le script **synchronise** la playlist selon l'ordre des sections du JSON (remplace l'ordre existant). Pour ajouter uniquement les morceaux manquants sans réordonner :
 
-## 3. Compléter les morceaux manquants
+```bash
+python3 create_playlist.py --incremental
+```
+
+## 4. Compléter les morceaux manquants
 
 Si beaucoup de titres sont non trouvés :
 
