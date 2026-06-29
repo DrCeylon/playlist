@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from playlist_builder.core.models import TrackRef
 from playlist_builder.planning.models import CandidateTrack, GeneratedPlaylist, PlaylistRequest
-from playlist_builder.planning.scoring import rank_candidates
+from playlist_builder.planning.scoring import is_rejected, rank_candidates
+
+MIN_QUALITY_SCORE = 1.0
+SUGGESTION_COUNT = 10
 
 
 class PlaylistPlanner:
@@ -15,8 +17,24 @@ class PlaylistPlanner:
     def plan(self, request: PlaylistRequest, candidates: list[CandidateTrack]) -> GeneratedPlaylist:
         request.validate()
         ranked = rank_candidates(candidates, request.constraints)
-        limited = self._limit(ranked, request)
-        return GeneratedPlaylist(request=request, candidates=tuple(limited))
+        rejected = tuple(candidate for candidate in ranked if is_rejected(candidate))
+        eligible = [candidate for candidate in ranked if not is_rejected(candidate)]
+
+        if request.constraints.quality_over_quantity:
+            eligible = [candidate for candidate in eligible if candidate.score >= MIN_QUALITY_SCORE]
+
+        selected = self._limit(eligible, request)
+        selected_keys = {candidate.track.key for candidate in selected}
+        suggestions = tuple(
+            candidate for candidate in eligible if candidate.track.key not in selected_keys
+        )[:SUGGESTION_COUNT]
+
+        return GeneratedPlaylist(
+            request=request,
+            candidates=tuple(selected),
+            rejected=rejected,
+            suggestions=suggestions,
+        )
 
     def seed_candidates(self, request: PlaylistRequest) -> list[CandidateTrack]:
         request.validate()
