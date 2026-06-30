@@ -70,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Ne tente pas d'ajouter automatiquement les morceaux manquants depuis le catalogue iTunes.",
     )
     parser.add_argument(
+        "--no-wait-for-acquisition",
+        action="store_true",
+        help="N'attend pas de confirmation manuelle après ouverture d'une URL catalogue dans Music.app.",
+    )
+    parser.add_argument(
         "--json-diagnostics",
         action="store_true",
         help="Écrit un rapport JSON détaillé dans reports/.",
@@ -110,6 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         identity_cache_path=args.identity_cache,
         catalog_cache_path=args.catalog_cache,
         acquire_missing=not args.no_acquire,
+        wait_for_manual_catalog_add=not args.no_wait_for_acquisition,
         write_json_diagnostics=args.json_diagnostics,
     )
 
@@ -156,6 +162,7 @@ def _run_applescript(
     identity_cache_path: Path,
     catalog_cache_path: Path,
     acquire_missing: bool,
+    wait_for_manual_catalog_add: bool,
     write_json_diagnostics: bool,
 ) -> int:
     require_macos("l'application Music")
@@ -166,6 +173,7 @@ def _run_applescript(
             identity_cache_path=identity_cache_path,
             catalog_cache_path=catalog_cache_path,
             acquire_missing_from_catalog=acquire_missing,
+            wait_for_manual_catalog_add=wait_for_manual_catalog_add,
         )
     )
     use_case = ImportPlaylistUseCase(context)
@@ -185,6 +193,8 @@ def _run_applescript(
         print("🔁 Synchronisation de la playlist selon l'ordre des sections du JSON...")
         if acquire_missing:
             print("📥 Acquisition catalogue→bibliothèque activée pour les morceaux manquants")
+        if acquire_missing and wait_for_manual_catalog_add:
+            print("⏸️  Le programme attendra Entrée si un ajout manuel dans Music.app est requis")
         result = use_case.execute(
             playlist,
             sync=True,
