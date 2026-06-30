@@ -195,6 +195,7 @@ def _run_applescript(
         print("🔁 Synchronisation de la playlist selon l'ordre des sections du JSON...")
         if acquire_missing:
             print("📥 Acquisition catalogue→bibliothèque activée pour les morceaux manquants")
+            print("🤖 Ajout automatique via Music.app (add URL + duplication bibliothèque)")
         if acquire_missing and wait_for_manual_catalog_add:
             print("⏸️  Le programme attendra Entrée si un ajout manuel dans Music.app est requis")
         result = use_case.execute(

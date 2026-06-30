@@ -26,6 +26,7 @@ from playlist_builder.scoring.resolution import ResolutionCandidate, select_best
 
 _MANUAL_ACQUISITION_LIBRARY_ATTEMPTS = 4
 _MANUAL_ACQUISITION_RETRY_DELAY_SECONDS = 5.0
+_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS = 4
 
 
 class AppleMusicResolutionStatus(StrEnum):
@@ -232,19 +233,31 @@ class AppleMusicResolver:
         if acquisition.status == AppleMusicAcquisitionStatus.ERROR:
             return [], False, acquisition.detail
 
-        if acquisition.opened and self._wait_for_manual_catalog_add:
-            self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
+        if acquisition.automatic_attempted:
+            print(
+                f"📥 Acquisition automatique catalogue→bibliothèque pour {track.artist.display_name} - {track.title}...",
+                flush=True,
+            )
 
         library_candidates = self._refresh_library_candidates_with_retries(
             legacy,
             catalog_candidate,
-            after_manual_wait=acquisition.opened and self._wait_for_manual_catalog_add,
+            max_attempts=_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS,
+            show_progress=acquisition.automatic_attempted,
         )
-        acquired = bool(library_candidates)
-        if acquired:
+        if library_candidates:
             return library_candidates, True, acquisition.detail
 
-        if acquisition.opened:
+        if acquisition.opened and self._wait_for_manual_catalog_add:
+            self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
+            library_candidates = self._refresh_library_candidates_with_retries(
+                legacy,
+                catalog_candidate,
+                max_attempts=_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS,
+                show_progress=True,
+            )
+            if library_candidates:
+                return library_candidates, True, acquisition.detail
             return (
                 [],
                 False,
@@ -254,6 +267,18 @@ class AppleMusicResolver:
                     f"({_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
                 ),
             )
+
+        if acquisition.opened or acquisition.duplicated:
+            return (
+                [],
+                False,
+                (
+                    f"{acquisition.detail} "
+                    "Morceau toujours absent de la bibliothèque après acquisition automatique "
+                    f"({_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS} recherches). "
+                    "Relancez sans --no-wait-for-acquisition pour l'ajout manuel."
+                ),
+            )
         return [], False, acquisition.detail
 
     def _refresh_library_candidates_with_retries(
@@ -261,21 +286,21 @@ class AppleMusicResolver:
         legacy,
         catalog_candidate: CanonicalCandidate,
         *,
-        after_manual_wait: bool,
+        max_attempts: int = 1,
+        show_progress: bool = False,
     ) -> list[AppleMusicTrack]:
-        max_attempts = _MANUAL_ACQUISITION_LIBRARY_ATTEMPTS if after_manual_wait else 1
         for attempt in range(1, max_attempts + 1):
-            if after_manual_wait:
+            if show_progress:
                 self._applescript.ensure_running()
             candidates = self._refresh_library_candidates(legacy, catalog_candidate)
             if candidates:
-                if after_manual_wait and attempt > 1:
+                if show_progress and attempt > 1:
                     print(
                         f"✅ Morceau détecté en bibliothèque (tentative {attempt}/{max_attempts}).",
                         flush=True,
                     )
                 return candidates
-            if attempt < max_attempts and after_manual_wait:
+            if attempt < max_attempts and show_progress:
                 print(
                     f"⏳ Morceau pas encore visible en bibliothèque "
                     f"(tentative {attempt}/{max_attempts}) — "

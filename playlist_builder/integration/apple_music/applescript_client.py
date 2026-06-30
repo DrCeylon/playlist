@@ -206,30 +206,39 @@ tell application "Music"
 end tell
 '''
 
-    def acquire_song_from_url(self, url: str) -> tuple[str, str]:
-        """Try to add a catalog track URL to the local Music library.
+    def acquire_song_from_url(
+        self,
+        url: str,
+        *,
+        artist: str = "",
+        title: str = "",
+        track_id: str = "",
+        search_terms: list[str] | None = None,
+        play_delay_seconds: float = 5.0,
+        settle_delay_seconds: float = 6.0,
+    ) -> tuple[str, str]:
+        """Try to add a catalog track to the local Music library automatically.
 
-        Returns (status, detail) where status is one of: added, opened, error.
+        Strategy: ``add URL``, then play + duplicate current track to Library
+        for subscription content, with optional ``music://`` / ``itms://`` URLs.
+
+        Returns (status, detail) where status is one of:
+        added, duplicated, opened, error.
         """
-        escaped_url = apple_escape(url)
-        script = f'''
-tell application "Music"
-    try
-        set addedItems to add "{escaped_url}"
-        if (count of addedItems) > 0 then
-            set addedTrack to item 1 of addedItems
-            return "added{FIELD_DELIMITER}" & ((persistent ID of addedTrack) as text)
-        end if
-    end try
-    try
-        open location "{escaped_url}"
-        return "opened{FIELD_DELIMITER}URL ouverte dans Music — clique sur + pour l'ajouter à ta bibliothèque"
-    on error errMsg
-        return "error{FIELD_DELIMITER}" & errMsg
-    end try
-    return "error{FIELD_DELIMITER}add/open a échoué sans message"
-end tell
-'''
+        urls_to_try = self._catalog_acquire_urls(url, track_id)
+        if not urls_to_try:
+            return "error", "URL catalogue indisponible."
+
+        terms = list(search_terms or [])
+        if not terms:
+            terms = self._default_search_terms(artist, title)
+
+        script = self._build_acquire_song_script(
+            urls_to_try,
+            search_terms=terms,
+            play_delay_seconds=play_delay_seconds,
+            settle_delay_seconds=settle_delay_seconds,
+        )
         try:
             output = run_applescript(script)
         except RuntimeError as exc:
@@ -241,4 +250,104 @@ end tell
         status = parts[0].strip()
         detail = parts[1].strip() if len(parts) > 1 else ""
         return status, detail
+
+    @staticmethod
+    def _default_search_terms(artist: str, title: str) -> list[str]:
+        artist = artist.strip()
+        title = title.strip()
+        terms: list[str] = []
+        if artist and title:
+            terms.append(f"{artist} {title}")
+        if title:
+            terms.append(title)
+        if artist:
+            terms.append(artist)
+        return terms
+
+    @staticmethod
+    def _catalog_acquire_urls(url: str, track_id: str) -> list[str]:
+        urls: list[str] = []
+        primary = url.strip()
+        if primary:
+            urls.append(primary)
+            if primary.startswith("https://music.apple.com/"):
+                music_url = "music://" + primary[len("https://") :]
+                if music_url not in urls:
+                    urls.append(music_url)
+        track_id = track_id.strip()
+        if track_id:
+            itms_url = f"itms://music.apple.com/song/id{track_id}"
+            if itms_url not in urls:
+                urls.append(itms_url)
+        return urls
+
+    @staticmethod
+    def _build_acquire_song_script(
+        urls: list[str],
+        *,
+        search_terms: list[str],
+        play_delay_seconds: float,
+        settle_delay_seconds: float,
+    ) -> str:
+        escaped_urls = ", ".join(f'"{apple_escape(item)}"' for item in urls)
+        escaped_terms = ", ".join(f'"{apple_escape(term.strip())}"' for term in search_terms if term.strip())
+        play_delay = max(0.0, play_delay_seconds)
+        settle_delay = max(0.0, settle_delay_seconds)
+
+        return f'''
+tell application "Music"
+    set urlsToTry to {{{escaped_urls}}}
+    set searchTerms to {{{escaped_terms}}}
+    repeat with trackUrl in urlsToTry
+        try
+            set addedItems to add (trackUrl as text)
+            if (count of addedItems) > 0 then
+                set addedTrack to item 1 of addedItems
+                return "added{FIELD_DELIMITER}" & ((persistent ID of addedTrack) as text)
+            end if
+        end try
+    end repeat
+
+    set duplicateAttempted to false
+    repeat with trackUrl in urlsToTry
+        try
+            open location (trackUrl as text)
+            repeat with i from 1 to 16
+                delay 0.5
+                try
+                    set currentTrackRef to current track
+                    exit repeat
+                end try
+            end repeat
+            delay {play_delay}
+            try
+                play
+            end try
+            delay 1
+            duplicate current track to source "Library"
+            set duplicateAttempted to true
+            delay {settle_delay}
+            repeat with searchTerm in searchTerms
+                if (searchTerm as text) is not "" then
+                    set searchResults to (search library playlist 1 for (searchTerm as text) only songs)
+                    if (count of searchResults) > 0 then
+                        set foundTrack to item 1 of searchResults
+                        return "added{FIELD_DELIMITER}" & ((persistent ID of foundTrack) as text)
+                    end if
+                end if
+            end repeat
+        end try
+    end repeat
+
+    if duplicateAttempted then
+        return "duplicated{FIELD_DELIMITER}Duplication automatique vers la bibliothèque effectuée"
+    end if
+    try
+        open location (item 1 of urlsToTry as text)
+        return "opened{FIELD_DELIMITER}URL ouverte dans Music — ajout automatique non confirmé"
+    on error errMsg
+        return "error{FIELD_DELIMITER}" & errMsg
+    end try
+end tell
+'''
 

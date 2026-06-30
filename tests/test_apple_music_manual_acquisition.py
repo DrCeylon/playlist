@@ -49,7 +49,11 @@ def _catalog_candidate(track: CanonicalTrack) -> CanonicalCandidate:
 def test_library_acquisition_exposes_opened_status_without_losing_legacy_unpacking():
     applescript = MagicMock()
     applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte")
-    acquisition = AppleMusicLibraryAcquisition(applescript, settle_delay_seconds=0)
+    acquisition = AppleMusicLibraryAcquisition(
+        applescript,
+        settle_delay_seconds=0,
+        play_delay_seconds=0,
+    )
 
     outcome = acquisition.acquire_from_catalog_candidate(_catalog_candidate(_track()))
     legacy_added, legacy_detail = outcome
@@ -60,10 +64,57 @@ def test_library_acquisition_exposes_opened_status_without_losing_legacy_unpacki
     assert legacy_detail == "URL ouverte"
 
 
+def test_resolver_automatic_acquisition_without_manual_prompt(tmp_path: Path, monkeypatch):
+    identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
+    applescript = MagicMock()
+    applescript.collect_candidates_batch.side_effect = [
+        [[]],
+        [[]],
+        [[]],
+        [
+            [
+                AppleMusicTrack(
+                    persistent_id="PID-AUTO",
+                    artist="Kyo",
+                    title="Dernière danse",
+                    query="Dernière danse",
+                )
+            ]
+        ],
+    ]
+    applescript.acquire_song_from_url.return_value = (
+        "duplicated",
+        "Duplication automatique vers la bibliothèque effectuée",
+    )
+    monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
+    input_mock = MagicMock()
+    monkeypatch.setattr("builtins.input", input_mock)
+
+    track = CanonicalTrack(artist=CanonicalArtist(name="Kyo"), title="Dernière danse")
+    resolver = AppleMusicResolver(
+        applescript,
+        identity_cache,
+        catalog=FakeCatalog(_catalog_candidate(track)),
+        acquire_missing=True,
+        wait_for_manual_catalog_add=True,
+    )
+
+    outcome = resolver.resolve(track)
+
+    assert outcome.status == AppleMusicResolutionStatus.RESOLVED
+    assert outcome.persistent_id == "PID-AUTO"
+    assert outcome.catalog_acquired is True
+    input_mock.assert_not_called()
+
+
 def test_resolver_retries_after_manual_acquisition_confirmation(tmp_path: Path, monkeypatch):
     identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
     applescript = MagicMock()
     applescript.collect_candidates_batch.side_effect = [
+        [[]],
+        [[]],
+        [[]],
+        [[]],
         [[]],
         [[AppleMusicTrack(persistent_id="PID-ONE", artist="Daft Punk", title="One More Time", query="One More Time")]],
     ]
@@ -85,41 +136,7 @@ def test_resolver_retries_after_manual_acquisition_confirmation(tmp_path: Path, 
     assert outcome.persistent_id == "PID-ONE"
     assert outcome.catalog_acquired is True
     assert identity_cache.get(_track(), ProviderId.APPLE_MUSIC) is not None
-    assert applescript.collect_candidates_batch.call_count == 2
-    assert applescript.ensure_running.called
-
-
-def test_resolver_waits_for_music_app_indexing_after_manual_add(tmp_path: Path, monkeypatch):
-    identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
-    applescript = MagicMock()
-    applescript.collect_candidates_batch.side_effect = [
-        [[]],
-        [[]],
-        [[]],
-        [[AppleMusicTrack(persistent_id="PID-DELAYED", artist="Daft Punk", title="One More Time", query="One More Time")]],
-    ]
-    applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
-    monkeypatch.setattr("builtins.input", lambda: "")
-    sleeps: list[float] = []
-    monkeypatch.setattr(
-        "playlist_builder.integration.apple_music.resolver.time.sleep",
-        lambda seconds: sleeps.append(seconds),
-    )
-
-    resolver = AppleMusicResolver(
-        applescript,
-        identity_cache,
-        catalog=FakeCatalog(_catalog_candidate(_track())),
-        acquire_missing=True,
-        wait_for_manual_catalog_add=True,
-    )
-
-    outcome = resolver.resolve(_track())
-
-    assert outcome.status == AppleMusicResolutionStatus.RESOLVED
-    assert outcome.persistent_id == "PID-DELAYED"
-    assert applescript.collect_candidates_batch.call_count == 4
-    assert sleeps.count(5.0) == 2
+    assert applescript.collect_candidates_batch.call_count == 6
 
 
 def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatch):
@@ -132,12 +149,14 @@ def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatc
     catalog_candidate = CanonicalCandidate(
         track=catalog_track,
         source="itunes_catalog",
-        provider_hints=("https://music.apple.com/us/song/firestone/950274258",),
+        provider_hints=("https://music.apple.com/us/song/firestone/950274258", "itunes_track_id:950274258"),
         raw_confidence=100.0,
         reasons=("test",),
     )
     applescript = MagicMock()
     applescript.collect_candidates_batch.side_effect = [
+        [[]],
+        [[]],
         [[]],
         [
             [],
@@ -151,8 +170,7 @@ def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatc
             ],
         ],
     ]
-    applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
-    monkeypatch.setattr("builtins.input", lambda: "")
+    applescript.acquire_song_from_url.return_value = ("added", "PID-FEAT")
     monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
 
     resolver = AppleMusicResolver(
@@ -167,13 +185,18 @@ def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatc
 
     assert outcome.status == AppleMusicResolutionStatus.RESOLVED
     assert outcome.persistent_id == "PID-FEAT"
-    assert applescript.collect_candidates_batch.call_count == 2
 
 
 def test_resolver_can_open_catalog_without_waiting(tmp_path: Path):
     identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
     applescript = MagicMock()
-    applescript.collect_candidates_batch.side_effect = [[[]], [[]]]
+    applescript.collect_candidates_batch.side_effect = [
+        [[]],
+        [[]],
+        [[]],
+        [[]],
+        [[]],
+    ]
     applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
 
     resolver = AppleMusicResolver(
@@ -187,4 +210,4 @@ def test_resolver_can_open_catalog_without_waiting(tmp_path: Path):
     outcome = resolver.resolve(_track())
 
     assert outcome.status == AppleMusicResolutionStatus.NOT_FOUND
-    assert "4 recherches" in outcome.error
+    assert "acquisition automatique" in outcome.error

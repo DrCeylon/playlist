@@ -21,11 +21,10 @@ Model acquisition as an explicit provider-local workflow inside `playlist_builde
 
 When a track is missing from the local library but found in the catalog:
 
-1. Open/add the catalog URL through Music.app.
-2. If Music.app returns a local item immediately, resolve it and cache the persistent ID.
-3. If Music.app only opens the URL, pause the interactive CLI and ask the user to add the track to the Music library.
-4. After confirmation, retry local library resolution up to four times (5 s apart) to
-   absorb Music.app indexing latency.
+1. Try automatic acquisition through Music.app (`add URL`, then `play` + `duplicate to Library`).
+2. Retry local library resolution up to four times (5 s apart) to absorb indexing latency.
+3. If automatic acquisition fails and `--no-wait-for-acquisition` is not set, pause the interactive CLI and ask the user to add the track manually.
+4. After confirmation, retry local library resolution again.
 5. If the track is now present, store the identity in `IdentityCache` and deliver it.
 6. If not, keep a controlled `NOT_FOUND` result with an explicit acquisition message.
 
