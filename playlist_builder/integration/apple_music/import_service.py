@@ -29,6 +29,7 @@ class AppleMusicImportService:
         catalog: CatalogSearchPort | None = None,
         country_code: str = "us",
         acquire_missing: bool = False,
+        wait_for_manual_catalog_add: bool = True,
         catalog_acquisition_min_confidence: float = 70.0,
     ) -> None:
         self._applescript = applescript
@@ -39,6 +40,7 @@ class AppleMusicImportService:
             catalog=catalog,
             country_code=country_code,
             acquire_missing=acquire_missing,
+            wait_for_manual_catalog_add=wait_for_manual_catalog_add,
             catalog_acquisition_min_confidence=catalog_acquisition_min_confidence,
         )
         self._delivery = AppleMusicDelivery(applescript)
