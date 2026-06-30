@@ -34,6 +34,7 @@ def build_app_context(settings: AppSettings | None = None) -> AppContext:
         cache=catalog_cache,
         identity_cache=identity_cache,
         acquire_missing=config.acquire_missing_from_catalog,
+        wait_for_manual_catalog_add=config.wait_for_manual_catalog_add,
         catalog_acquisition_min_confidence=config.catalog_acquisition_min_confidence,
     )
     registry.register(apple_gateway)
