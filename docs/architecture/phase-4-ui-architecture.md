@@ -353,7 +353,7 @@ DiagnosticBus (in-memory, async queue)
 |----|-------|--------------|
 | **4.0** | Product UI discovery | This doc pack |
 | **4.1** | Shared DTO + validation | `playlist_builder/ui/shared/` — DTO, `AppRoute`, validators |
-| **4.2** | Engine Bridge | JSON-RPC protocol, CLI parity tests |
+| **4.2** | Engine Bridge | `playlist_builder/ui/bridge/` — JSON-RPC protocol (**done**) |
 | **4.3** | Theme engine (Python) | ThemeRegistry, 3 bundled themes |
 | **4.4** | macOS shell MVP | SwiftUI AppShell + Home + Settings |
 | **4.5** | Playlist builder UI | Form + generate + preview |
