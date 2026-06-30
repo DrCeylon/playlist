@@ -12,5 +12,6 @@ class AppSettings:
     catalog_cache_path: Path = Path("cache/itunes_catalog.json")
     identity_cache_path: Path = Path("cache/apple_music_identity.json")
     acquire_missing_from_catalog: bool = True
+    wait_for_manual_catalog_add: bool = True
     catalog_acquisition_min_confidence: float = 70.0
     use_catalog_cache: bool = True
