@@ -352,7 +352,7 @@ DiagnosticBus (in-memory, async queue)
 | PR | Title | Deliverables |
 |----|-------|--------------|
 | **4.0** | Product UI discovery | This doc pack |
-| **4.1** | Shared DTO + validation | `ui/shared/dto`, `state`, tests |
+| **4.1** | Shared DTO + validation | `playlist_builder/ui/shared/` — DTO, `AppRoute`, validators |
 | **4.2** | Engine Bridge | JSON-RPC protocol, CLI parity tests |
 | **4.3** | Theme engine (Python) | ThemeRegistry, 3 bundled themes |
 | **4.4** | macOS shell MVP | SwiftUI AppShell + Home + Settings |

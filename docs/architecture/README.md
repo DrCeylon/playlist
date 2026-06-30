@@ -37,7 +37,8 @@ See [../product/README.md](../product/README.md).
 | PR 8 | Application platform + catalog-to-library acquisition | Done |
 | PR 9 | Phases 2–3 gateway unification + E2E documentation | Done |
 | PR 10 | Generic resolution trace + legacy shim removal | Planned |
-| PR 4.0 | Product UI discovery & architecture (docs) | In progress |
+| PR 4.0 | Product UI discovery & architecture (docs) | Done |
+| PR 4.1 | Shared UI DTO + validation contracts | In progress |
 | PR 4.1–4.9 | UI implementation roadmap | Planned |
 
 ## Rules
