@@ -5,7 +5,7 @@ from pathlib import Path
 
 from playlist_builder.app.factory import AppContext
 from playlist_builder.canonical.compat import canonical_playlist_from_legacy
-from playlist_builder.core.models import PlaylistDefinition, TrackAddResult, TrackRef
+from playlist_builder.core.models import PlaylistDefinition, TrackAddResult
 from playlist_builder.integration.compat import track_results_aligned_with_playlist
 from playlist_builder.reports.import_diagnostics import write_import_diagnostics
 from playlist_builder.reports.playlist import write_playlist_report
@@ -20,7 +20,7 @@ class ImportPlaylistResult:
 
 
 class ImportPlaylistUseCase:
-    """Import a legacy playlist definition into Apple Music via the integration gateway."""
+    """Import a legacy playlist definition through the generic integration gateway."""
 
     def __init__(self, context: AppContext) -> None:
         self._context = context
@@ -35,17 +35,14 @@ class ImportPlaylistUseCase:
         write_json_diagnostics: bool = True,
     ) -> ImportPlaylistResult:
         canonical = canonical_playlist_from_legacy(playlist)
-        apple = self._context.apple_music
+        gateway = self._context.gateway
 
-        if sync:
-            report = self._context.gateway.import_playlist(canonical, sync=True)
-        else:
-            report = apple.import_service.import_playlist(
-                canonical,
-                sync=False,
-                existing_keys=existing_keys,
-                allow_duplicates=allow_duplicates,
-            )
+        report = gateway.import_playlist(
+            canonical,
+            sync=sync,
+            existing_keys=existing_keys,
+            allow_duplicates=allow_duplicates,
+        )
 
         aligned = track_results_aligned_with_playlist(playlist.tracks, report)
         text_report = write_playlist_report(playlist.name, aligned, Path("reports"))
@@ -58,11 +55,7 @@ class ImportPlaylistUseCase:
                 Path("reports"),
             )
 
-        apple.import_service.identity_cache.flush()
-        if self._context.settings.use_catalog_cache:
-            cache = self._context.apple_music.catalog.client.cache
-            if cache is not None:
-                cache.flush()
+        gateway.flush_caches(flush_catalog_cache=self._context.settings.use_catalog_cache)
 
         return ImportPlaylistResult(
             playlist_name=playlist.name,

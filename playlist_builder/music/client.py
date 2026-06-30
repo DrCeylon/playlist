@@ -16,7 +16,10 @@ DEFAULT_IDENTITY_CACHE = Path("cache/apple_music_identity.json")
 
 
 class MusicClient:
-    """Backward-compatible facade over the Apple Music import service."""
+    """Backward-compatible facade over the Apple Music import service.
+
+    Prefer ``build_app_context()`` + ``ImportPlaylistUseCase`` for new code.
+    """
 
     def __init__(
         self,

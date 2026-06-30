@@ -174,7 +174,7 @@ def resolution_candidates_from_apple_music_tracks(
         ResolutionCandidate(
             artist=track.artist,
             title=track.title,
-            persistent_id=track.persistent_id,
+            provider_key=track.persistent_id,
             query=track.query,
         )
         for track in tracks

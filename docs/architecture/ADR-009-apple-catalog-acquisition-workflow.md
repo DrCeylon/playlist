@@ -22,14 +22,16 @@ Model acquisition as an explicit provider-local workflow inside `playlist_builde
 When a track is missing from the local library but found in the catalog:
 
 1. Try automatic acquisition through Music.app (`add URL`, then `play` + `duplicate to Library`).
-2. Retry local library resolution up to four times (5 s apart) to absorb indexing latency.
-3. If automatic acquisition fails and `--no-wait-for-acquisition` is not set, pause the interactive CLI and ask the user to add the track manually.
+2. Retry local library resolution up to six times (5 s apart) to absorb indexing latency.
+3. If automatic acquisition fails and `--wait-for-acquisition` is set, pause the interactive CLI and ask the user to add the track manually.
 4. After confirmation, retry local library resolution again.
 5. If the track is now present, store the identity in `IdentityCache` and deliver it.
 6. If not, keep a controlled `NOT_FOUND` result with an explicit acquisition message.
 
-The CLI exposes `--wait-for-acquisition` to opt into manual confirmation when
-automatic acquisition fails. By default the workflow is fully automatic.
+The CLI exposes:
+
+- `--wait-for-acquisition` — opt in to manual confirmation when automatic acquisition fails
+- `--no-wait-for-acquisition` — explicit non-interactive mode (default behaviour)
 
 ## Why this belongs in the Apple provider
 
@@ -49,7 +51,7 @@ Positive:
 - E2E runs can complete after the user adds tracks to Music.app without restarting the command.
 - `IdentityCache` is populated after successful acquisition.
 - Future runs can skip catalog lookup and use the cached persistent ID.
-- Non-interactive runs remain possible with `--no-wait-for-acquisition`.
+- Non-interactive runs remain the default; use `--no-wait-for-acquisition` to make that explicit in scripts.
 
 Trade-offs:
 

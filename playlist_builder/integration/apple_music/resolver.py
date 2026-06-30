@@ -196,12 +196,12 @@ class AppleMusicResolver:
         self._identity_cache.put_identity(
             track,
             provider_id=self._provider_id,
-            external_id=selected.persistent_id,
+            external_id=selected.provider_key,
             confidence=float(selected.score),
         )
         return AppleMusicResolutionOutcome(
             track=track,
-            persistent_id=selected.persistent_id,
+            persistent_id=selected.provider_key,
             status=AppleMusicResolutionStatus.RESOLVED,
             cache_hit=False,
             score=float(selected.score),

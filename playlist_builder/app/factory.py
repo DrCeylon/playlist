@@ -21,6 +21,7 @@ class AppContext:
 
     @property
     def apple_music(self) -> AppleMusicProviderGateway:
+        """Provider-specific accessor for tests and Apple Music extensions only."""
         return self.registry.require(ProviderId.APPLE_MUSIC)
 
 

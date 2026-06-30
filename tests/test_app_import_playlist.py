@@ -56,9 +56,10 @@ def test_import_playlist_use_case_routes_through_gateway(tmp_path: Path):
             ),
         ),
     )
-    context.apple_music.import_service.import_playlist = MagicMock(return_value=expected)
+    context.gateway.import_playlist = MagicMock(return_value=expected)
     result = ImportPlaylistUseCase(context).execute(_playlist(), sync=True, write_json_diagnostics=True)
 
+    context.gateway.import_playlist.assert_called_once()
     assert result.track_results[0].track.title == "Firestone"
     assert result.text_report_path.exists()
     assert result.json_report_path is not None

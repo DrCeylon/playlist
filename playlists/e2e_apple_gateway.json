@@ -1,0 +1,12 @@
+{
+  "name": "E2E Apple Gateway",
+  "description": "Playlist minimale pour valider le flux Apple Music Provider Gateway (résolution, acquisition, IdentityCache).",
+  "sections": [
+    {
+      "name": "Gateway Test",
+      "songs": [
+        {"artist": "Kygo", "title": "Firestone"}
+      ]
+    }
+  ]
+}
