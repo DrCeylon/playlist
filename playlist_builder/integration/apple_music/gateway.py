@@ -76,6 +76,7 @@ def build_apple_music_gateway(
     identity_cache: IdentityCache | None = None,
     applescript: AppleScriptClient | None = None,
     acquire_missing: bool = True,
+    wait_for_manual_catalog_add: bool = True,
     catalog_acquisition_min_confidence: float = 70.0,
 ) -> AppleMusicProviderGateway:
     client = ITunesSearchClient(
@@ -92,6 +93,7 @@ def build_apple_music_gateway(
         catalog=catalog_gateway,
         country_code=country,
         acquire_missing=acquire_missing,
+        wait_for_manual_catalog_add=wait_for_manual_catalog_add,
         catalog_acquisition_min_confidence=catalog_acquisition_min_confidence,
     )
     return AppleMusicProviderGateway(catalog_gateway, import_service)
@@ -104,6 +106,7 @@ def build_apple_music_import_service(
     catalog: CatalogSearchPort | None = None,
     country_code: str = "us",
     acquire_missing: bool = True,
+    wait_for_manual_catalog_add: bool = True,
     catalog_acquisition_min_confidence: float = 70.0,
 ) -> AppleMusicImportService:
     cache_path = identity_cache_path or Path("cache/apple_music_identity.json")
@@ -113,6 +116,7 @@ def build_apple_music_import_service(
         catalog=catalog,
         country_code=country_code,
         acquire_missing=acquire_missing,
+        wait_for_manual_catalog_add=wait_for_manual_catalog_add,
         catalog_acquisition_min_confidence=catalog_acquisition_min_confidence,
     )
 
@@ -123,6 +127,7 @@ def build_default_registry(
     catalog_cache=None,
     identity_cache_path: Path | None = None,
     acquire_missing: bool = True,
+    wait_for_manual_catalog_add: bool = True,
     catalog_acquisition_min_confidence: float = 70.0,
 ) -> ProviderGatewayRegistry:
     registry = ProviderGatewayRegistry()
@@ -132,6 +137,7 @@ def build_default_registry(
             cache=catalog_cache,
             identity_cache=IdentityCache(JsonCache(identity_cache_path or Path("cache/apple_music_identity.json"))),
             acquire_missing=acquire_missing,
+            wait_for_manual_catalog_add=wait_for_manual_catalog_add,
             catalog_acquisition_min_confidence=catalog_acquisition_min_confidence,
         )
     )
