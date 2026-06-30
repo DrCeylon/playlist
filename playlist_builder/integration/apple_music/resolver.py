@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import time
 
 from playlist_builder.canonical.compat import legacy_track_from_canonical
 from playlist_builder.canonical.contracts import CatalogSearchPort
 from playlist_builder.canonical.enums import ProviderId
-from playlist_builder.canonical.models import CanonicalTrack
+from playlist_builder.canonical.models import CanonicalCandidate, CanonicalTrack
 from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
 from playlist_builder.integration.apple_music.catalog_fallback import (
@@ -229,25 +230,69 @@ class AppleMusicResolver:
             return [], False, acquisition.detail
 
         if acquisition.opened and self._wait_for_manual_catalog_add:
-            self._wait_until_user_added_track(track, acquisition.detail)
+            self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
+            time.sleep(2.0)
 
-        refreshed = self._applescript.collect_candidates_batch([legacy])
-        library_candidates = refreshed[0] if refreshed else []
+        library_candidates = self._refresh_library_candidates(legacy, catalog_candidate)
         acquired = bool(library_candidates)
         if acquired:
             return library_candidates, True, acquisition.detail
 
         if acquisition.opened:
-            return [], False, f"{acquisition.detail} Morceau toujours absent de la bibliothèque après confirmation."
+            return (
+                [],
+                False,
+                (
+                    f"{acquisition.detail} "
+                    "Morceau toujours absent de la bibliothèque après confirmation."
+                ),
+            )
         return [], False, acquisition.detail
 
+    def _refresh_library_candidates(
+        self,
+        legacy,
+        catalog_candidate: CanonicalCandidate,
+    ) -> list[AppleMusicTrack]:
+        section = getattr(legacy, "section", "Playlist") or "Playlist"
+        search_rows = [legacy]
+        catalog_legacy = legacy_track_from_canonical(catalog_candidate.track, section=section)
+        if (
+            catalog_legacy.artist.strip().casefold(),
+            catalog_legacy.title.strip().casefold(),
+        ) != (
+            legacy.artist.strip().casefold(),
+            legacy.title.strip().casefold(),
+        ):
+            search_rows.append(catalog_legacy)
+
+        groups = self._applescript.collect_candidates_batch(search_rows)
+        merged: list[AppleMusicTrack] = []
+        seen: set[str] = set()
+        for group in groups:
+            for candidate in group:
+                persistent_id = candidate.persistent_id.strip()
+                if not persistent_id or persistent_id in seen:
+                    continue
+                seen.add(persistent_id)
+                merged.append(candidate)
+        return merged
+
     @staticmethod
-    def _wait_until_user_added_track(track: CanonicalTrack, detail: str) -> None:
+    def _wait_until_user_added_track(
+        track: CanonicalTrack,
+        catalog_candidate: CanonicalCandidate,
+        detail: str,
+    ) -> None:
         artist = track.artist.name if track.artist else ""
+        catalog_label = catalog_candidate.track.label
         print(
             "\n📥 Acquisition manuelle requise "
             f"pour {artist} - {track.title}.\n"
             f"{detail}\n"
-            "Ajoute le morceau à ta bibliothèque Music.app, puis appuie sur Entrée pour continuer...",
+            f"Correspondance catalogue : {catalog_label}\n"
+            "Dans Music.app : clique sur « + » ou « Ajouter à la bibliothèque », "
+            "puis reviens ici et appuie sur Entrée pour continuer...",
+            flush=True,
         )
         input()

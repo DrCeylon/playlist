@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from playlist_builder import __version__
 from playlist_builder.app import AppSettings, build_app_context
 from playlist_builder.app.use_cases.import_playlist import ImportPlaylistUseCase
 from playlist_builder.catalog.cache import JsonCache
@@ -98,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"🎧 Playlist: {playlist.name}")
     print(f"🎵 Morceaux: {len(playlist.tracks)}")
     print(f"📂 Sections: {len(playlist.sections)}")
+    print(f"🧩 Playlist Builder v{__version__}")
 
     if args.dry_run:
         _print_dry_run(playlist)

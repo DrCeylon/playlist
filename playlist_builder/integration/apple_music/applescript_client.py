@@ -223,7 +223,7 @@ tell application "Music"
     end try
     try
         open location "{escaped_url}"
-        return "opened{FIELD_DELIMITER}URL ouverte dans Music"
+        return "opened{FIELD_DELIMITER}URL ouverte dans Music — clique sur + pour l'ajouter à ta bibliothèque"
     on error errMsg
         return "error{FIELD_DELIMITER}" & errMsg
     end try

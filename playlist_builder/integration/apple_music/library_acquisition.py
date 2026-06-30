@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from enum import StrEnum
-import time
 from typing import Iterator
 
 from playlist_builder.canonical.models import CanonicalCandidate
@@ -35,6 +35,14 @@ class AppleMusicAcquisitionOutcome:
         yield self.detail
 
 
+def _parse_acquire_status(status: str) -> AppleMusicAcquisitionStatus:
+    normalized = status.strip().lower()
+    try:
+        return AppleMusicAcquisitionStatus(normalized)
+    except ValueError:
+        return AppleMusicAcquisitionStatus.ERROR
+
+
 class AppleMusicLibraryAcquisition:
     """Acquires catalog tracks into the local Music.app library before resolution."""
 
@@ -53,17 +61,18 @@ class AppleMusicLibraryAcquisition:
             return AppleMusicAcquisitionOutcome(AppleMusicAcquisitionStatus.ERROR, "URL catalogue indisponible.")
 
         status, detail = self._applescript.acquire_song_from_url(url)
-        if status == AppleMusicAcquisitionStatus.ADDED:
+        parsed_status = _parse_acquire_status(status)
+        if parsed_status == AppleMusicAcquisitionStatus.ADDED:
             time.sleep(self._settle_delay_seconds)
             return AppleMusicAcquisitionOutcome(
                 AppleMusicAcquisitionStatus.ADDED,
                 detail or "Ajouté à la bibliothèque Music depuis le catalogue.",
             )
-        if status == AppleMusicAcquisitionStatus.OPENED:
+        if parsed_status == AppleMusicAcquisitionStatus.OPENED:
             time.sleep(self._settle_delay_seconds)
             return AppleMusicAcquisitionOutcome(
                 AppleMusicAcquisitionStatus.OPENED,
-                detail or "URL ouverte dans Music — ajout manuel requis.",
+                detail or "URL ouverte dans Music — clique sur + pour l'ajouter à ta bibliothèque.",
             )
         return AppleMusicAcquisitionOutcome(
             AppleMusicAcquisitionStatus.ERROR,

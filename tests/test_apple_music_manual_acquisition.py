@@ -87,6 +87,53 @@ def test_resolver_retries_after_manual_acquisition_confirmation(tmp_path: Path, 
     assert applescript.collect_candidates_batch.call_count == 2
 
 
+def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatch):
+    identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
+    track = CanonicalTrack(artist=CanonicalArtist(name="Kygo"), title="Firestone")
+    catalog_track = CanonicalTrack(
+        artist=CanonicalArtist(name="Kygo"),
+        title="Firestone (feat. Conrad Sewell)",
+    )
+    catalog_candidate = CanonicalCandidate(
+        track=catalog_track,
+        source="itunes_catalog",
+        provider_hints=("https://music.apple.com/us/song/firestone/950274258",),
+        raw_confidence=100.0,
+        reasons=("test",),
+    )
+    applescript = MagicMock()
+    applescript.collect_candidates_batch.side_effect = [
+        [[]],
+        [
+            [],
+            [
+                AppleMusicTrack(
+                    persistent_id="PID-FEAT",
+                    artist="Kygo",
+                    title="Firestone (feat. Conrad Sewell)",
+                    query="Firestone (feat. Conrad Sewell)",
+                )
+            ],
+        ],
+    ]
+    applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
+    monkeypatch.setattr("builtins.input", lambda: "")
+
+    resolver = AppleMusicResolver(
+        applescript,
+        identity_cache,
+        catalog=FakeCatalog(catalog_candidate),
+        acquire_missing=True,
+        wait_for_manual_catalog_add=True,
+    )
+
+    outcome = resolver.resolve(track)
+
+    assert outcome.status == AppleMusicResolutionStatus.RESOLVED
+    assert outcome.persistent_id == "PID-FEAT"
+    assert applescript.collect_candidates_batch.call_count == 2
+
+
 def test_resolver_can_open_catalog_without_waiting(tmp_path: Path):
     identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
     applescript = MagicMock()
