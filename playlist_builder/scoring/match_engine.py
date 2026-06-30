@@ -35,10 +35,10 @@ def token_overlap(left: str, right: str) -> float:
 
 
 def score_text_match(wanted_artist: str, wanted_title: str, candidate_artist: str, candidate_title: str) -> int:
-    wanted_artist_norm = wanted_artist.lower()
-    wanted_title_norm = wanted_title.lower()
-    artist_norm = candidate_artist.lower()
-    title_norm = candidate_title.lower()
+    wanted_artist_norm = normalize_text(wanted_artist)
+    wanted_title_norm = normalize_text(wanted_title)
+    artist_norm = normalize_text(candidate_artist)
+    title_norm = normalize_text(candidate_title)
 
     value = 0
     if wanted_artist_norm == artist_norm:

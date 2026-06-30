@@ -75,6 +75,8 @@ def build_apple_music_gateway(
     retry_policy=None,
     identity_cache: IdentityCache | None = None,
     applescript: AppleScriptClient | None = None,
+    acquire_missing: bool = True,
+    catalog_acquisition_min_confidence: float = 70.0,
 ) -> AppleMusicProviderGateway:
     client = ITunesSearchClient(
         country=country,
@@ -89,6 +91,8 @@ def build_apple_music_gateway(
         identity_cache or IdentityCache(JsonCache(Path("cache/apple_music_identity.json"))),
         catalog=catalog_gateway,
         country_code=country,
+        acquire_missing=acquire_missing,
+        catalog_acquisition_min_confidence=catalog_acquisition_min_confidence,
     )
     return AppleMusicProviderGateway(catalog_gateway, import_service)
 
@@ -99,6 +103,8 @@ def build_apple_music_import_service(
     applescript: AppleScriptClient | None = None,
     catalog: CatalogSearchPort | None = None,
     country_code: str = "us",
+    acquire_missing: bool = True,
+    catalog_acquisition_min_confidence: float = 70.0,
 ) -> AppleMusicImportService:
     cache_path = identity_cache_path or Path("cache/apple_music_identity.json")
     return AppleMusicImportService(
@@ -106,6 +112,8 @@ def build_apple_music_import_service(
         IdentityCache(JsonCache(cache_path)),
         catalog=catalog,
         country_code=country_code,
+        acquire_missing=acquire_missing,
+        catalog_acquisition_min_confidence=catalog_acquisition_min_confidence,
     )
 
 
@@ -114,6 +122,8 @@ def build_default_registry(
     country: str = "us",
     catalog_cache=None,
     identity_cache_path: Path | None = None,
+    acquire_missing: bool = True,
+    catalog_acquisition_min_confidence: float = 70.0,
 ) -> ProviderGatewayRegistry:
     registry = ProviderGatewayRegistry()
     registry.register(
@@ -121,6 +131,8 @@ def build_default_registry(
             country=country,
             cache=catalog_cache,
             identity_cache=IdentityCache(JsonCache(identity_cache_path or Path("cache/apple_music_identity.json"))),
+            acquire_missing=acquire_missing,
+            catalog_acquisition_min_confidence=catalog_acquisition_min_confidence,
         )
     )
     return registry

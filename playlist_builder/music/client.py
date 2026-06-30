@@ -109,7 +109,9 @@ class MusicClient:
                 )
                 continue
             if outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
-                batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.NOT_FOUND))
+                batch_results.append(
+                    TrackAddResult(track=track, status=TrackAddStatus.NOT_FOUND, error=outcome.error)
+                )
                 continue
             if delivery_status.startswith("added"):
                 batch_results.append(TrackAddResult(track=track, status=TrackAddStatus.ADDED))

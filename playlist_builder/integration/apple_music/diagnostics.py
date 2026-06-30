@@ -14,6 +14,7 @@ class AppleMusicQueryTrace:
 @dataclass(frozen=True, slots=True)
 class AppleMusicResolutionTrace:
     cache_hit: bool = False
+    catalog_acquired: bool = False
     queries: tuple[AppleMusicQueryTrace, ...] = ()
     candidates: tuple[ResolutionCandidate, ...] = ()
     accepted: ResolutionCandidate | None = None
@@ -32,6 +33,8 @@ class AppleMusicResolutionTrace:
             return self.reason
         if self.cache_hit:
             return "Cache hit IdentityCache."
+        if self.catalog_acquired:
+            return "Résolu après acquisition depuis le catalogue iTunes."
         if not self.candidates:
             query_terms = ", ".join(trace.query for trace in self.queries if trace.query)
             suffix = f" Requêtes: {query_terms}" if query_terms else ""
@@ -50,6 +53,7 @@ def trace_from_candidates(
     expected_queries: tuple[str, ...] = (),
     accepted: ResolutionCandidate | None = None,
     cache_hit: bool = False,
+    catalog_acquired: bool = False,
     reason: str = "",
 ) -> AppleMusicResolutionTrace:
     query_counts: dict[str, int] = {query: 0 for query in expected_queries}
@@ -59,6 +63,7 @@ def trace_from_candidates(
 
     return AppleMusicResolutionTrace(
         cache_hit=cache_hit,
+        catalog_acquired=catalog_acquired,
         queries=tuple(AppleMusicQueryTrace(query, count) for query, count in query_counts.items()),
         candidates=candidates,
         accepted=accepted,

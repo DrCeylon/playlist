@@ -14,7 +14,7 @@ def test_score_track_match_exact():
 
 def test_score_track_match_partial():
     item = {"artistName": "Mark Ronson feat. Bruno Mars", "trackName": "Uptown Funk"}
-    assert score_track_match("Mark Ronson", "Uptown Funk", item) == 80
+    assert score_track_match("Mark Ronson", "Uptown Funk", item) == 100
 
 
 def test_pick_best_match_rejects_low_confidence():

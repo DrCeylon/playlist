@@ -39,6 +39,18 @@ def test_query_variants_are_capped():
     assert len(variants) <= MAX_QUERY_VARIANTS
 
 
+def test_score_text_match_handles_feat_suffix():
+    from playlist_builder.scoring.match_engine import score_text_match
+
+    score = score_text_match(
+        "Kygo",
+        "Firestone",
+        "Kygo feat. Conrad Sewell",
+        "Firestone",
+    )
+    assert score >= 80
+
+
 def test_query_variants_include_title_token_for_firestone():
     variants = generate_query_variants(TrackRef("Kygo", "Firestone"))
     terms = [variant.term for variant in variants]

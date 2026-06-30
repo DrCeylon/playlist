@@ -4,9 +4,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from playlist_builder.catalog.apple_search import AppleCatalogSearch
-from playlist_builder.catalog.cache import JsonCache
-from playlist_builder.catalog.rate_limiter import RateLimiter
+from playlist_builder.app import AppSettings, build_app_context
+from playlist_builder.app.use_cases.check_catalog import CheckCatalogUseCase
 from playlist_builder.playlists.loader import PlaylistValidationError, load_playlist
 from playlist_builder.reports.catalog import write_catalog_reports
 
@@ -53,35 +52,33 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Playlist invalide: {exc}", file=sys.stderr)
         return 1
 
-    searcher = AppleCatalogSearch(
-        country=args.country,
-        cache=None if args.no_cache else JsonCache(args.cache),
-        rate_limiter=RateLimiter(minimum_interval_seconds=max(0.0, args.sleep)),
+    context = build_app_context(
+        AppSettings(
+            country_code=args.country,
+            catalog_cache_path=args.cache,
+            use_catalog_cache=not args.no_cache,
+            acquire_missing_from_catalog=False,
+        )
     )
+    use_case = CheckCatalogUseCase(context)
 
     print(f"🎧 {playlist.name}")
     print(f"🔎 Vérification catalogue Apple/iTunes: {len(playlist.tracks)} morceaux")
 
-    matches = []
-    try:
-        for index, track in enumerate(playlist.tracks, 1):
-            match = searcher.search_track(track)
-            matches.append(match)
-            if match.found:
-                print(f"✅ {index:03d}/{len(playlist.tracks)} {track.label}")
-            elif match.error:
-                print(f"⚠️  {index:03d}/{len(playlist.tracks)} {track.label}: {match.error}")
-            else:
-                print(f"❌ {index:03d}/{len(playlist.tracks)} {track.label}")
-    finally:
-        if searcher.cache:
-            searcher.cache.flush()
+    result = use_case.execute(playlist)
+    for index, match in enumerate(result.matches, 1):
+        if match.found:
+            print(f"✅ {index:03d}/{len(result.matches)} {match.query.label}")
+        elif match.error:
+            print(f"⚠️  {index:03d}/{len(result.matches)} {match.query.label}: {match.error}")
+        else:
+            print(f"❌ {index:03d}/{len(result.matches)} {match.query.label}")
 
-    csv_path, html_path = write_catalog_reports(playlist.name, matches, Path("reports"))
-    found = sum(1 for match in matches if match.found)
+    csv_path, html_path = write_catalog_reports(playlist.name, list(result.matches), Path("reports"))
+    found = sum(1 for match in result.matches if match.found)
 
     print("\nTerminé.")
-    print(f"✅ Correspondances catalogue: {found}/{len(matches)}")
+    print(f"✅ Correspondances catalogue: {found}/{len(result.matches)}")
     print(f"📄 CSV: {csv_path}")
     print(f"🌐 HTML: {html_path}")
     return 0

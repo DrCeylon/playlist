@@ -205,3 +205,40 @@ tell application "Music"
     return results as text
 end tell
 '''
+
+    def acquire_song_from_url(self, url: str) -> tuple[str, str]:
+        """Try to add a catalog track URL to the local Music library.
+
+        Returns (status, detail) where status is one of: added, opened, error.
+        """
+        escaped_url = apple_escape(url)
+        script = f'''
+tell application "Music"
+    try
+        set addedItems to add "{escaped_url}"
+        if (count of addedItems) > 0 then
+            set addedTrack to item 1 of addedItems
+            return "added{FIELD_DELIMITER}" & ((persistent ID of addedTrack) as text)
+        end if
+    end try
+    try
+        open location "{escaped_url}"
+        return "opened{FIELD_DELIMITER}URL ouverte dans Music"
+    on error errMsg
+        return "error{FIELD_DELIMITER}" & errMsg
+    end try
+    return "error{FIELD_DELIMITER}add/open a échoué sans message"
+end tell
+'''
+        try:
+            output = run_applescript(script)
+        except RuntimeError as exc:
+            return "error", str(exc)
+
+        if not output:
+            return "error", "Réponse AppleScript vide."
+        parts = output.split(FIELD_DELIMITER, 1)
+        status = parts[0].strip()
+        detail = parts[1].strip() if len(parts) > 1 else ""
+        return status, detail
+

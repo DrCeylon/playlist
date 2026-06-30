@@ -7,15 +7,19 @@ from playlist_builder.canonical.compat import legacy_track_from_canonical
 from playlist_builder.canonical.contracts import CatalogSearchPort
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.canonical.models import CanonicalTrack
-from playlist_builder.core.models import TrackRef
 from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
-from playlist_builder.integration.apple_music.catalog_fallback import enrich_resolution_message
+from playlist_builder.integration.apple_music.catalog_fallback import (
+    catalog_lookup_for_track,
+    enrich_resolution_message,
+)
 from playlist_builder.integration.apple_music.diagnostics import (
     AppleMusicResolutionTrace,
     trace_from_candidates,
 )
+from playlist_builder.integration.apple_music.library_acquisition import AppleMusicLibraryAcquisition
 from playlist_builder.integration.apple_music.mapper import resolution_candidates_from_apple_music_tracks
+from playlist_builder.integration.apple_music.models import AppleMusicTrack
 from playlist_builder.resolver.query import generate_query_variants
 from playlist_builder.scoring.resolution import ResolutionCandidate, select_best_resolution
 
@@ -37,6 +41,7 @@ class AppleMusicResolutionOutcome:
     selected_query: str = ""
     error: str = ""
     trace: AppleMusicResolutionTrace = AppleMusicResolutionTrace()
+    catalog_acquired: bool = False
 
 
 class AppleMusicResolver:
@@ -50,12 +55,17 @@ class AppleMusicResolver:
         provider_id: ProviderId = ProviderId.APPLE_MUSIC,
         catalog: CatalogSearchPort | None = None,
         country_code: str = "us",
+        acquire_missing: bool = False,
+        catalog_acquisition_min_confidence: float = 70.0,
     ) -> None:
         self._applescript = applescript
         self._identity_cache = identity_cache
         self._provider_id = provider_id
         self._catalog = catalog
         self._country_code = country_code
+        self._acquire_missing = acquire_missing
+        self._catalog_acquisition_min_confidence = catalog_acquisition_min_confidence
+        self._acquisition = AppleMusicLibraryAcquisition(applescript)
 
     def resolve(
         self,
@@ -113,49 +123,111 @@ class AppleMusicResolver:
                 )
             return
 
-        for (index, track, _section), legacy, library_candidates in zip(
+        for (index, track, section), legacy, library_candidates in zip(
             pending, legacy_tracks, candidate_groups, strict=True
         ):
-            resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
-            decision = select_best_resolution(legacy, resolution_candidates)
-            expected_queries = tuple(variant.term for variant in generate_query_variants(legacy))
-            trace = trace_from_candidates(
-                candidates=decision.candidates,
-                expected_queries=expected_queries,
-                accepted=decision.selected,
-                cache_hit=False,
-            )
-
-            if decision.selected is None:
-                outcomes[index] = AppleMusicResolutionOutcome(
-                    track=track,
-                    persistent_id=None,
-                    status=AppleMusicResolutionStatus.NOT_FOUND,
-                    candidates=decision.candidates,
-                    error=enrich_resolution_message(
-                        track,
-                        trace.summary(),
-                        self._catalog,
-                        country_code=self._country_code,
-                    ),
-                    trace=trace,
-                )
-                continue
-
-            selected = decision.selected
-            self._identity_cache.put_identity(
+            del section
+            outcome = self._resolve_track(
                 track,
-                provider_id=self._provider_id,
-                external_id=selected.persistent_id,
-                confidence=float(selected.score),
+                legacy,
+                list(library_candidates),
             )
-            outcomes[index] = AppleMusicResolutionOutcome(
+            outcomes[index] = outcome
+
+    def _resolve_track(
+        self,
+        track: CanonicalTrack,
+        legacy,
+        library_candidates: list[AppleMusicTrack],
+    ) -> AppleMusicResolutionOutcome:
+        catalog_acquired = False
+        acquisition_note = ""
+
+        if not library_candidates:
+            library_candidates, catalog_acquired, acquisition_note = self._maybe_acquire_from_catalog(
+                track,
+                legacy,
+            )
+
+        resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
+        decision = select_best_resolution(legacy, resolution_candidates)
+        expected_queries = tuple(variant.term for variant in generate_query_variants(legacy))
+        trace = trace_from_candidates(
+            candidates=decision.candidates,
+            expected_queries=expected_queries,
+            accepted=decision.selected,
+            cache_hit=False,
+            catalog_acquired=catalog_acquired,
+            reason=acquisition_note,
+        )
+
+        if decision.selected is None:
+            message = trace.summary()
+            if acquisition_note and catalog_acquired is False:
+                message = f"{message} {acquisition_note}"
+            return AppleMusicResolutionOutcome(
                 track=track,
-                persistent_id=selected.persistent_id,
-                status=AppleMusicResolutionStatus.RESOLVED,
-                cache_hit=False,
-                score=float(selected.score),
+                persistent_id=None,
+                status=AppleMusicResolutionStatus.NOT_FOUND,
                 candidates=decision.candidates,
-                selected_query=selected.query,
+                error=enrich_resolution_message(
+                    track,
+                    message,
+                    self._catalog,
+                    country_code=self._country_code,
+                ),
                 trace=trace,
+                catalog_acquired=catalog_acquired,
             )
+
+        selected = decision.selected
+        self._identity_cache.put_identity(
+            track,
+            provider_id=self._provider_id,
+            external_id=selected.persistent_id,
+            confidence=float(selected.score),
+        )
+        return AppleMusicResolutionOutcome(
+            track=track,
+            persistent_id=selected.persistent_id,
+            status=AppleMusicResolutionStatus.RESOLVED,
+            cache_hit=False,
+            score=float(selected.score),
+            candidates=decision.candidates,
+            selected_query=selected.query,
+            trace=trace,
+            catalog_acquired=catalog_acquired,
+        )
+
+    def _maybe_acquire_from_catalog(
+        self,
+        track: CanonicalTrack,
+        legacy,
+    ) -> tuple[list[AppleMusicTrack], bool, str]:
+        if not self._acquire_missing or self._catalog is None:
+            return [], False, ""
+
+        catalog_candidate = catalog_lookup_for_track(
+            track,
+            self._catalog,
+            country_code=self._country_code,
+        )
+        if catalog_candidate is None:
+            return [], False, ""
+        if catalog_candidate.raw_confidence < self._catalog_acquisition_min_confidence:
+            return (
+                [],
+                False,
+                (
+                    f"Catalogue trouvé mais confiance insuffisante "
+                    f"({catalog_candidate.raw_confidence:.0f} < {self._catalog_acquisition_min_confidence:.0f})."
+                ),
+            )
+
+        acquired, detail = self._acquisition.acquire_from_catalog_candidate(catalog_candidate)
+        if not acquired:
+            return [], False, detail
+
+        refreshed = self._applescript.collect_candidates_batch([legacy])
+        library_candidates = refreshed[0] if refreshed else []
+        return library_candidates, True, detail

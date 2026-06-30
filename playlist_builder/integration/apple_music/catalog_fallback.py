@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 from playlist_builder.canonical.contracts import CatalogSearchPort
-from playlist_builder.canonical.models import CanonicalSearchRequest, CanonicalTrack
+from playlist_builder.canonical.models import CanonicalCandidate, CanonicalSearchRequest, CanonicalTrack
 
 
-def catalog_hint_for_track(
+def catalog_lookup_for_track(
     track: CanonicalTrack,
     catalog: CatalogSearchPort,
     *,
     country_code: str = "us",
-) -> str | None:
-    """Return a catalog advisory when the local library search found nothing useful."""
-
+) -> CanonicalCandidate | None:
     response = catalog.search(
         CanonicalSearchRequest(
             query=f"{track.artist.display_name} {track.title}".strip(),
@@ -22,8 +20,21 @@ def catalog_hint_for_track(
     )
     if not response.candidates:
         return None
+    return response.candidates[0]
 
-    best = response.candidates[0]
+
+def catalog_hint_for_track(
+    track: CanonicalTrack,
+    catalog: CatalogSearchPort,
+    *,
+    country_code: str = "us",
+) -> str | None:
+    """Return a catalog advisory when the local library search found nothing useful."""
+
+    best = catalog_lookup_for_track(track, catalog, country_code=country_code)
+    if best is None:
+        return None
+
     return (
         f"Catalogue iTunes: {best.track.label} "
         f"(confiance {best.raw_confidence:.0f}). "
