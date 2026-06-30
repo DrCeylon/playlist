@@ -38,8 +38,9 @@ See [../product/README.md](../product/README.md).
 | PR 9 | Phases 2–3 gateway unification + E2E documentation | Done |
 | PR 10 | Generic resolution trace + legacy shim removal | Planned |
 | PR 4.0 | Product UI discovery & architecture (docs) | Done |
-| PR 4.1 | Shared UI DTO + validation contracts | In progress |
-| PR 4.1–4.9 | UI implementation roadmap | Planned |
+| PR 4.1 | Shared UI DTO + validation contracts | Done |
+| PR 4.2 | Engine Bridge JSON protocol | In progress |
+| PR 4.2–4.9 | UI implementation roadmap | Planned |
 
 ## Rules
 

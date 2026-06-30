@@ -13,6 +13,12 @@ ui/shared/
   navigation/    # AppRoute
   viewmodels/    # Reference VMs (Phase 4.4+)
   theme/         # Theme engine (Phase 4.3+)
+bridge/          # JSON Engine Bridge (Phase 4.2+)
+  commands.py
+  protocol.py
+  json_rpc.py
+  events.py
+  errors.py
 ```
 
 ## Rules
