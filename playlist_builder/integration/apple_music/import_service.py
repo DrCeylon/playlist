@@ -70,6 +70,11 @@ class AppleMusicImportService:
         allow_duplicates: bool = False,
     ) -> CanonicalImportReport:
         rows = flatten_playlist_rows(playlist)
+        for track, _section in rows:
+            print(
+                f"🔍 Résolution : {track.artist.display_name} - {track.title}...",
+                flush=True,
+            )
         outcomes = self._resolver.resolve_batch(rows)
         self._delivery.ensure_playlist(playlist.name)
 

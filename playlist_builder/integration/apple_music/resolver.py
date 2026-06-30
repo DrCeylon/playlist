@@ -26,7 +26,7 @@ from playlist_builder.scoring.resolution import ResolutionCandidate, select_best
 
 _MANUAL_ACQUISITION_LIBRARY_ATTEMPTS = 4
 _MANUAL_ACQUISITION_RETRY_DELAY_SECONDS = 5.0
-_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS = 4
+_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS = 6
 
 
 class AppleMusicResolutionStatus(StrEnum):
@@ -243,7 +243,7 @@ class AppleMusicResolver:
 
         if acquisition.automatic_attempted:
             print(
-                f"📥 Acquisition automatique catalogue→bibliothèque pour {track.artist.display_name} - {track.title}...",
+                f"📥 Acquisition catalogue→bibliothèque pour {track.artist.display_name} - {track.title}...",
                 flush=True,
             )
 

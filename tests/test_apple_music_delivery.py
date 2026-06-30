@@ -65,7 +65,23 @@ def test_delivery_marks_unresolved_track_as_not_found():
     report = delivery.sync_playlist(_playlist(), [outcome])
 
     assert report.results[0].status == ImportStatus.NOT_FOUND
+    applescript.clear_playlist_tracks.assert_not_called()
     applescript.add_tracks_by_persistent_id_batch.assert_not_called()
+
+
+def test_delivery_skips_clear_when_no_resolved_tracks():
+    applescript = MagicMock()
+    delivery = AppleMusicDelivery(applescript)
+    outcome = AppleMusicResolutionOutcome(
+        track=_track(),
+        persistent_id=None,
+        status=AppleMusicResolutionStatus.NOT_FOUND,
+        error="Acquisition échouée.",
+    )
+
+    delivery.sync_playlist(_playlist(), [outcome])
+
+    applescript.clear_playlist_tracks.assert_not_called()
 
 
 def test_import_service_uses_cache_on_second_run(tmp_path: Path):

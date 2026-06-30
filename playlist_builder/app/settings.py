@@ -8,7 +8,7 @@ from pathlib import Path
 class AppSettings:
     """Central configuration for application use cases."""
 
-    country_code: str = "us"
+    country_code: str = "fr"
     catalog_cache_path: Path = Path("cache/itunes_catalog.json")
     identity_cache_path: Path = Path("cache/apple_music_identity.json")
     acquire_missing_from_catalog: bool = True

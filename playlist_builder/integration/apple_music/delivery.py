@@ -27,6 +27,9 @@ class AppleMusicDelivery:
         playlist: CanonicalPlaylist,
         outcomes: list[AppleMusicResolutionOutcome],
     ) -> CanonicalImportReport:
+        resolved = [outcome for outcome in outcomes if outcome.status == AppleMusicResolutionStatus.RESOLVED]
+        if not resolved:
+            return self._import_resolved_tracks(playlist, outcomes, existing_keys=None, allow_duplicates=True)
         self._applescript.clear_playlist_tracks(playlist.name)
         return self._import_resolved_tracks(playlist, outcomes, existing_keys=None, allow_duplicates=True)
 

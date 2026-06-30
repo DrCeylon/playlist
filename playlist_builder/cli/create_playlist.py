@@ -45,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Moteur de création. applescript (recommandé) ou musickit (expérimental, licence payante).",
     )
     parser.add_argument("--storefront", default="us", help="Apple Music storefront for MusicKit, e.g. us, ch, fr")
-    parser.add_argument("--country", default="us", help="Store country for catalog acquisition, e.g. us, ch, fr")
+    parser.add_argument("--country", default="fr", help="Pays du catalogue iTunes pour l'acquisition, ex. fr, us, ch")
     parser.add_argument(
         "--cache",
         type=Path,

@@ -254,6 +254,8 @@ def test_resolver_can_open_catalog_without_waiting(tmp_path: Path):
         [[]],
         [[]],
         [[]],
+        [[]],
+        [[]],
     ]
     applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
 

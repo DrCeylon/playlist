@@ -83,6 +83,12 @@ class AppleMusicLibraryAcquisition:
         track_id = catalog_track_id_from_candidate(candidate)
         search_terms = _catalog_search_terms(artist, title)
 
+        print(
+            f"🤖 Ajout automatique dans Music.app : {artist} - {title}...",
+            flush=True,
+        )
+        print("   (peut prendre 20–30 secondes, Music.app doit rester accessible)", flush=True)
+
         status, detail = self._applescript.acquire_song_from_url(
             url,
             artist=artist,
