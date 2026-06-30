@@ -161,19 +161,21 @@ class AppleMusicResolver:
 
         if decision.selected is None:
             message = trace.summary()
-            if acquisition_note and catalog_acquired is False:
-                message = f"{message} {acquisition_note}"
+            if acquisition_note:
+                error = message
+            else:
+                error = enrich_resolution_message(
+                    track,
+                    message,
+                    self._catalog,
+                    country_code=self._country_code,
+                )
             return AppleMusicResolutionOutcome(
                 track=track,
                 persistent_id=None,
                 status=AppleMusicResolutionStatus.NOT_FOUND,
                 candidates=decision.candidates,
-                error=enrich_resolution_message(
-                    track,
-                    message,
-                    self._catalog,
-                    country_code=self._country_code,
-                ),
+                error=error,
                 trace=trace,
                 catalog_acquired=catalog_acquired,
             )
