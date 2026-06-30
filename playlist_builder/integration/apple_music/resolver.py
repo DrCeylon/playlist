@@ -61,7 +61,7 @@ class AppleMusicResolver:
         catalog: CatalogSearchPort | None = None,
         country_code: str = "us",
         acquire_missing: bool = False,
-        wait_for_manual_catalog_add: bool = True,
+        wait_for_manual_catalog_add: bool = False,
         catalog_acquisition_min_confidence: float = 70.0,
     ) -> None:
         self._applescript = applescript
@@ -145,15 +145,22 @@ class AppleMusicResolver:
     ) -> AppleMusicResolutionOutcome:
         catalog_acquired = False
         acquisition_note = ""
-
-        if not library_candidates:
-            library_candidates, catalog_acquired, acquisition_note = self._maybe_acquire_from_catalog(
-                track,
-                legacy,
-            )
+        catalog_acquisition_attempted = False
 
         resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
         decision = select_best_resolution(legacy, resolution_candidates)
+
+        if decision.selected is None and self._acquire_missing and self._catalog is not None:
+            (
+                library_candidates,
+                catalog_acquired,
+                acquisition_note,
+                catalog_acquisition_attempted,
+            ) = self._maybe_acquire_from_catalog(track, legacy)
+            if library_candidates:
+                resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
+                decision = select_best_resolution(legacy, resolution_candidates)
+
         expected_queries = tuple(variant.term for variant in generate_query_variants(legacy))
         trace = trace_from_candidates(
             candidates=decision.candidates,
@@ -166,7 +173,7 @@ class AppleMusicResolver:
 
         if decision.selected is None:
             message = trace.summary()
-            if acquisition_note:
+            if catalog_acquisition_attempted or acquisition_note:
                 error = message
             else:
                 error = enrich_resolution_message(
@@ -208,9 +215,9 @@ class AppleMusicResolver:
         self,
         track: CanonicalTrack,
         legacy,
-    ) -> tuple[list[AppleMusicTrack], bool, str]:
+    ) -> tuple[list[AppleMusicTrack], bool, str, bool]:
         if not self._acquire_missing or self._catalog is None:
-            return [], False, ""
+            return [], False, "", False
 
         catalog_candidate = catalog_lookup_for_track(
             track,
@@ -218,7 +225,7 @@ class AppleMusicResolver:
             country_code=self._country_code,
         )
         if catalog_candidate is None:
-            return [], False, ""
+            return [], False, "", False
         if catalog_candidate.raw_confidence < self._catalog_acquisition_min_confidence:
             return (
                 [],
@@ -227,11 +234,12 @@ class AppleMusicResolver:
                     f"Catalogue trouvé mais confiance insuffisante "
                     f"({catalog_candidate.raw_confidence:.0f} < {self._catalog_acquisition_min_confidence:.0f})."
                 ),
+                False,
             )
 
         acquisition = self._acquisition.acquire_from_catalog_candidate(catalog_candidate)
         if acquisition.status == AppleMusicAcquisitionStatus.ERROR:
-            return [], False, acquisition.detail
+            return [], False, acquisition.detail, True
 
         if acquisition.automatic_attempted:
             print(
@@ -246,7 +254,7 @@ class AppleMusicResolver:
             show_progress=acquisition.automatic_attempted,
         )
         if library_candidates:
-            return library_candidates, True, acquisition.detail
+            return library_candidates, True, acquisition.detail, True
 
         if acquisition.opened and self._wait_for_manual_catalog_add:
             self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
@@ -257,7 +265,7 @@ class AppleMusicResolver:
                 show_progress=True,
             )
             if library_candidates:
-                return library_candidates, True, acquisition.detail
+                return library_candidates, True, acquisition.detail, True
             return (
                 [],
                 False,
@@ -266,6 +274,7 @@ class AppleMusicResolver:
                     "Morceau toujours absent de la bibliothèque après confirmation "
                     f"({_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
                 ),
+                True,
             )
 
         if acquisition.opened or acquisition.duplicated:
@@ -275,11 +284,11 @@ class AppleMusicResolver:
                 (
                     f"{acquisition.detail} "
                     "Morceau toujours absent de la bibliothèque après acquisition automatique "
-                    f"({_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS} recherches). "
-                    "Relancez sans --no-wait-for-acquisition pour l'ajout manuel."
+                    f"({_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
                 ),
+                True,
             )
-        return [], False, acquisition.detail
+        return [], False, acquisition.detail, True
 
     def _refresh_library_candidates_with_retries(
         self,

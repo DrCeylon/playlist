@@ -76,7 +76,7 @@ def build_apple_music_gateway(
     identity_cache: IdentityCache | None = None,
     applescript: AppleScriptClient | None = None,
     acquire_missing: bool = True,
-    wait_for_manual_catalog_add: bool = True,
+    wait_for_manual_catalog_add: bool = False,
     catalog_acquisition_min_confidence: float = 70.0,
 ) -> AppleMusicProviderGateway:
     client = ITunesSearchClient(
@@ -106,7 +106,7 @@ def build_apple_music_import_service(
     catalog: CatalogSearchPort | None = None,
     country_code: str = "us",
     acquire_missing: bool = True,
-    wait_for_manual_catalog_add: bool = True,
+    wait_for_manual_catalog_add: bool = False,
     catalog_acquisition_min_confidence: float = 70.0,
 ) -> AppleMusicImportService:
     cache_path = identity_cache_path or Path("cache/apple_music_identity.json")
@@ -127,7 +127,7 @@ def build_default_registry(
     catalog_cache=None,
     identity_cache_path: Path | None = None,
     acquire_missing: bool = True,
-    wait_for_manual_catalog_add: bool = True,
+    wait_for_manual_catalog_add: bool = False,
     catalog_acquisition_min_confidence: float = 70.0,
 ) -> ProviderGatewayRegistry:
     registry = ProviderGatewayRegistry()

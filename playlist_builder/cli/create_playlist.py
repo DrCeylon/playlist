@@ -71,9 +71,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Ne tente pas d'ajouter automatiquement les morceaux manquants depuis le catalogue iTunes.",
     )
     parser.add_argument(
+        "--wait-for-acquisition",
+        action="store_true",
+        help="Si l'ajout automatique échoue, attend une confirmation manuelle dans Music.app.",
+    )
+    parser.add_argument(
         "--no-wait-for-acquisition",
         action="store_true",
-        help="N'attend pas de confirmation manuelle après ouverture d'une URL catalogue dans Music.app.",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--json-diagnostics",
@@ -117,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
         identity_cache_path=args.identity_cache,
         catalog_cache_path=args.catalog_cache,
         acquire_missing=not args.no_acquire,
-        wait_for_manual_catalog_add=not args.no_wait_for_acquisition,
+        wait_for_manual_catalog_add=args.wait_for_acquisition and not args.no_wait_for_acquisition,
         write_json_diagnostics=args.json_diagnostics,
     )
 
@@ -197,7 +202,7 @@ def _run_applescript(
             print("📥 Acquisition catalogue→bibliothèque activée pour les morceaux manquants")
             print("🤖 Ajout automatique via Music.app (add URL + duplication bibliothèque)")
         if acquire_missing and wait_for_manual_catalog_add:
-            print("⏸️  Le programme attendra Entrée si un ajout manuel dans Music.app est requis")
+            print("⏸️  Mode interactif activé (--wait-for-acquisition) si l'ajout automatique échoue")
         result = use_case.execute(
             playlist,
             sync=True,

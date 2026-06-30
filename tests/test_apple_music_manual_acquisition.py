@@ -187,6 +187,64 @@ def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatc
     assert outcome.persistent_id == "PID-FEAT"
 
 
+def test_resolver_acquires_when_library_has_only_false_positives(tmp_path: Path, monkeypatch):
+    identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
+    track = CanonicalTrack(artist=CanonicalArtist(name="Kyo"), title="Dernière danse")
+    catalog_candidate = CanonicalCandidate(
+        track=track,
+        source="itunes_catalog",
+        provider_hints=("https://music.apple.com/fr/song/derniere-danse/123",),
+        raw_confidence=100.0,
+        reasons=("test",),
+    )
+    applescript = MagicMock()
+    applescript.collect_candidates_batch.side_effect = [
+        [
+            [
+                AppleMusicTrack(
+                    persistent_id="PID-BAD",
+                    artist="Disney",
+                    title="Towkyo Takeout",
+                    query="Dernière danse",
+                )
+            ]
+        ],
+        [[]],
+        [[]],
+        [
+            [
+                AppleMusicTrack(
+                    persistent_id="PID-KYO",
+                    artist="Kyo",
+                    title="Dernière danse",
+                    query="Dernière danse",
+                )
+            ]
+        ],
+    ]
+    applescript.acquire_song_from_url.return_value = (
+        "duplicated",
+        "Duplication automatique vers la bibliothèque effectuée",
+    )
+    monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
+
+    resolver = AppleMusicResolver(
+        applescript,
+        identity_cache,
+        catalog=FakeCatalog(catalog_candidate),
+        acquire_missing=True,
+        wait_for_manual_catalog_add=False,
+    )
+
+    outcome = resolver.resolve(track)
+
+    assert outcome.status == AppleMusicResolutionStatus.RESOLVED
+    assert outcome.persistent_id == "PID-KYO"
+    assert outcome.catalog_acquired is True
+    assert applescript.acquire_song_from_url.called
+    assert "Catalogue iTunes" not in outcome.error
+
+
 def test_resolver_can_open_catalog_without_waiting(tmp_path: Path):
     identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
     applescript = MagicMock()

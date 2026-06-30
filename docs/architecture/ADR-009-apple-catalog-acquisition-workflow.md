@@ -28,7 +28,8 @@ When a track is missing from the local library but found in the catalog:
 5. If the track is now present, store the identity in `IdentityCache` and deliver it.
 6. If not, keep a controlled `NOT_FOUND` result with an explicit acquisition message.
 
-The CLI exposes `--no-wait-for-acquisition` to preserve non-interactive execution.
+The CLI exposes `--wait-for-acquisition` to opt into manual confirmation when
+automatic acquisition fails. By default the workflow is fully automatic.
 
 ## Why this belongs in the Apple provider
 

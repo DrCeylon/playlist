@@ -29,7 +29,7 @@ class AppleMusicImportService:
         catalog: CatalogSearchPort | None = None,
         country_code: str = "us",
         acquire_missing: bool = False,
-        wait_for_manual_catalog_add: bool = True,
+        wait_for_manual_catalog_add: bool = False,
         catalog_acquisition_min_confidence: float = 70.0,
     ) -> None:
         self._applescript = applescript
