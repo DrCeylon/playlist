@@ -34,6 +34,19 @@ Package `playlist_builder/ui/bridge/` :
 Doc : [phase-4-engine-bridge.md](phase-4-engine-bridge.md)  
 Tests : `tests/test_ui_bridge_*.py`
 
+## Phase 4.3 — Theme engine (code)
+
+Package `playlist_builder/ui/shared/theme/` :
+
+- **tokens** — `DesignTokens` (colors, typography, spacing, radius, shadows)
+- **registry** — `ThemeRegistry` with bundled `themes/*.theme.json`
+- **manager** — `ThemeManager` (active theme, apply, subscribe)
+- **validation** — mandatory token set from design system
+- **loader** — JSON parsing and `extends` merge
+
+Doc : [phase-4-theme-engine.md](phase-4-theme-engine.md)  
+Tests : `tests/test_ui_shared_theme.py`
+
 Architecture :
 
 - [ADR-011](../architecture/ADR-011-cross-platform-product-ui.md)
