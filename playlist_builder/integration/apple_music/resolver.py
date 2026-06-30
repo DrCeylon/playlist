@@ -278,14 +278,17 @@ class AppleMusicResolver:
             )
 
         if acquisition.opened or acquisition.duplicated:
+            suffix = (
+                f"{acquisition.detail} "
+                "Morceau toujours absent de la bibliothèque après acquisition automatique "
+                f"({_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
+            )
+            if acquisition.opened and not self._wait_for_manual_catalog_add:
+                suffix += " Utilisez --wait-for-acquisition pour l'ajout manuel dans Music.app."
             return (
                 [],
                 False,
-                (
-                    f"{acquisition.detail} "
-                    "Morceau toujours absent de la bibliothèque après acquisition automatique "
-                    f"({_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
-                ),
+                suffix,
                 True,
             )
         return [], False, acquisition.detail, True

@@ -1,0 +1,12 @@
+{
+  "name": "E2E Absent",
+  "description": "Playlist E2E pour un morceau absent de la bibliothèque (acquisition catalogue requise).",
+  "sections": [
+    {
+      "name": "Absent",
+      "songs": [
+        {"artist": "Kyo", "title": "Dernière danse"}
+      ]
+    }
+  ]
+}

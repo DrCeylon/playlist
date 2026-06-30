@@ -36,6 +36,13 @@ def test_catalog_track_id_from_hint():
     assert catalog_track_id_from_candidate(candidate) == "950274258"
 
 
+def test_catalog_track_id_from_album_url_query_param():
+    candidate = _candidate(
+        "https://music.apple.com/fr/album/derniere-danse/254228726?i=254228761&uo=4",
+    )
+    assert catalog_track_id_from_candidate(candidate) == "254228761"
+
+
 def test_catalog_track_id_from_url_when_hint_missing():
     candidate = _candidate("https://music.apple.com/us/song/firestone/950274258")
     assert catalog_track_id_from_candidate(candidate) == "950274258"

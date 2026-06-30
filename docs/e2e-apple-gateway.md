@@ -29,6 +29,8 @@ rm -f cache/e2e_apple_music_identity.json
 
 ## 3. Run the gateway import
 
+### Track already in library (Kygo — Firestone)
+
 ```bash
 python create_playlist.py \
   --playlist playlists/e2e_apple_gateway.json \
@@ -36,7 +38,24 @@ python create_playlist.py \
   --json-diagnostics
 ```
 
-The E2E playlist contains **Kygo — Firestone** only.
+### Track absent from library (Kyo — Dernière danse)
+
+```bash
+python create_playlist.py \
+  --playlist playlists/e2e_absent.json \
+  --identity-cache cache/e2e_apple_music_identity.json \
+  --json-diagnostics
+```
+
+If automatic acquisition fails (URL opened but track not added), use manual mode:
+
+```bash
+python create_playlist.py \
+  --playlist playlists/e2e_absent.json \
+  --identity-cache cache/e2e_apple_music_identity.json \
+  --wait-for-acquisition \
+  --json-diagnostics
+```
 
 ## Expected outcomes
 
