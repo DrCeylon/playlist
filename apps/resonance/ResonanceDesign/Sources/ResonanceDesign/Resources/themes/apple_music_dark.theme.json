@@ -1,0 +1,55 @@
+{
+  "id": "apple_music_dark",
+  "displayName": "Apple Music Dark",
+  "version": "1.0.0",
+  "extends": null,
+  "tokens": {
+    "colors": {
+      "color.background.primary": "#1C1C1E",
+      "color.background.secondary": "#2C2C2E",
+      "color.background.elevated": "#3A3A3C",
+      "color.text.primary": "#F5F5F7",
+      "color.text.secondary": "#AEAEB2",
+      "color.text.tertiary": "#636366",
+      "color.accent.primary": "#FA2D48",
+      "color.accent.secondary": "#5E5CE6",
+      "color.border.subtle": "#FFFFFF1A",
+      "color.status.success": "#30D158",
+      "color.status.warning": "#FFD60A",
+      "color.status.error": "#FF453A",
+      "color.status.info": "#0A84FF",
+      "color.lab.accent": "#BF5AF2"
+    },
+    "typography": {
+      "font.largeTitle": "28,semibold",
+      "font.title": "22,semibold",
+      "font.headline": "17,semibold",
+      "font.body": "15,regular",
+      "font.callout": "13,regular",
+      "font.caption": "11,regular",
+      "font.mono": "12,regular"
+    },
+    "spacing": {
+      "space.xs": 4,
+      "space.sm": 8,
+      "space.md": 16,
+      "space.lg": 24,
+      "space.xl": 32,
+      "space.xxl": 48
+    },
+    "radius": {
+      "radius.sm": 6,
+      "radius.md": 10,
+      "radius.lg": 14,
+      "radius.xl": 20
+    },
+    "shadows": {
+      "shadow.card": "0 2px 8px #00000014",
+      "shadow.elevated": "0 8px 24px #0000001F"
+    }
+  },
+  "metadata": {
+    "author": "Resonance",
+    "inspiration": "Apple Music"
+  }
+}
