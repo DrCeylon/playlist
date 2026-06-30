@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import Any
 
 from playlist_builder.canonical.enums import ProviderId
+from playlist_builder.ui.bridge.errors import InvalidBridgeRequestError
 from playlist_builder.ui.shared.dto import (
     DiagnosticEvent,
     EnergyCurveOption,
@@ -101,41 +102,42 @@ class DiagnosticsResult:
 
 
 def parse_bridge_request(payload: dict[str, Any]) -> BridgeRequest:
+    if not isinstance(payload, dict):
+        raise InvalidBridgeRequestError("Bridge request must be an object.")
+
     request_id = str(payload.get("id", "")).strip()
     if not request_id:
-        raise ValueError("Bridge request id is required.")
+        raise InvalidBridgeRequestError("Bridge request id is required.")
 
     command_raw = payload.get("command")
     if not isinstance(command_raw, str):
-        raise ValueError("Bridge command must be a string.")
+        raise InvalidBridgeRequestError("Bridge command must be a string.")
 
     try:
         command = BridgeCommand(command_raw.strip())
     except ValueError as exc:
-        raise ValueError(f"Unknown bridge command: {command_raw!r}") from exc
+        raise InvalidBridgeRequestError(f"Unknown bridge command: {command_raw!r}") from exc
 
     params = payload.get("params", {})
     if params is None:
         params = {}
     if not isinstance(params, dict):
-        raise ValueError("Bridge params must be an object.")
+        raise InvalidBridgeRequestError("Bridge params must be an object.")
 
     return BridgeRequest(id=request_id, command=command, params=params)
 
 
 def playlist_generation_request_from_dict(data: dict[str, Any]) -> PlaylistGenerationRequest:
     if not isinstance(data, dict):
-        raise ValueError("Generation request must be an object.")
+        raise InvalidBridgeRequestError("Generation request must be an object.")
 
-    provider_raw = data.get("provider_id", ProviderId.APPLE_MUSIC.value)
-    provider_id = ProviderId(str(provider_raw))
-
-    seeds = tuple(_seed_from_dict(item) for item in _as_list(data.get("seeds", ())))
+    provider_id = _parse_provider_id(data.get("provider_id", ProviderId.APPLE_MUSIC.value))
+    seeds = tuple(_seed_from_dict(item) for item in _parse_object_list(data.get("seeds", ()), field_name="seeds"))
     keywords = tuple(str(item).strip() for item in _as_list(data.get("keywords", ())) if str(item).strip())
-    exclusions = tuple(_exclusion_from_dict(item) for item in _as_list(data.get("exclusions", ())))
-
-    energy_raw = data.get("energy_curve", {})
-    energy_curve = _energy_curve_from_dict(energy_raw if isinstance(energy_raw, dict) else {})
+    exclusions = tuple(
+        _exclusion_from_dict(item) for item in _parse_object_list(data.get("exclusions", ()), field_name="exclusions")
+    )
+    energy_curve = _energy_curve_from_dict(data.get("energy_curve", {}))
 
     return PlaylistGenerationRequest(
         name=str(data.get("name", "")),
@@ -143,18 +145,31 @@ def playlist_generation_request_from_dict(data: dict[str, Any]) -> PlaylistGener
         seeds=seeds,
         keywords=keywords,
         description=str(data.get("description", "")),
-        target_track_count=_optional_int(data.get("target_track_count")),
-        target_duration_minutes=_optional_int(data.get("target_duration_minutes")),
+        target_track_count=_optional_int(data.get("target_track_count"), field_name="target_track_count"),
+        target_duration_minutes=_optional_int(
+            data.get("target_duration_minutes"),
+            field_name="target_duration_minutes",
+        ),
         energy_curve=energy_curve,
         exclusions=exclusions,
         playlist_theme=str(data.get("playlist_theme", "")),
     )
 
 
+def _parse_provider_id(value: Any) -> ProviderId:
+    try:
+        return ProviderId(str(value))
+    except ValueError as exc:
+        raise InvalidBridgeRequestError(f"provider_id invalide : {value!r}") from exc
+
+
 def _seed_from_dict(data: Any) -> SeedReference:
     if not isinstance(data, dict):
-        raise ValueError("Seed must be an object.")
-    weight = float(data.get("weight", 1.0))
+        raise InvalidBridgeRequestError("Chaque seed doit être un objet.")
+    try:
+        weight = float(data.get("weight", 1.0))
+    except (TypeError, ValueError) as exc:
+        raise InvalidBridgeRequestError("seed.weight invalide.") from exc
     return SeedReference(
         artist=str(data.get("artist", "")),
         title=str(data.get("title", "")),
@@ -164,8 +179,12 @@ def _seed_from_dict(data: Any) -> SeedReference:
 
 def _exclusion_from_dict(data: Any) -> ExclusionRule:
     if not isinstance(data, dict):
-        raise ValueError("Exclusion must be an object.")
-    kind = ExclusionKind(str(data.get("kind", "")))
+        raise InvalidBridgeRequestError("Chaque exclusion doit être un objet.")
+    kind_raw = data.get("kind", "")
+    try:
+        kind = ExclusionKind(str(kind_raw))
+    except ValueError as exc:
+        raise InvalidBridgeRequestError(f"exclusion.kind invalide : {kind_raw!r}") from exc
     return ExclusionRule(
         kind=kind,
         value=str(data.get("value", "")),
@@ -173,15 +192,28 @@ def _exclusion_from_dict(data: Any) -> ExclusionRule:
     )
 
 
-def _energy_curve_from_dict(data: dict[str, Any]) -> EnergyCurveOption:
-    profile_raw = data.get("profile", EnergyCurveProfile.RISING.value)
-    profile = EnergyCurveProfile(str(profile_raw))
-    chapters = tuple(str(item).strip() for item in _as_list(data.get("chapter_labels", ())) if str(item).strip())
+def _energy_curve_from_dict(value: Any) -> EnergyCurveOption:
+    if value is None:
+        value = {}
+    if not isinstance(value, dict):
+        raise InvalidBridgeRequestError("energy_curve doit être un objet.")
+    profile_raw = value.get("profile", EnergyCurveProfile.RISING.value)
+    try:
+        profile = EnergyCurveProfile(str(profile_raw))
+    except ValueError as exc:
+        raise InvalidBridgeRequestError(f"energy_curve.profile invalide : {profile_raw!r}") from exc
+    chapters = tuple(str(item).strip() for item in _as_list(value.get("chapter_labels", ())) if str(item).strip())
     return EnergyCurveOption(profile=profile, chapter_labels=chapters)
 
 
 def diagnostic_event_from_dict(data: dict[str, Any]) -> DiagnosticEvent:
+    if not isinstance(data, dict):
+        raise InvalidBridgeRequestError("Diagnostic event must be an object.")
     level_raw = data.get("level", DiagnosticLevel.INFO.value)
+    try:
+        level = DiagnosticLevel(str(level_raw))
+    except ValueError as exc:
+        raise InvalidBridgeRequestError(f"diagnostic.level invalide : {level_raw!r}") from exc
     payload_raw = data.get("payload", ())
     payload: tuple[tuple[str, str], ...] = ()
     if isinstance(payload_raw, list):
@@ -193,10 +225,18 @@ def diagnostic_event_from_dict(data: dict[str, Any]) -> DiagnosticEvent:
     return DiagnosticEvent(
         phase=str(data.get("phase", "")),
         message=str(data.get("message", "")),
-        level=DiagnosticLevel(str(level_raw)),
+        level=level,
         timestamp_iso=str(data.get("timestamp_iso", "")),
         payload=payload,
     )
+
+
+def _parse_object_list(value: Any, *, field_name: str) -> list[Any]:
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple)):
+        raise InvalidBridgeRequestError(f"{field_name} doit être une liste.")
+    return list(value)
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -209,7 +249,10 @@ def _as_list(value: Any) -> list[Any]:
     return [value]
 
 
-def _optional_int(value: Any) -> int | None:
+def _optional_int(value: Any, *, field_name: str) -> int | None:
     if value is None or value == "":
         return None
-    return int(value)
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise InvalidBridgeRequestError(f"{field_name} invalide : {value!r}") from exc

@@ -36,3 +36,15 @@ class BridgeError(Exception):
         if self.details:
             payload["details"] = {key: value for key, value in self.details}
         return payload
+
+
+class InvalidBridgeRequestError(BridgeError):
+    """Raised when request JSON shape or field types/values are invalid."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: tuple[tuple[str, str], ...] = (),
+    ) -> None:
+        super().__init__(BridgeErrorCode.INVALID_REQUEST, message, details=details)

@@ -13,6 +13,7 @@ from playlist_builder.ui.bridge.commands import (
     parse_bridge_request,
     playlist_generation_request_from_dict,
 )
+from playlist_builder.ui.bridge.errors import InvalidBridgeRequestError
 from playlist_builder.ui.shared.dto import EnergyCurveProfile, ExclusionKind, ProviderOption
 from playlist_builder.ui.shared.validation import dto_to_dict
 
@@ -26,7 +27,7 @@ def test_parse_bridge_request():
 
 
 def test_parse_bridge_request_unknown_command_raises():
-    with pytest.raises(ValueError, match="Unknown bridge command"):
+    with pytest.raises(InvalidBridgeRequestError, match="Unknown bridge command"):
         parse_bridge_request({"id": "1", "command": "not_a_command"})
 
 

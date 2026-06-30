@@ -19,7 +19,7 @@ from playlist_builder.ui.bridge.commands import (
     parse_bridge_request,
     playlist_generation_request_from_dict,
 )
-from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
+from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode, InvalidBridgeRequestError
 from playlist_builder.ui.bridge.events import BridgeEvent, completed_event, started_event
 from playlist_builder.ui.bridge.protocol import EngineBridge, EngineBridgeBackend
 from playlist_builder.ui.shared.dto import ImportResultState, ProviderOption, default_provider_options
@@ -38,12 +38,17 @@ class JsonRpcEngineBridge(EngineBridge):
     def handle_messages(self, request: dict[str, Any]) -> Iterator[dict[str, Any]]:
         try:
             bridge_request = parse_bridge_request(request)
+        except InvalidBridgeRequestError as exc:
+            yield _error_response(str(request.get("id", "")), exc.code, exc.message, details=exc.details).to_dict()
+            return
         except ValueError as exc:
             yield _error_response(str(request.get("id", "")), BridgeErrorCode.INVALID_REQUEST, str(exc)).to_dict()
             return
 
         try:
             yield from self._dispatch(bridge_request)
+        except InvalidBridgeRequestError as exc:
+            yield _error_response(bridge_request.id, exc.code, exc.message, details=exc.details).to_dict()
         except BridgeError as exc:
             yield _error_response(bridge_request.id, exc.code, exc.message, details=exc.details).to_dict()
         except Exception as exc:
@@ -101,20 +106,14 @@ class JsonRpcEngineBridge(EngineBridge):
         return ListProvidersResult(providers=default_provider_options())
 
     def _validate_generation_request(self, params: dict[str, Any]) -> ValidateGenerationRequestResult:
-        request_data = params.get("request")
-        if not isinstance(request_data, dict):
-            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Paramètre 'request' manquant ou invalide.")
-        generation_request = playlist_generation_request_from_dict(request_data)
+        generation_request = _parse_generation_request_from_params(params)
         validation = validate_playlist_generation_request(generation_request)
         return ValidateGenerationRequestResult(valid=validation.is_valid, errors=validation.errors)
 
     def _generate_playlist(self, params: dict[str, Any]) -> GeneratePlaylistResult:
         if self.backend is None:
             raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de génération non configuré.")
-        request_data = params.get("request")
-        if not isinstance(request_data, dict):
-            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Paramètre 'request' manquant ou invalide.")
-        generation_request = playlist_generation_request_from_dict(request_data)
+        generation_request = _parse_generation_request_from_params(params)
         validation = validate_playlist_generation_request(generation_request)
         if not validation.is_valid:
             raise BridgeError(
@@ -122,7 +121,12 @@ class JsonRpcEngineBridge(EngineBridge):
                 "Requête de génération invalide.",
                 details=tuple((error.field, error.message) for error in validation.errors),
             )
-        return self.backend.generate_playlist(generation_request)
+        try:
+            return self.backend.generate_playlist(generation_request)
+        except BridgeError:
+            raise
+        except Exception as exc:
+            raise BridgeError(BridgeErrorCode.ENGINE_ERROR, str(exc)) from exc
 
     def _import_playlist_stream(self, params: dict[str, Any]) -> Iterator[BridgeEvent | ImportPlaylistResult]:
         if self.backend is None:
@@ -130,11 +134,16 @@ class JsonRpcEngineBridge(EngineBridge):
         playlist = _playlist_from_params(params)
         sync = bool(params.get("sync", True))
         write_json_diagnostics = bool(params.get("write_json_diagnostics", True))
-        yield from self.backend.import_playlist_stream(
-            playlist,
-            sync=sync,
-            write_json_diagnostics=write_json_diagnostics,
-        )
+        try:
+            yield from self.backend.import_playlist_stream(
+                playlist,
+                sync=sync,
+                write_json_diagnostics=write_json_diagnostics,
+            )
+        except BridgeError:
+            raise
+        except Exception as exc:
+            raise BridgeError(BridgeErrorCode.ENGINE_ERROR, str(exc)) from exc
 
     def _diagnostics(self) -> DiagnosticsResult:
         if self.backend is not None:
@@ -145,44 +154,61 @@ class JsonRpcEngineBridge(EngineBridge):
 def decode_json_line(line: str) -> dict[str, Any]:
     line = line.strip()
     if not line:
-        raise ValueError("Empty JSON line.")
-    payload = json.loads(line)
+        raise InvalidBridgeRequestError("Empty JSON line.")
+    try:
+        payload = json.loads(line)
+    except json.JSONDecodeError as exc:
+        raise InvalidBridgeRequestError(f"JSON invalide : {exc.msg}") from exc
     if not isinstance(payload, dict):
-        raise ValueError("JSON line must decode to an object.")
+        raise InvalidBridgeRequestError("JSON line must decode to an object.")
     return payload
+
+
+def process_json_line(bridge: EngineBridge, line: str) -> list[str]:
+    try:
+        request = decode_json_line(line)
+    except InvalidBridgeRequestError as exc:
+        return [
+            encode_json_line(
+                _error_response("unknown", exc.code, exc.message, details=exc.details).to_dict(),
+            )
+        ]
+    return [encode_json_line(message) for message in bridge.handle(request)]
 
 
 def encode_json_line(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False)
 
 
-def process_json_line(bridge: EngineBridge, line: str) -> list[str]:
-    request = decode_json_line(line)
-    return [encode_json_line(message) for message in bridge.handle(request)]
+def _parse_generation_request_from_params(params: dict[str, Any]) -> PlaylistGenerationRequest:
+    request_data = params.get("request")
+    if not isinstance(request_data, dict):
+        raise InvalidBridgeRequestError("Paramètre 'request' manquant ou invalide.")
+    return playlist_generation_request_from_dict(request_data)
 
 
 def _playlist_from_params(params: dict[str, Any]) -> PlaylistDefinition:
     playlist_data = params.get("playlist")
     if not isinstance(playlist_data, dict):
-        raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Paramètre 'playlist' manquant ou invalide.")
+        raise InvalidBridgeRequestError("Paramètre 'playlist' manquant ou invalide.")
 
     name = str(playlist_data.get("name", "")).strip()
     if not name:
-        raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Le nom de playlist est requis.")
+        raise InvalidBridgeRequestError("Le nom de playlist est requis.")
 
     description = str(playlist_data.get("description", ""))
     sections_data = playlist_data.get("sections")
     if not isinstance(sections_data, list) or not sections_data:
-        raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Au moins une section est requise.")
+        raise InvalidBridgeRequestError("Au moins une section est requise.")
 
     sections: list[PlaylistSection] = []
     for section_data in sections_data:
         if not isinstance(section_data, dict):
-            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Section invalide.")
+            raise InvalidBridgeRequestError("Section invalide.")
         section_name = str(section_data.get("name", "Playlist"))
         songs = section_data.get("songs", section_data.get("tracks", []))
         if not isinstance(songs, list):
-            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Liste de morceaux invalide.")
+            raise InvalidBridgeRequestError("Liste de morceaux invalide.")
         tracks: list[TrackRef] = []
         for song in songs:
             if not isinstance(song, dict):

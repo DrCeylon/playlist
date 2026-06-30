@@ -217,3 +217,67 @@ def test_process_json_line_round_trip():
     )
     payload = json.loads(lines[-1])
     assert payload["ok"] is True
+
+
+def test_generate_playlist_validation_failed():
+    bridge = JsonRpcEngineBridge(backend=FakeBackend())
+    messages = bridge.handle(
+        {
+            "id": "8",
+            "command": BridgeCommand.GENERATE_PLAYLIST.value,
+            "params": {"request": {"name": "", "provider_id": "apple_music"}},
+        }
+    )
+    assert messages[-1]["ok"] is False
+    assert messages[-1]["error"]["code"] == BridgeErrorCode.VALIDATION_FAILED.value
+
+
+def test_generate_playlist_invalid_provider_is_invalid_request():
+    bridge = JsonRpcEngineBridge(backend=FakeBackend())
+    messages = bridge.handle(
+        {
+            "id": "9",
+            "command": BridgeCommand.GENERATE_PLAYLIST.value,
+            "params": {
+                "request": {
+                    "name": "Pool",
+                    "provider_id": "not_a_provider",
+                    "seeds": [{"artist": "Kygo", "title": "Firestone"}],
+                    "target_track_count": 1,
+                }
+            },
+        }
+    )
+    assert messages[-1]["ok"] is False
+    assert messages[-1]["error"]["code"] == BridgeErrorCode.INVALID_REQUEST.value
+
+
+def test_generate_playlist_backend_exception_is_engine_error():
+    class BrokenBackend(FakeBackend):
+        def generate_playlist(self, request):
+            raise RuntimeError("backend exploded")
+
+    bridge = JsonRpcEngineBridge(backend=BrokenBackend())
+    messages = bridge.handle(
+        {
+            "id": "10",
+            "command": BridgeCommand.GENERATE_PLAYLIST.value,
+            "params": {"request": _generation_request_payload()},
+        }
+    )
+    assert messages[-1]["ok"] is False
+    assert messages[-1]["error"]["code"] == BridgeErrorCode.ENGINE_ERROR.value
+    assert "backend exploded" in messages[-1]["error"]["message"]
+
+
+def test_validate_generation_request_invalid_payload_is_invalid_request():
+    bridge = JsonRpcEngineBridge()
+    messages = bridge.handle(
+        {
+            "id": "11",
+            "command": BridgeCommand.VALIDATE_GENERATION_REQUEST.value,
+            "params": {"request": {"provider_id": "bad_provider"}},
+        }
+    )
+    assert messages[-1]["ok"] is False
+    assert messages[-1]["error"]["code"] == BridgeErrorCode.INVALID_REQUEST.value
