@@ -90,6 +90,23 @@ def test_theme_manager_notifies_subscribers_on_apply():
     assert seen == ["apple_music_dark", "classic_winamp_inspired"]
 
 
+def test_theme_manager_unsubscribe_stops_notifications():
+    registry = ThemeRegistry.load_bundled()
+    manager = ThemeManager(registry)
+    seen: list[str] = []
+
+    def on_theme_change(theme: Theme) -> None:
+        seen.append(theme.id)
+
+    manager.subscribe(on_theme_change)
+    manager.apply("apple_music_dark")
+    assert seen == ["apple_music_dark"]
+
+    manager.unsubscribe(on_theme_change)
+    manager.apply("classic_winamp_inspired")
+    assert seen == ["apple_music_dark"]
+
+
 def test_theme_manager_active_defaults_to_apple_music_light():
     registry = ThemeRegistry.load_bundled()
     manager = ThemeManager(registry)

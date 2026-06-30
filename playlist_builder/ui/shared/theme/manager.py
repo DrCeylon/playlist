@@ -35,3 +35,9 @@ class ThemeManager:
 
     def subscribe(self, callback: Callable[[Theme], None]) -> None:
         self._subscribers.append(callback)
+
+    def unsubscribe(self, callback: Callable[[Theme], None]) -> None:
+        try:
+            self._subscribers.remove(callback)
+        except ValueError:
+            return

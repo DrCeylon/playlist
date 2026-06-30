@@ -75,6 +75,7 @@ for theme in registry.list():
 ```
 
 `ThemeManager.subscribe(callback)` is called after each successful `apply()`.
+`ThemeManager.unsubscribe(callback)` removes a previously registered listener.
 
 ## Errors
 
