@@ -69,6 +69,7 @@ def test_resolver_retries_after_manual_acquisition_confirmation(tmp_path: Path, 
     ]
     applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
     monkeypatch.setattr("builtins.input", lambda: "")
+    monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
 
     resolver = AppleMusicResolver(
         applescript,
@@ -85,6 +86,40 @@ def test_resolver_retries_after_manual_acquisition_confirmation(tmp_path: Path, 
     assert outcome.catalog_acquired is True
     assert identity_cache.get(_track(), ProviderId.APPLE_MUSIC) is not None
     assert applescript.collect_candidates_batch.call_count == 2
+    assert applescript.ensure_running.called
+
+
+def test_resolver_waits_for_music_app_indexing_after_manual_add(tmp_path: Path, monkeypatch):
+    identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
+    applescript = MagicMock()
+    applescript.collect_candidates_batch.side_effect = [
+        [[]],
+        [[]],
+        [[]],
+        [[AppleMusicTrack(persistent_id="PID-DELAYED", artist="Daft Punk", title="One More Time", query="One More Time")]],
+    ]
+    applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
+    monkeypatch.setattr("builtins.input", lambda: "")
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        "playlist_builder.integration.apple_music.resolver.time.sleep",
+        lambda seconds: sleeps.append(seconds),
+    )
+
+    resolver = AppleMusicResolver(
+        applescript,
+        identity_cache,
+        catalog=FakeCatalog(_catalog_candidate(_track())),
+        acquire_missing=True,
+        wait_for_manual_catalog_add=True,
+    )
+
+    outcome = resolver.resolve(_track())
+
+    assert outcome.status == AppleMusicResolutionStatus.RESOLVED
+    assert outcome.persistent_id == "PID-DELAYED"
+    assert applescript.collect_candidates_batch.call_count == 4
+    assert sleeps.count(5.0) == 2
 
 
 def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatch):
@@ -118,6 +153,7 @@ def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatc
     ]
     applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
     monkeypatch.setattr("builtins.input", lambda: "")
+    monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
 
     resolver = AppleMusicResolver(
         applescript,
@@ -151,4 +187,4 @@ def test_resolver_can_open_catalog_without_waiting(tmp_path: Path):
     outcome = resolver.resolve(_track())
 
     assert outcome.status == AppleMusicResolutionStatus.NOT_FOUND
-    assert "Morceau toujours absent" in outcome.error
+    assert "4 recherches" in outcome.error

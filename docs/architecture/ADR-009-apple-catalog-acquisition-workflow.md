@@ -24,7 +24,8 @@ When a track is missing from the local library but found in the catalog:
 1. Open/add the catalog URL through Music.app.
 2. If Music.app returns a local item immediately, resolve it and cache the persistent ID.
 3. If Music.app only opens the URL, pause the interactive CLI and ask the user to add the track to the Music library.
-4. After confirmation, retry local library resolution.
+4. After confirmation, retry local library resolution up to four times (5 s apart) to
+   absorb Music.app indexing latency.
 5. If the track is now present, store the identity in `IdentityCache` and deliver it.
 6. If not, keep a controlled `NOT_FOUND` result with an explicit acquisition message.
 

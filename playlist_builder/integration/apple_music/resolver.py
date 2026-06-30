@@ -24,6 +24,9 @@ from playlist_builder.integration.apple_music.models import AppleMusicTrack
 from playlist_builder.resolver.query import generate_query_variants
 from playlist_builder.scoring.resolution import ResolutionCandidate, select_best_resolution
 
+_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS = 4
+_MANUAL_ACQUISITION_RETRY_DELAY_SECONDS = 5.0
+
 
 class AppleMusicResolutionStatus(StrEnum):
     RESOLVED = "resolved"
@@ -231,9 +234,12 @@ class AppleMusicResolver:
 
         if acquisition.opened and self._wait_for_manual_catalog_add:
             self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
-            time.sleep(2.0)
 
-        library_candidates = self._refresh_library_candidates(legacy, catalog_candidate)
+        library_candidates = self._refresh_library_candidates_with_retries(
+            legacy,
+            catalog_candidate,
+            after_manual_wait=acquisition.opened and self._wait_for_manual_catalog_add,
+        )
         acquired = bool(library_candidates)
         if acquired:
             return library_candidates, True, acquisition.detail
@@ -244,10 +250,40 @@ class AppleMusicResolver:
                 False,
                 (
                     f"{acquisition.detail} "
-                    "Morceau toujours absent de la bibliothèque après confirmation."
+                    "Morceau toujours absent de la bibliothèque après confirmation "
+                    f"({_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
                 ),
             )
         return [], False, acquisition.detail
+
+    def _refresh_library_candidates_with_retries(
+        self,
+        legacy,
+        catalog_candidate: CanonicalCandidate,
+        *,
+        after_manual_wait: bool,
+    ) -> list[AppleMusicTrack]:
+        max_attempts = _MANUAL_ACQUISITION_LIBRARY_ATTEMPTS if after_manual_wait else 1
+        for attempt in range(1, max_attempts + 1):
+            if after_manual_wait:
+                self._applescript.ensure_running()
+            candidates = self._refresh_library_candidates(legacy, catalog_candidate)
+            if candidates:
+                if after_manual_wait and attempt > 1:
+                    print(
+                        f"✅ Morceau détecté en bibliothèque (tentative {attempt}/{max_attempts}).",
+                        flush=True,
+                    )
+                return candidates
+            if attempt < max_attempts and after_manual_wait:
+                print(
+                    f"⏳ Morceau pas encore visible en bibliothèque "
+                    f"(tentative {attempt}/{max_attempts}) — "
+                    f"nouvelle recherche dans {_MANUAL_ACQUISITION_RETRY_DELAY_SECONDS:.0f}s...",
+                    flush=True,
+                )
+                time.sleep(_MANUAL_ACQUISITION_RETRY_DELAY_SECONDS)
+        return []
 
     def _refresh_library_candidates(
         self,
@@ -291,8 +327,12 @@ class AppleMusicResolver:
             f"pour {artist} - {track.title}.\n"
             f"{detail}\n"
             f"Correspondance catalogue : {catalog_label}\n"
-            "Dans Music.app : clique sur « + » ou « Ajouter à la bibliothèque », "
-            "puis reviens ici et appuie sur Entrée pour continuer...",
+            "Dans Music.app :\n"
+            "  1. Clique sur « + » ou « Ajouter à la bibliothèque »\n"
+            "  2. Vérifie que le morceau apparaît dans Bibliothèque\n"
+            "  3. Reviens ici et appuie sur Entrée\n"
+            "\n"
+            "⚠️  N'appuie pas sur Entrée tant que le morceau n'est pas dans ta bibliothèque.",
             flush=True,
         )
         input()
