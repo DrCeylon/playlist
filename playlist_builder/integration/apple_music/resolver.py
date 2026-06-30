@@ -4,11 +4,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from playlist_builder.canonical.compat import legacy_track_from_canonical
+from playlist_builder.canonical.contracts import CatalogSearchPort
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.canonical.models import CanonicalTrack
 from playlist_builder.core.models import TrackRef
 from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
+from playlist_builder.integration.apple_music.catalog_fallback import enrich_resolution_message
 from playlist_builder.integration.apple_music.diagnostics import (
     AppleMusicResolutionTrace,
     trace_from_candidates,
@@ -46,10 +48,14 @@ class AppleMusicResolver:
         identity_cache: IdentityCache,
         *,
         provider_id: ProviderId = ProviderId.APPLE_MUSIC,
+        catalog: CatalogSearchPort | None = None,
+        country_code: str = "us",
     ) -> None:
         self._applescript = applescript
         self._identity_cache = identity_cache
         self._provider_id = provider_id
+        self._catalog = catalog
+        self._country_code = country_code
 
     def resolve(
         self,
@@ -126,7 +132,12 @@ class AppleMusicResolver:
                     persistent_id=None,
                     status=AppleMusicResolutionStatus.NOT_FOUND,
                     candidates=decision.candidates,
-                    error=trace.summary(),
+                    error=enrich_resolution_message(
+                        track,
+                        trace.summary(),
+                        self._catalog,
+                        country_code=self._country_code,
+                    ),
                     trace=trace,
                 )
                 continue

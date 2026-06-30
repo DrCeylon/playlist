@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from playlist_builder.canonical.contracts import CatalogSearchPort
 from playlist_builder.canonical.models import CanonicalImportReport, CanonicalPlaylist, CanonicalTrack
 from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
@@ -24,10 +25,18 @@ class AppleMusicImportService:
         self,
         applescript: AppleScriptClient,
         identity_cache: IdentityCache,
+        *,
+        catalog: CatalogSearchPort | None = None,
+        country_code: str = "us",
     ) -> None:
         self._applescript = applescript
         self._identity_cache = identity_cache
-        self._resolver = AppleMusicResolver(applescript, identity_cache)
+        self._resolver = AppleMusicResolver(
+            applescript,
+            identity_cache,
+            catalog=catalog,
+            country_code=country_code,
+        )
         self._delivery = AppleMusicDelivery(applescript)
 
     @property

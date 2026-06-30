@@ -5,7 +5,13 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from playlist_builder.canonical.enums import ProviderId
-from playlist_builder.canonical.models import CanonicalArtist, CanonicalTrack
+from playlist_builder.canonical.models import (
+    CanonicalArtist,
+    CanonicalCandidate,
+    CanonicalSearchRequest,
+    CanonicalSearchResponse,
+    CanonicalTrack,
+)
 from playlist_builder.catalog.cache import JsonCache
 from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
 from playlist_builder.integration.apple_music.models import AppleMusicTrack
@@ -101,14 +107,25 @@ def test_resolver_returns_not_found_when_no_candidates_with_queries(tmp_path: Pa
     identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
     applescript = MagicMock()
     applescript.collect_candidates_batch.return_value = [[]]
-    resolver = AppleMusicResolver(applescript, identity_cache)
+    catalog = MagicMock()
+    catalog.search.return_value = CanonicalSearchResponse(
+        request=CanonicalSearchRequest(query="Kygo Firestone"),
+        candidates=(
+            CanonicalCandidate(
+                track=_track(),
+                source="apple_music_catalog",
+                raw_confidence=90.0,
+            ),
+        ),
+    )
+    resolver = AppleMusicResolver(applescript, identity_cache, catalog=catalog)
 
     outcome = resolver.resolve(_track())
 
     assert outcome.status == AppleMusicResolutionStatus.NOT_FOUND
     assert outcome.trace.candidate_count == 0
-    assert outcome.trace.queries
-    assert "Requêtes:" in outcome.error
+    assert "Catalogue iTunes" in outcome.error
+    catalog.search.assert_called_once()
 
 
 def test_resolver_handles_applescript_error(tmp_path: Path):

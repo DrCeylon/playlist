@@ -14,7 +14,7 @@ def write_playlist_report(
     reports_dir.mkdir(parents=True, exist_ok=True)
     path = reports_dir / f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
-    not_found = [r.track for r in results if r.status == TrackAddStatus.NOT_FOUND]
+    not_found = [r for r in results if r.status == TrackAddStatus.NOT_FOUND]
     skipped = [r.track for r in results if r.status == TrackAddStatus.SKIPPED]
     errors = [r for r in results if r.status == TrackAddStatus.ERROR]
     added = [r.track for r in results if r.status == TrackAddStatus.ADDED]
@@ -30,7 +30,11 @@ def write_playlist_report(
         "",
         "Not found:",
     ]
-    lines += [f"- [{track.section}] {track.artist} - {track.title}" for track in not_found]
+    lines += [
+        f"- [{result.track.section}] {result.track.artist} - {result.track.title}"
+        + (f": {result.error}" if result.error else "")
+        for result in not_found
+    ]
     lines += ["", "Already present / skipped:"]
     lines += [f"- [{track.section}] {track.artist} - {track.title}" for track in skipped]
     if errors:

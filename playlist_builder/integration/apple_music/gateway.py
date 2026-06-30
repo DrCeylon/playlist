@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from playlist_builder.canonical.contracts import PlaylistDeliveryPort, ProviderGateway
+from playlist_builder.canonical.contracts import CatalogSearchPort, PlaylistDeliveryPort, ProviderGateway
 from playlist_builder.canonical.enums import ProviderCapability, ProviderId
 from playlist_builder.canonical.models import CanonicalImportReport, CanonicalPlaylist
 from playlist_builder.catalog.cache import JsonCache
@@ -83,22 +83,29 @@ def build_apple_music_gateway(
         retry_policy=retry_policy,
     )
     script_client = applescript or AppleScriptClient()
+    catalog_gateway = AppleCatalogGateway(client)
     import_service = AppleMusicImportService(
         script_client,
         identity_cache or IdentityCache(JsonCache(Path("cache/apple_music_identity.json"))),
+        catalog=catalog_gateway,
+        country_code=country,
     )
-    return AppleMusicProviderGateway(AppleCatalogGateway(client), import_service)
+    return AppleMusicProviderGateway(catalog_gateway, import_service)
 
 
 def build_apple_music_import_service(
     *,
     identity_cache_path: Path | None = None,
     applescript: AppleScriptClient | None = None,
+    catalog: CatalogSearchPort | None = None,
+    country_code: str = "us",
 ) -> AppleMusicImportService:
     cache_path = identity_cache_path or Path("cache/apple_music_identity.json")
     return AppleMusicImportService(
         applescript or AppleScriptClient(),
         IdentityCache(JsonCache(cache_path)),
+        catalog=catalog,
+        country_code=country_code,
     )
 
 

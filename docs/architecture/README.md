@@ -13,6 +13,7 @@ This directory contains the long-lived architectural documentation for Playlist 
 | [ADR-004-apple-catalog-gateway.md](ADR-004-apple-catalog-gateway.md) | Apple catalog provider gateway decision record |
 | [ADR-005-apple-delivery-gateway.md](ADR-005-apple-delivery-gateway.md) | Apple delivery + identity-cache resolution decision record |
 | [ADR-006-observable-resolution-pipeline.md](ADR-006-observable-resolution-pipeline.md) | Observable Apple Music resolution diagnostics decision record |
+| [ADR-007-catalog-fallback-advisory.md](ADR-007-catalog-fallback-advisory.md) | Catalog fallback advisory on library miss decision record |
 
 ## Migration status
 
@@ -24,7 +25,7 @@ This directory contains the long-lived architectural documentation for Playlist 
 | PR 4 | Apple catalog provider gateway | Done |
 | PR 5 | Apple delivery + resolution pipeline | Done |
 | PR 6 | Observable Apple Music resolution pipeline | Done |
-| PR 7 | Catalog fallback advisory on library miss | Planned |
+| PR 7 | Catalog fallback advisory on library miss | Done |
 | PR 8 | Application layer reorganization | Planned |
 | PR 9 | Generic integration gateway registry (all entry points) | Planned |
 | PR 10 | Final cleanup and shim removal | Planned |
