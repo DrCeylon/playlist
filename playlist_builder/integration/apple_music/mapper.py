@@ -29,6 +29,11 @@ def canonical_candidate_from_itunes_hit(
     confidence = float(
         score_text_match(wanted_artist or request.query, wanted_title or request.query, hit.artist_name, hit.track_name)
     )
+    hints: list[str] = []
+    if hit.track_view_url:
+        hints.append(hit.track_view_url)
+    if hit.track_id:
+        hints.append(f"itunes_track_id:{hit.track_id}")
     return CanonicalCandidate(
         track=CanonicalTrack(
             artist=CanonicalArtist(name=hit.artist_name),
@@ -40,7 +45,7 @@ def canonical_candidate_from_itunes_hit(
             genres=(hit.primary_genre_name,) if hit.primary_genre_name else (),
         ),
         source=source,
-        provider_hints=(hit.track_view_url,) if hit.track_view_url else (),
+        provider_hints=tuple(hints),
         raw_confidence=confidence,
         reasons=reasons,
     )

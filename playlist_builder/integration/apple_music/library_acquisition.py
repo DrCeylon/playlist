@@ -7,6 +7,7 @@ from typing import Iterator
 
 from playlist_builder.canonical.models import CanonicalCandidate
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
+from playlist_builder.integration.apple_music.catalog_ids import catalog_url_from_candidate
 
 
 class AppleMusicAcquisitionStatus(StrEnum):
@@ -47,11 +48,9 @@ class AppleMusicLibraryAcquisition:
         self._settle_delay_seconds = settle_delay_seconds
 
     def acquire_from_catalog_candidate(self, candidate: CanonicalCandidate) -> AppleMusicAcquisitionOutcome:
-        if not candidate.provider_hints:
-            return AppleMusicAcquisitionOutcome(AppleMusicAcquisitionStatus.ERROR, "URL catalogue indisponible.")
-        url = candidate.provider_hints[0].strip()
+        url = catalog_url_from_candidate(candidate)
         if not url:
-            return AppleMusicAcquisitionOutcome(AppleMusicAcquisitionStatus.ERROR, "URL catalogue vide.")
+            return AppleMusicAcquisitionOutcome(AppleMusicAcquisitionStatus.ERROR, "URL catalogue indisponible.")
 
         status, detail = self._applescript.acquire_song_from_url(url)
         if status == AppleMusicAcquisitionStatus.ADDED:

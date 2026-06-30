@@ -41,6 +41,13 @@ class AppleITunesSearchHit:
         return str(self.raw.get("trackViewUrl", ""))
 
     @property
+    def track_id(self) -> str:
+        value = self.raw.get("trackId")
+        if value is None:
+            return ""
+        return str(value)
+
+    @property
     def collection_name(self) -> str:
         return str(self.raw.get("collectionName", ""))
 
