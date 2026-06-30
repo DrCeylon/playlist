@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 import time
+from typing import Iterator
 
 from playlist_builder.canonical.models import CanonicalCandidate
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
@@ -26,6 +27,11 @@ class AppleMusicAcquisitionOutcome:
     @property
     def opened(self) -> bool:
         return self.status == AppleMusicAcquisitionStatus.OPENED
+
+    def __iter__(self) -> Iterator[bool | str]:
+        """Allow old tests/callers to unpack `(added, detail)` during migration."""
+        yield self.added
+        yield self.detail
 
 
 class AppleMusicLibraryAcquisition:
