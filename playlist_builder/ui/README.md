@@ -12,7 +12,7 @@ ui/shared/
   validation/    # Pure validators
   navigation/    # AppRoute
   viewmodels/    # Reference VMs (Phase 4.4+)
-  theme/         # Theme engine (Phase 4.3+)
+  theme/         # Theme engine (Phase 4.3)
 bridge/          # JSON Engine Bridge (Phase 4.2+)
   commands.py
   protocol.py
@@ -24,7 +24,7 @@ bridge/          # JSON Engine Bridge (Phase 4.2+)
 ## Rules
 
 1. No imports from `integration/apple_music`, `core.applescript`, or provider SDKs.
-2. No hardcoded colors — use `DesignTokens` via `ThemeManager` (Phase 4.3+).
+2. No hardcoded colors — use `DesignTokens` via `ThemeManager` (Phase 4.3).
 3. ViewModels call application use cases — never UI frameworks.
 
 ## Documentation
