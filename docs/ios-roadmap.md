@@ -53,6 +53,10 @@ Interfaces
 - Garder AppleScript comme moteur gratuit local sur Mac.
 - Garder MusicKit comme moteur futur officiel pour iOS/iPadOS.
 
+**Phase 4.0** formalise l'architecture UI cross-platform : voir
+[product/phase-4-product-brief.md](product/phase-4-product-brief.md) et
+[architecture/ADR-011-cross-platform-product-ui.md](architecture/ADR-011-cross-platform-product-ui.md).
+
 ## Point d'attention
 
 Une application iOS/iPadOS nécessitera très probablement MusicKit et donc un compte Apple Developer. Tant que ce n'est pas souhaité, le développement peut continuer sur le moteur CLI/AppleScript et l'architecture métier portable.

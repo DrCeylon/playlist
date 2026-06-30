@@ -17,6 +17,11 @@ This directory contains the long-lived architectural documentation for Playlist 
 | [ADR-008-application-platform-acquisition.md](ADR-008-application-platform-acquisition.md) | Application layer and catalog-to-library acquisition decision record |
 | [ADR-009-apple-catalog-acquisition-workflow.md](ADR-009-apple-catalog-acquisition-workflow.md) | Apple catalog acquisition workflow decision record |
 | [ADR-010-phases-2-3-completion.md](ADR-010-phases-2-3-completion.md) | Phases 2 and 3 enterprise architecture completion |
+| [ADR-011-cross-platform-product-ui.md](ADR-011-cross-platform-product-ui.md) | Cross-platform product UI architecture (Phase 4.0) |
+
+## Product (Phase 4)
+
+See [../product/README.md](../product/README.md).
 
 ## Migration status
 
@@ -32,6 +37,8 @@ This directory contains the long-lived architectural documentation for Playlist 
 | PR 8 | Application platform + catalog-to-library acquisition | Done |
 | PR 9 | Phases 2–3 gateway unification + E2E documentation | Done |
 | PR 10 | Generic resolution trace + legacy shim removal | Planned |
+| PR 4.0 | Product UI discovery & architecture (docs) | In progress |
+| PR 4.1–4.9 | UI implementation roadmap | Planned |
 
 ## Rules
 
