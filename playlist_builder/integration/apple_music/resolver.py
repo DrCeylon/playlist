@@ -17,7 +17,7 @@ from playlist_builder.integration.apple_music.diagnostics import (
     AppleMusicResolutionTrace,
     trace_from_candidates,
 )
-from playlist_builder.integration.apple_music.library_acquisition import AppleMusicLibraryAcquisition
+from playlist_builder.integration.apple_music.library_acquisition import AppleMusicAcquisitionStatus, AppleMusicLibraryAcquisition
 from playlist_builder.integration.apple_music.mapper import resolution_candidates_from_apple_music_tracks
 from playlist_builder.integration.apple_music.models import AppleMusicTrack
 from playlist_builder.resolver.query import generate_query_variants
@@ -56,6 +56,7 @@ class AppleMusicResolver:
         catalog: CatalogSearchPort | None = None,
         country_code: str = "us",
         acquire_missing: bool = False,
+        wait_for_manual_catalog_add: bool = True,
         catalog_acquisition_min_confidence: float = 70.0,
     ) -> None:
         self._applescript = applescript
@@ -64,6 +65,7 @@ class AppleMusicResolver:
         self._catalog = catalog
         self._country_code = country_code
         self._acquire_missing = acquire_missing
+        self._wait_for_manual_catalog_add = wait_for_manual_catalog_add
         self._catalog_acquisition_min_confidence = catalog_acquisition_min_confidence
         self._acquisition = AppleMusicLibraryAcquisition(applescript)
 
@@ -127,11 +129,7 @@ class AppleMusicResolver:
             pending, legacy_tracks, candidate_groups, strict=True
         ):
             del section
-            outcome = self._resolve_track(
-                track,
-                legacy,
-                list(library_candidates),
-            )
+            outcome = self._resolve_track(track, legacy, list(library_candidates))
             outcomes[index] = outcome
 
     def _resolve_track(
@@ -224,10 +222,30 @@ class AppleMusicResolver:
                 ),
             )
 
-        acquired, detail = self._acquisition.acquire_from_catalog_candidate(catalog_candidate)
-        if not acquired:
-            return [], False, detail
+        acquisition = self._acquisition.acquire_from_catalog_candidate(catalog_candidate)
+        if acquisition.status == AppleMusicAcquisitionStatus.ERROR:
+            return [], False, acquisition.detail
+
+        if acquisition.opened and self._wait_for_manual_catalog_add:
+            self._wait_until_user_added_track(track, acquisition.detail)
 
         refreshed = self._applescript.collect_candidates_batch([legacy])
         library_candidates = refreshed[0] if refreshed else []
-        return library_candidates, True, detail
+        acquired = bool(library_candidates)
+        if acquired:
+            return library_candidates, True, acquisition.detail
+
+        if acquisition.opened:
+            return [], False, f"{acquisition.detail} Morceau toujours absent de la bibliothèque après confirmation."
+        return [], False, acquisition.detail
+
+    @staticmethod
+    def _wait_until_user_added_track(track: CanonicalTrack, detail: str) -> None:
+        artist = track.artist.name if track.artist else ""
+        print(
+            "\n📥 Acquisition manuelle requise "
+            f"pour {artist} - {track.title}.\n"
+            f"{detail}\n"
+            "Ajoute le morceau à ta bibliothèque Music.app, puis appuie sur Entrée pour continuer...",
+        )
+        input()
