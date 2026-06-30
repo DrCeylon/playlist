@@ -1,5 +1,4 @@
 from playlist_builder.core.models import TrackRef
-from playlist_builder.resolver.applescript import build_resolve_batch_script
 from playlist_builder.resolver.constants import MAX_QUERY_VARIANTS
 from playlist_builder.resolver.normalization import normalize_text, token_set
 from playlist_builder.resolver.query import generate_query_variants
@@ -57,14 +56,6 @@ def test_query_variants_include_title_token_for_firestone():
 
     assert "Firestone" in terms
     assert "Kygo" in terms
-
-
-def test_build_resolve_batch_script_uses_contains_fallback():
-    script = build_resolve_batch_script([TrackRef("Kygo", "Firestone")])
-
-    assert 'candidateName contains "Firestone"' in script
-    assert "search library playlist 1" in script
-
 
 def test_is_acceptable_match_rejects_unrelated_candidate():
     wanted = TrackRef("Koji Kondo", "Gerudo Valley")

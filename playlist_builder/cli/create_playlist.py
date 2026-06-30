@@ -78,7 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--no-wait-for-acquisition",
         action="store_true",
-        help=argparse.SUPPRESS,
+        help="Mode non interactif : n'attend jamais une confirmation manuelle (défaut).",
     )
     parser.add_argument(
         "--json-diagnostics",
@@ -186,13 +186,14 @@ def _run_applescript(
     use_case = ImportPlaylistUseCase(context)
 
     if incremental:
-        existing_keys = None if allow_duplicates else context.apple_music.import_service.applescript.load_playlist_keys(playlist.name)
-        context.apple_music.import_service.applescript.ensure_running()
-        context.apple_music.import_service.applescript.ensure_playlist(playlist.name)
+        incremental_context = context.gateway.prepare_incremental_import(
+            playlist.name,
+            allow_duplicates=allow_duplicates,
+        )
         result = use_case.execute(
             playlist,
             sync=False,
-            existing_keys=existing_keys,
+            existing_keys=incremental_context.existing_keys,
             allow_duplicates=allow_duplicates,
             write_json_diagnostics=write_json_diagnostics,
         )

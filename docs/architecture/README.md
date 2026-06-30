@@ -15,6 +15,8 @@ This directory contains the long-lived architectural documentation for Playlist 
 | [ADR-006-observable-resolution-pipeline.md](ADR-006-observable-resolution-pipeline.md) | Observable Apple Music resolution diagnostics decision record |
 | [ADR-007-catalog-fallback-advisory.md](ADR-007-catalog-fallback-advisory.md) | Catalog fallback advisory on library miss decision record |
 | [ADR-008-application-platform-acquisition.md](ADR-008-application-platform-acquisition.md) | Application layer and catalog-to-library acquisition decision record |
+| [ADR-009-apple-catalog-acquisition-workflow.md](ADR-009-apple-catalog-acquisition-workflow.md) | Apple catalog acquisition workflow decision record |
+| [ADR-010-phases-2-3-completion.md](ADR-010-phases-2-3-completion.md) | Phases 2 and 3 enterprise architecture completion |
 
 ## Migration status
 
@@ -28,7 +30,7 @@ This directory contains the long-lived architectural documentation for Playlist 
 | PR 6 | Observable Apple Music resolution pipeline | Done |
 | PR 7 | Catalog fallback advisory on library miss | Done |
 | PR 8 | Application platform + catalog-to-library acquisition | Done |
-| PR 9 | Generate playlist via AppContext + gateway unification | Planned |
+| PR 9 | Phases 2–3 gateway unification + E2E documentation | Done |
 | PR 10 | Generic resolution trace + legacy shim removal | Planned |
 
 ## Rules

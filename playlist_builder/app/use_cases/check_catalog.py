@@ -14,21 +14,19 @@ class CheckCatalogResult:
 
 
 class CheckCatalogUseCase:
-    """Check playlist tracks against the Apple Music catalog gateway."""
+    """Check playlist tracks against a provider catalog via the integration gateway."""
 
     def __init__(self, context: AppContext) -> None:
         self._context = context
 
     def execute(self, playlist: PlaylistDefinition) -> CheckCatalogResult:
-        catalog = self._context.apple_music.catalog
         matches: list[CatalogMatch] = []
         for track in playlist.tracks:
-            matches.append(self._search_track(track, catalog))
+            matches.append(self._search_track(track))
         return CheckCatalogResult(playlist_name=playlist.name, matches=tuple(matches))
 
-    @staticmethod
-    def _search_track(track: TrackRef, catalog) -> CatalogMatch:
-        response = catalog.search(
+    def _search_track(self, track: TrackRef) -> CatalogMatch:
+        response = self._context.gateway.search_catalog(
             CanonicalSearchRequest(
                 query=f"{track.artist} {track.title}".strip(),
                 wanted_artist=track.artist,

@@ -196,12 +196,12 @@ class AppleMusicResolver:
         self._identity_cache.put_identity(
             track,
             provider_id=self._provider_id,
-            external_id=selected.persistent_id,
+            external_id=selected.provider_key,
             confidence=float(selected.score),
         )
         return AppleMusicResolutionOutcome(
             track=track,
-            persistent_id=selected.persistent_id,
+            persistent_id=selected.provider_key,
             status=AppleMusicResolutionStatus.RESOLVED,
             cache_hit=False,
             score=float(selected.score),
@@ -278,14 +278,17 @@ class AppleMusicResolver:
             )
 
         if acquisition.opened or acquisition.duplicated:
+            suffix = (
+                f"{acquisition.detail} "
+                "Morceau toujours absent de la bibliothèque après acquisition automatique "
+                f"({_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
+            )
+            if acquisition.opened and not self._wait_for_manual_catalog_add:
+                suffix += " Utilisez --wait-for-acquisition pour l'ajout manuel dans Music.app."
             return (
                 [],
                 False,
-                (
-                    f"{acquisition.detail} "
-                    "Morceau toujours absent de la bibliothèque après acquisition automatique "
-                    f"({_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
-                ),
+                suffix,
                 True,
             )
         return [], False, acquisition.detail, True

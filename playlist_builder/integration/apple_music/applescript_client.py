@@ -267,18 +267,22 @@ end tell
     @staticmethod
     def _catalog_acquire_urls(url: str, track_id: str) -> list[str]:
         urls: list[str] = []
+        track_id = track_id.strip()
+        if track_id:
+            for candidate in (
+                f"itms://music.apple.com/song/id{track_id}",
+                f"https://music.apple.com/song/id{track_id}",
+                f"music://music.apple.com/song/id{track_id}",
+            ):
+                if candidate not in urls:
+                    urls.append(candidate)
         primary = url.strip()
-        if primary:
+        if primary and primary not in urls:
             urls.append(primary)
             if primary.startswith("https://music.apple.com/"):
                 music_url = "music://" + primary[len("https://") :]
                 if music_url not in urls:
                     urls.append(music_url)
-        track_id = track_id.strip()
-        if track_id:
-            itms_url = f"itms://music.apple.com/song/id{track_id}"
-            if itms_url not in urls:
-                urls.append(itms_url)
         return urls
 
     @staticmethod

@@ -14,11 +14,11 @@ def test_apple_music_track_from_fields_rejects_missing_persistent_id():
     assert apple_music_track_from_fields(persistent_id="", artist="Kygo", title="Firestone") is None
 
 
-def test_resolution_candidates_keep_persistent_id_provider_specific():
+def test_resolution_candidates_map_provider_key_from_apple_track():
     track = AppleMusicTrack(persistent_id="PID123", artist="Kygo", title="Firestone", query="Firestone Kygo")
     candidates = resolution_candidates_from_apple_music_tracks([track])
 
-    assert candidates[0].persistent_id == "PID123"
+    assert candidates[0].provider_key == "PID123"
     assert candidates[0].artist == "Kygo"
 
 

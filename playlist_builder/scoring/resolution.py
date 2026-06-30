@@ -9,9 +9,11 @@ from playlist_builder.scoring.match_engine import MatchScoringEngine, score_fuzz
 
 @dataclass(frozen=True, slots=True)
 class ResolutionCandidate:
+    """Provider-neutral ranked match candidate for library resolution."""
+
     artist: str
     title: str
-    persistent_id: str = ""
+    provider_key: str = ""
     query: str = ""
     score: int = 0
 
@@ -41,7 +43,7 @@ def rank_resolution_candidates(
         ResolutionCandidate(
             artist=candidate.artist,
             title=candidate.title,
-            persistent_id=candidate.persistent_id,
+            provider_key=candidate.provider_key,
             query=candidate.query,
             score=engine.score_fuzzy_match(wanted.artist, wanted.title, candidate.artist, candidate.title),
         )
