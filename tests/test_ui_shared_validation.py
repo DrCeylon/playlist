@@ -47,9 +47,9 @@ def test_validate_playlist_name_missing():
 
 
 def test_validate_seeds_or_keywords_requires_one():
-  assert validate_seeds_or_keywords((), ()).is_valid is False
-  assert validate_seeds_or_keywords((SeedReference(artist="Kygo"),), ()).is_valid
-  assert validate_seeds_or_keywords((), ("tropical",)).is_valid
+    assert validate_seeds_or_keywords((), ()).is_valid is False
+    assert validate_seeds_or_keywords((SeedReference(artist="Kygo"),), ()).is_valid
+    assert validate_seeds_or_keywords((), ("tropical",)).is_valid
 
 
 def test_validate_target_size_requires_one():
@@ -65,6 +65,16 @@ def test_validate_target_size_positive():
 
 def test_validate_provider_id_ok():
     assert validate_provider_id(ProviderId.APPLE_MUSIC).is_valid
+
+
+def test_provider_id_exposes_expected_streaming_providers():
+    expected = {
+        ProviderId.APPLE_MUSIC,
+        ProviderId.SPOTIFY,
+        ProviderId.YOUTUBE_MUSIC,
+        ProviderId.DEEZER,
+    }
+    assert expected.issubset(set(ProviderId))
 
 
 def test_validate_exclusion_kinds():
