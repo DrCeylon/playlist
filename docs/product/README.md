@@ -1,6 +1,6 @@
 # Product documentation
 
-Phase 4.0 — Product discovery & architecture (documentation only, no UI code).
+Phase 4 — Product discovery & UI contracts.
 
 | Document | Purpose |
 |----------|---------|
@@ -11,6 +11,17 @@ Phase 4.0 — Product discovery & architecture (documentation only, no UI code).
 | [design-system.md](design-system.md) | Tokens, components, a11y |
 | [theme-engine.md](theme-engine.md) | ThemeRegistry, ThemeManager, skin format |
 | [ios-planned-structure.md](ios-planned-structure.md) | Future iOS layout |
+
+## Phase 4.1 — Shared contracts (code)
+
+Python package `playlist_builder/ui/shared/` :
+
+- **dto/** — `PlaylistGenerationRequest`, `ImportProgressState`, `ProviderOption`, …
+- **state/** — `UiScreenState`
+- **navigation/** — `AppRoute`
+- **validation/** — pure validators (no I/O, no provider imports)
+
+Tests : `tests/test_ui_shared_*.py`
 
 Architecture :
 
