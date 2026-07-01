@@ -25,7 +25,7 @@ Construire **Resonance** : une interface provider-neutral au-dessus du moteur Py
 | **4.2** | Engine Bridge JSON-lines | ✅ |
 | **4.3** | Theme engine Python (JSON tokens) | ✅ |
 | **4.4** | Shell macOS SwiftUI (Accueil + Paramètres) | ✅ |
-| **4.5** | Formulaire Nouvelle Playlist + preview mock | 🚧 PR #23 |
+| **4.5** | Formulaire Nouvelle Playlist + preview mock | ✅ |
 | **4.6** | Import UX + bridge runtime | 📋 |
 | **4.7** | Laboratoire + historique | 📋 |
 | **4.9** | Shell iOS / iPadOS | 📋 |
@@ -92,12 +92,12 @@ Navigation sidebar :
 | Écran | Statut |
 |-------|--------|
 | Accueil | ✅ MVP |
-| Nouvelle Playlist | 🚧 Phase 4.5 |
+| Nouvelle Playlist | ✅ MVP |
 | Historique | 📋 placeholder |
 | Laboratoire | 📋 placeholder |
 | Paramètres | ✅ sélecteur de thème |
 
-## Phase 4.5 — Builder playlist (en cours)
+## Phase 4.5 — Builder playlist
 
 Formulaire complet aligné sur `PlaylistGenerationRequest` :
 

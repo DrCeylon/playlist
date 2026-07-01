@@ -22,7 +22,7 @@
 | Phase | Livrable | Statut |
 |-------|----------|--------|
 | 4.4 | Shell macOS (sidebar, Accueil, Paramètres) | ✅ |
-| 4.5 | Formulaire Nouvelle Playlist + preview | 🚧 |
+| 4.5 | Formulaire Nouvelle Playlist + preview | ✅ |
 | 4.6 | Import UX + bridge connecté | 📋 |
 | 4.7 | Laboratoire + historique | 📋 |
 | 4.9 | Shell iOS / iPadOS | 📋 |
