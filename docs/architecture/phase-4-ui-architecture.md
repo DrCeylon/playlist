@@ -156,7 +156,17 @@ full unit tests. Swift production ViewModels mirror the same public surface.
 | **Responsibility** | Stream import events, manual acquisition UX |
 | **Implemented in Swift** | `ImportViewModel` + `ImportProgressView` (4.6) |
 
-### DiagnosticsViewModel
+### DiagnosticsViewModel (Swift — Phase 4.7)
+
+| Aspect | Detail |
+|--------|--------|
+| **Responsibility** | Engine Bridge health, cache stats, diagnostic timeline |
+| **Services** | `DiagnosticsServing` — `PythonEngineBridgeService` or mock |
+| **States** | `disconnected`, `running`, `connected`, `completed`, `failed` |
+| **Modes** | Simple / Architecte |
+| **Bridge** | `diagnostics`, `list_providers` |
+
+### DiagnosticsViewModel (Python reference — planned)
 
 | Aspect | Detail |
 |--------|--------|
@@ -195,8 +205,10 @@ full unit tests. Swift production ViewModels mirror the same public surface.
 | `CheckCatalogUseCase` | ✅ | Used in lab / preflight |
 | Generation (bridge) | ✅ | `RuntimeEngineBridgeBackend.generate_playlist` (4.6) |
 | Import (bridge) | ✅ | `stream_import_playlist` + sessions (4.6) |
+| Diagnostics (bridge) | ✅ | `RuntimeEngineBridgeBackend.diagnostics` (4.7) |
+| Load providers (bridge) | ✅ | `list_providers` via Swift `DiagnosticsServing` (4.7) |
 
-### To create (Phase 4.7+)
+### To create (Phase 4.8+)
 
 | Use case | Responsibility |
 |----------|----------------|
@@ -375,7 +387,8 @@ DiagnosticBus (in-memory, async queue)
 | **4.5** | Playlist builder UI | Form + generate + preview (**done**) |
 | **4.6** | Import UX + bridge runtime | Python engine connection, import screens (**done**) |
 | **4.6b** | Bridge hardening | Persistent process, live event stream |
-| **4.7** | Laboratory | Diagnostics screens |
+| **4.7** | Laboratory | Diagnostics screens ✅ |
+| **4.8** | History | Session list |
 | **4.8** | iPadOS layout | Split view, adaptive navigation |
 | **4.9** | iOS + MusicKit | Mobile delivery path |
 

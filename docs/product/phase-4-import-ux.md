@@ -156,8 +156,8 @@ cd apps/resonance && ./scripts/build.sh   # macOS
 - [phase-4-engine-bridge.md](phase-4-engine-bridge.md) — protocole JSON-lines 4.2
 - [../architecture/phase-4-ui-architecture.md](../architecture/phase-4-ui-architecture.md)
 
-## Next (4.7)
+## Next (4.8+)
 
 - Historique des sessions
-- Écran Laboratoire (diagnostics stream)
 - Process bridge persistant (4.6b)
+- Diagnostics live pendant import (stream)

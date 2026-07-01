@@ -20,6 +20,7 @@ from playlist_builder.ui.bridge.commands import (
 )
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.bridge.events import BridgeEvent
+from playlist_builder.app.bridge_runtime.diagnostics_snapshot import build_diagnostics_snapshot
 from playlist_builder.app.bridge_runtime.import_stream import stream_import_playlist
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionStore
 from playlist_builder.app.bridge_runtime.mapping import (
@@ -132,7 +133,9 @@ class RuntimeEngineBridgeBackend:
         )
 
     def diagnostics(self) -> DiagnosticsResult:
-        return DiagnosticsResult(engine_version=__version__)
+        providers = self.list_providers().providers
+        summary, events = build_diagnostics_snapshot(self._context, providers=providers)
+        return DiagnosticsResult(engine_version=__version__, summary=summary, events=events)
 
     @staticmethod
     def _build_generation_engine(context: AppContext) -> GenerationSessionEngine:

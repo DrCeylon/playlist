@@ -213,4 +213,86 @@ public enum BridgePayloadBuilder {
             providerID: providerID
         )
     }
+
+    public static func diagnosticsSnapshot(from payload: [String: Any]) throws -> DiagnosticsSnapshot {
+        let engineVersion = payload["engine_version"] as? String ?? ""
+        guard let summaryObject = payload["summary"] as? [String: Any] else {
+            throw BridgeClientError.invalidResponse
+        }
+        let summary = try diagnosticsSummary(from: summaryObject)
+        let eventsRaw = payload["events"] as? [[String: Any]] ?? []
+        let events = eventsRaw.map(diagnosticEvent)
+        return DiagnosticsSnapshot(engineVersion: engineVersion, summary: summary, events: events)
+    }
+
+    public static func providerOptions(from payload: [String: Any]) throws -> [ProviderOption] {
+        let providersRaw = payload["providers"] as? [[String: Any]] ?? []
+        return providersRaw.map(providerOption)
+    }
+
+    private static func diagnosticsSummary(from object: [String: Any]) throws -> DiagnosticsSummary {
+        let providersRaw = object["active_providers"] as? [[String: Any]] ?? []
+        let reportsRaw = object["recent_reports"] as? [[String: Any]] ?? []
+        return DiagnosticsSummary(
+            bridgeStatus: object["bridge_status"] as? String ?? "unknown",
+            platform: object["platform"] as? String ?? "",
+            executionMS: object["execution_ms"] as? Int ?? 0,
+            catalogCacheEntries: object["catalog_cache_entries"] as? Int ?? 0,
+            identityCacheEntries: object["identity_cache_entries"] as? Int ?? 0,
+            catalogCacheEnabled: object["catalog_cache_enabled"] as? Bool ?? false,
+            countryCode: object["country_code"] as? String ?? "",
+            activeProviders: providersRaw.map(providerOption),
+            recentReports: reportsRaw.map(reportSummary),
+            reportsDirectory: object["reports_directory"] as? String ?? ""
+        )
+    }
+
+    private static func providerOption(_ object: [String: Any]) -> ProviderOption {
+        let providerRaw = object["provider_id"] as? String ?? ProviderID.appleMusic.rawValue
+        return ProviderOption(
+            providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
+            displayName: object["display_name"] as? String ?? providerRaw,
+            isAvailable: object["is_available"] as? Bool ?? false,
+            isConnected: object["is_connected"] as? Bool ?? false,
+            unavailableReason: object["unavailable_reason"] as? String ?? ""
+        )
+    }
+
+    private static func reportSummary(_ object: [String: Any]) -> DiagnosticsReportSummary {
+        let trackSummary = object["track_summary"] as? [String: Any] ?? [:]
+        return DiagnosticsReportSummary(
+            filename: object["filename"] as? String ?? "",
+            playlistName: object["playlist_name"] as? String ?? "",
+            generatedAt: object["generated_at"] as? String ?? "",
+            added: trackSummary["added"] as? Int ?? 0,
+            notFound: trackSummary["not_found"] as? Int ?? 0,
+            skipped: trackSummary["skipped"] as? Int ?? 0,
+            errors: trackSummary["errors"] as? Int ?? 0
+        )
+    }
+
+    private static func diagnosticEvent(_ object: [String: Any]) -> DiagnosticEvent {
+        let payloadRaw = object["payload"] as? [Any] ?? []
+        let payload = payloadRaw.compactMap { item -> DiagnosticEventPayload? in
+            if let dict = item as? [String: Any],
+               let key = dict["key"] as? String,
+               let value = dict["value"] as? String {
+                return DiagnosticEventPayload(key: key, value: value)
+            }
+            if let pair = item as? [Any], pair.count == 2,
+               let key = pair[0] as? String,
+               let value = pair[1] as? String {
+                return DiagnosticEventPayload(key: key, value: value)
+            }
+            return nil
+        }
+        let levelRaw = object["level"] as? String ?? DiagnosticLevel.info.rawValue
+        return DiagnosticEvent(
+            phase: object["phase"] as? String ?? "",
+            message: object["message"] as? String ?? "",
+            level: DiagnosticLevel(rawValue: levelRaw) ?? .info,
+            timestampISO: object["timestamp_iso"] as? String ?? "",
+            payload: payload
+        )
+    }
 }

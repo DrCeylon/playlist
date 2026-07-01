@@ -201,3 +201,35 @@ def test_engine_bridge_cli_module_importable():
     from playlist_builder.cli import engine_bridge
 
     assert callable(engine_bridge.main)
+
+
+def test_runtime_backend_diagnostics_includes_summary_and_events():
+    from playlist_builder.app.factory import build_app_context
+
+    backend = RuntimeEngineBridgeBackend(build_app_context())
+    result = backend.diagnostics()
+    payload = json.dumps(result.to_dict(), ensure_ascii=False)
+
+    assert result.engine_version
+    assert "summary" in payload
+    assert result.summary["bridge_status"] == "connected"
+    assert "catalog_cache_entries" in result.summary
+    assert "identity_cache_entries" in result.summary
+    assert isinstance(result.summary["active_providers"], list)
+    assert len(result.events) >= 2
+    assert "persistent_id" not in payload
+
+
+def test_bridge_diagnostics_command_returns_enriched_payload():
+    from playlist_builder.app.factory import build_app_context
+
+    bridge = JsonRpcEngineBridge(backend=RuntimeEngineBridgeBackend(build_app_context()))
+    messages = bridge.handle({"id": "diag-1", "command": BridgeCommand.DIAGNOSTICS.value, "params": {}})
+    assert messages[-1]["ok"] is True
+    result = messages[-1]["result"]
+    assert "engine_version" in result
+    assert "summary" in result
+    assert result["summary"]["bridge_status"] == "connected"
+    assert "events" in result
+    payload = json.dumps(result, ensure_ascii=False)
+    assert "persistent_id" not in payload

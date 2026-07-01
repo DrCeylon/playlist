@@ -24,7 +24,48 @@ final class BridgeClientTests: XCTestCase {
     func testBridgeCommandRawValuesMatchPythonContract() {
         XCTAssertEqual(BridgeCommand.generatePlaylist.rawValue, "generate_playlist")
         XCTAssertEqual(BridgeCommand.importPlaylist.rawValue, "import_playlist")
+        XCTAssertEqual(BridgeCommand.diagnostics.rawValue, "diagnostics")
         XCTAssertEqual(BridgeCommand.continueManualAcquisition.rawValue, "continue_manual_acquisition")
+    }
+
+    func testDiagnosticsSnapshotDecoding() throws {
+        let payload: [String: Any] = [
+            "engine_version": "1.0.0",
+            "summary": [
+                "bridge_status": "connected",
+                "platform": "darwin",
+                "execution_ms": 8,
+                "catalog_cache_entries": 3,
+                "identity_cache_entries": 1,
+                "catalog_cache_enabled": true,
+                "country_code": "fr",
+                "active_providers": [
+                    [
+                        "provider_id": "apple_music",
+                        "display_name": "Apple Music",
+                        "is_available": true,
+                        "is_connected": true,
+                        "unavailable_reason": "",
+                    ],
+                ],
+                "recent_reports": [],
+                "reports_directory": "reports",
+            ],
+            "events": [
+                [
+                    "phase": "bridge",
+                    "message": "Connecté",
+                    "level": "info",
+                    "timestamp_iso": "2026-01-01T00:00:00",
+                    "payload": [["bridge_status", "connected"]],
+                ],
+            ],
+        ]
+        let snapshot = try BridgePayloadBuilder.diagnosticsSnapshot(from: payload)
+        XCTAssertEqual(snapshot.engineVersion, "1.0.0")
+        XCTAssertEqual(snapshot.summary.catalogCacheEntries, 3)
+        XCTAssertEqual(snapshot.events.count, 1)
+        XCTAssertEqual(snapshot.events[0].payload.first?.key, "bridge_status")
     }
 
     func testBridgeResponseParserDecodesSuccess() throws {

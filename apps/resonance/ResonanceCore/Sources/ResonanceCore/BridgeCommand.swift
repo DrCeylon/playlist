@@ -17,13 +17,3 @@ public enum BridgeEventType: String, Codable, Sendable {
     case error
     case manualAcquisitionRequired = "manual_acquisition_required"
 }
-
-public enum BridgeErrorCode: String, Codable, Sendable {
-    case unknownCommand = "unknown_command"
-    case invalidRequest = "invalid_request"
-    case validationFailed = "validation_failed"
-    case notConfigured = "not_configured"
-    case engineError = "engine_error"
-    case providerUnavailable = "provider_unavailable"
-    case manualActionRequired = "manual_action_required"
-}
