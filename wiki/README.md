@@ -7,17 +7,40 @@ Ce dossier contient la documentation wiki complète en français.
 Le wiki GitHub est un dépôt Git séparé. Pour publier :
 
 ```bash
-# 1. Cloner le wiki (remplace par ton URL)
+# 1. Cloner le wiki (une seule fois — skip si playlist.wiki existe déjà)
 git clone https://github.com/DrCeylon/playlist.wiki.git
 
-# 2. Copier les fichiers
-cp /chemin/vers/playlist/wiki/*.md playlist.wiki/
+# 2. Copier les fichiers depuis la racine du dépôt playlist
+#    (tu dois être dans le dossier qui CONTIENT wiki/, pas dans wiki/ lui-même)
+cd /chemin/vers/playlist
+cp wiki/*.md playlist.wiki/
 
 # 3. Pousser
 cd playlist.wiki
 git add .
 git commit -m "Mise à jour wiki — Phases 2-4 Resonance"
 git push origin master
+```
+
+**Si `playlist.wiki` existe déjà** (pas besoin de re-cloner) :
+
+```bash
+cd /chemin/vers/playlist
+cp wiki/*.md playlist.wiki/
+cd playlist.wiki
+git add .
+git commit -m "Mise à jour wiki — Phases 2-4 Resonance"
+git push origin master
+```
+
+**Important :** récupère d'abord la dernière version du wiki dans le repo principal :
+
+```bash
+cd /chemin/vers/playlist
+git pull origin main
+# ou, si la PR #24 n'est pas encore mergée :
+git fetch origin cursor/wiki-phase4-update-ef21
+git checkout cursor/wiki-phase4-update-ef21
 ```
 
 ## Structure des pages
