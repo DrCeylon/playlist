@@ -36,7 +36,7 @@ final class PlaylistBuilderViewModel: ObservableObject {
     }
 
     var canGenerate: Bool {
-        screenState != .generating
+        screenState != .generating && validationErrors.isEmpty
     }
 
     func buildRequest() -> PlaylistGenerationRequest {
@@ -74,10 +74,12 @@ final class PlaylistBuilderViewModel: ObservableObject {
 
     func addExclusion() {
         exclusions.append(ExclusionRule())
+        validateForm()
     }
 
     func removeExclusion(_ rule: ExclusionRule) {
         exclusions.removeAll { $0.id == rule.id }
+        validateForm()
     }
 
     func generate() async {
