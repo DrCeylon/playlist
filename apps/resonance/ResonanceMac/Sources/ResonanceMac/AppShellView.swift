@@ -20,10 +20,7 @@ struct AppShellView: View {
         case .home:
             HomeView()
         case .newPlaylist:
-            PlaceholderScreenView(
-                title: "Nouvelle Playlist",
-                message: "Le builder de playlist arrive en Phase 4.5."
-            )
+            PlaylistBuilderView()
         case .history:
             PlaceholderScreenView(
                 title: "Historique",

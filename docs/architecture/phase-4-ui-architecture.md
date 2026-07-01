@@ -356,7 +356,7 @@ DiagnosticBus (in-memory, async queue)
 | **4.2** | Engine Bridge | `playlist_builder/ui/bridge/` — JSON-RPC protocol (**done**) |
 | **4.3** | Theme engine (Python) | ThemeRegistry, 3 bundled themes (**done**) |
 | **4.4** | macOS shell MVP | SwiftUI AppShell + Home + Settings (**done**) |
-| **4.5** | Playlist builder UI | Form + generate + preview |
+| **4.5** | Playlist builder UI | Form + generate + preview (**done**) |
 | **4.6** | Import UX | Progress stream, manual acquisition |
 | **4.7** | Laboratory | Diagnostics screens |
 | **4.8** | iPadOS layout | Split view, adaptive navigation |

@@ -11,6 +11,7 @@ Phase 4 — Product discovery & UI contracts.
 | [design-system.md](design-system.md) | Tokens, components, a11y |
 | [theme-engine.md](theme-engine.md) | ThemeRegistry, ThemeManager, skin format |
 | [phase-4-macos-shell.md](phase-4-macos-shell.md) | macOS SwiftUI shell MVP (Phase 4.4) |
+| [phase-4-playlist-builder.md](phase-4-playlist-builder.md) | Playlist builder form + preview (Phase 4.5) |
 | [ios-planned-structure.md](ios-planned-structure.md) | Future iOS layout |
 
 ## Phase 4.1 — Shared contracts (code)
@@ -58,6 +59,17 @@ Package `apps/resonance/` :
 
 Doc : [phase-4-macos-shell.md](phase-4-macos-shell.md)  
 Tests : `tests/test_resonance_mac_shell.py` + Swift `swift test`
+
+## Phase 4.5 — Playlist builder (code)
+
+Screens `PlaylistBuilderView` + `PlaylistPreviewView` in `ResonanceMac` :
+
+- Form fields aligned with `PlaylistGenerationRequest`
+- Validation via `PlaylistGenerationValidator` (Phase 4.1 contract)
+- Mock generation service; bridge-ready `PlaylistGenerationServing`
+
+Doc : [phase-4-playlist-builder.md](phase-4-playlist-builder.md)  
+Tests : `tests/test_resonance_playlist_builder.py`
 
 Architecture :
 

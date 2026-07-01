@@ -1,0 +1,32 @@
+{
+  "name": "Orlando Pool Party",
+  "provider_id": "apple_music",
+  "description": "Pool party progressive, sans reggaeton",
+  "seeds": [
+    {
+      "artist": "Kygo",
+      "title": "Firestone",
+      "weight": 1.0
+    }
+  ],
+  "keywords": ["tropical", "deep house", "sunset"],
+  "target_track_count": 50,
+  "target_duration_minutes": null,
+  "energy_curve": {
+    "profile": "rising",
+    "chapter_labels": []
+  },
+  "exclusions": [
+    {
+      "kind": "artist",
+      "value": "Pitbull",
+      "reason": ""
+    },
+    {
+      "kind": "genre",
+      "value": "reggaeton",
+      "reason": ""
+    }
+  ],
+  "playlist_theme": "tropical, deep house, sunset"
+}
