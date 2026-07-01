@@ -10,6 +10,7 @@ Phase 4 — Product discovery & UI contracts.
 | [phase-4-framework-decision.md](phase-4-framework-decision.md) | Technology matrix + recommendation |
 | [design-system.md](design-system.md) | Tokens, components, a11y |
 | [theme-engine.md](theme-engine.md) | ThemeRegistry, ThemeManager, skin format |
+| [phase-4-macos-shell.md](phase-4-macos-shell.md) | macOS SwiftUI shell MVP (Phase 4.4) |
 | [ios-planned-structure.md](ios-planned-structure.md) | Future iOS layout |
 
 ## Phase 4.1 — Shared contracts (code)
@@ -46,6 +47,17 @@ Package `playlist_builder/ui/shared/theme/` :
 
 Doc : [phase-4-theme-engine.md](phase-4-theme-engine.md)  
 Tests : `tests/test_ui_shared_theme.py`
+
+## Phase 4.4 — macOS SwiftUI shell (code)
+
+Package `apps/resonance/` :
+
+- **ResonanceCore** — `AppRoute`, `SidebarItem`, `ThemeOption`
+- **ResonanceDesign** — Swift theme engine (JSON tokens)
+- **ResonanceMac** — AppShell, Accueil, Paramètres
+
+Doc : [phase-4-macos-shell.md](phase-4-macos-shell.md)  
+Tests : `tests/test_resonance_mac_shell.py` + Swift `swift test`
 
 Architecture :
 

@@ -1,0 +1,21 @@
+{
+  "id": "classic_winamp_inspired",
+  "displayName": "Classic Laboratory",
+  "version": "1.0.0",
+  "extends": "apple_music_dark",
+  "tokens": {
+    "colors": {
+      "color.background.primary": "#232323",
+      "color.accent.primary": "#00FF99",
+      "color.accent.secondary": "#FF6600",
+      "color.lab.accent": "#00FF99"
+    },
+    "typography": {
+      "font.mono": "12,regular"
+    }
+  },
+  "metadata": {
+    "author": "Resonance",
+    "inspiration": "Winamp laboratory aesthetic"
+  }
+}

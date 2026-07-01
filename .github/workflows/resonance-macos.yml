@@ -1,0 +1,23 @@
+name: Resonance macOS
+
+on:
+  push:
+    branches:
+      - main
+      - "cursor/**"
+    paths:
+      - "apps/resonance/**"
+      - ".github/workflows/resonance-macos.yml"
+  pull_request:
+    paths:
+      - "apps/resonance/**"
+      - ".github/workflows/resonance-macos.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test Resonance package
+        run: ./apps/resonance/scripts/build.sh
