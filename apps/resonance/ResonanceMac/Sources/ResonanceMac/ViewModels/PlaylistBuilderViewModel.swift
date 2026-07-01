@@ -21,6 +21,8 @@ final class PlaylistBuilderViewModel: ObservableObject {
     @Published var validationErrors: [ValidationError] = []
     @Published var screenState: ScreenState = .editing
     @Published var previewResult: PlaylistGenerationResult?
+    @Published var previewSourceLabel = "Aperçu mock"
+    @Published var bridgeFallbackMessage: String?
 
     let providerOptions = DefaultProviders.options
     let selectedProvider = DefaultProviders.options.first { $0.providerID == .appleMusic }
@@ -88,8 +90,17 @@ final class PlaylistBuilderViewModel: ObservableObject {
         guard validationErrors.isEmpty else { return }
 
         screenState = .generating
+        bridgeFallbackMessage = nil
         do {
             previewResult = try await service.generate(request: request)
+            if service is PythonEngineBridgeService {
+                previewSourceLabel = "Aperçu moteur Python"
+            } else if let firstTrack = previewResult?.sections.first?.tracks.first, firstTrack.source == "mock" {
+                previewSourceLabel = "Aperçu mock — bridge indisponible"
+                bridgeFallbackMessage = "Le moteur Python n'a pas répondu ; aperçu local utilisé."
+            } else {
+                previewSourceLabel = "Aperçu mock"
+            }
             screenState = .preview
         } catch let error as PlaylistBuilderError {
             if case .validationFailed(let result) = error {

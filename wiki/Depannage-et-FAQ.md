@@ -33,7 +33,13 @@ cd apps/resonance
 swift run ResonanceMac
 ```
 
-L'app propose aujourd'hui : navigation sidebar, Accueil, Paramètres (thèmes), et le formulaire Nouvelle Playlist (Phase 4.5). L'import Apple Music via l'UI arrive en Phase 4.6.
+L'app propose : navigation sidebar, Accueil, Paramètres (thèmes), formulaire **Nouvelle Playlist** avec génération moteur Python, et **import Apple Music** (Phase 4.6, macOS + Music.app).
+
+Variable utile si le repo n'est pas détecté automatiquement :
+
+```bash
+export RESONANCE_REPO_ROOT=/chemin/vers/playlist
+```
 
 ### `generate_playlist.py` vs JSON manuel ?
 

@@ -75,7 +75,8 @@ C'est l'objectif principal de l'application — aujourd'hui en CLI, demain dans 
 | Gateway Apple Music E2E | ✅ |
 | Contrats UI (`PlaylistGenerationRequest`) | ✅ Phase 4.1 |
 | App macOS formulaire génération | ✅ Phase 4.5 |
-| Bridge runtime (UI ↔ moteur) | 📋 Phase 4.6 |
+| Bridge runtime (UI ↔ moteur) | ✅ Phase 4.6 |
+| Import Apple Music via l'UI | ✅ Phase 4.6 (macOS) |
 
 ## CLI — génération
 
@@ -99,7 +100,8 @@ Le formulaire **Nouvelle Playlist** de l'app macOS reprend exactement les champs
 
 - Validation identique (Python + Swift)
 - Encodage bridge-ready (`validate_generation_request`, `generate_playlist`)
-- Preview mockée aujourd'hui, moteur réel via bridge en Phase 4.6
+- Preview via moteur Python (Phase 4.6)
+- Import Apple Music via bridge (`import_playlist`)
 
 → [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance)
 

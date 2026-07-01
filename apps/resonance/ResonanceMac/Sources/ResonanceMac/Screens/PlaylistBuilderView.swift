@@ -3,18 +3,40 @@ import ResonanceDesign
 import SwiftUI
 
 struct PlaylistBuilderView: View {
-    @StateObject private var viewModel = PlaylistBuilderViewModel()
+    @StateObject private var viewModel: PlaylistBuilderViewModel
+    @StateObject private var importViewModel: ImportViewModel
     @EnvironmentObject private var themeManager: ThemeManager
+
+    init(
+        generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
+        importService: any PlaylistImportServing = PythonEngineBridgeService()
+    ) {
+        _viewModel = StateObject(wrappedValue: PlaylistBuilderViewModel(service: generationService))
+        _importViewModel = StateObject(wrappedValue: ImportViewModel(service: importService))
+    }
 
     var body: some View {
         ThemedScreen {
-            switch viewModel.screenState {
-            case .preview:
-                if let result = viewModel.previewResult {
-                    PlaylistPreviewView(result: result, onEdit: viewModel.backToEditing)
+            switch importViewModel.screenState {
+            case .importing, .waitingForManualAcquisition:
+                ImportProgressView(
+                    progress: importViewModel.progress,
+                    manualPrompt: importViewModel.manualPrompt,
+                    onConfirmManual: {
+                        Task { await importViewModel.confirmManualAcquisition() }
+                    }
+                )
+            case .report:
+                if let report = importViewModel.report {
+                    ImportReportView(report: report) {
+                        importViewModel.reset()
+                        viewModel.backToEditing()
+                    }
                 }
-            case .editing, .generating:
-                builderForm
+            case .failed(let message):
+                failureView(message: message)
+            case .idle:
+                builderOrPreview
             }
         }
         .navigationTitle("Nouvelle Playlist")
@@ -27,6 +49,43 @@ struct PlaylistBuilderView: View {
         .onAppear { viewModel.validateForm() }
     }
 
+    @ViewBuilder
+    private var builderOrPreview: some View {
+        switch viewModel.screenState {
+        case .preview:
+            if let result = viewModel.previewResult {
+                PlaylistPreviewView(
+                    result: result,
+                    previewSourceLabel: viewModel.previewSourceLabel,
+                    onEdit: viewModel.backToEditing,
+                    onImport: {
+                        Task { await importViewModel.importPlaylist(result) }
+                    }
+                )
+            }
+        case .editing, .generating:
+            builderForm
+        }
+    }
+
+    @ViewBuilder
+    private func failureView(message: String) -> some View {
+        let palette = ThemePalette(theme: themeManager.active)
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Import impossible", systemImage: "exclamationmark.triangle")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(palette.statusWarning)
+            Text(message)
+                .foregroundStyle(palette.textSecondary)
+            Button("Revenir à l'aperçu") {
+                importViewModel.reset()
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(palette.accentPrimary)
+        }
+        .padding(24)
+    }
+
     private var builderForm: some View {
         let palette = ThemePalette(theme: themeManager.active)
 
@@ -34,6 +93,12 @@ struct PlaylistBuilderView: View {
             VStack(alignment: .leading, spacing: 20) {
                 if !viewModel.validationErrors.isEmpty {
                     ValidationBanner(errors: viewModel.validationErrors, palette: palette)
+                }
+
+                if let bridgeMessage = viewModel.bridgeFallbackMessage {
+                    Text(bridgeMessage)
+                        .font(.caption)
+                        .foregroundStyle(palette.textTertiary)
                 }
 
                 formSection(title: "Identité", palette: palette) {
@@ -63,7 +128,6 @@ struct PlaylistBuilderView: View {
                                 .stroke(palette.borderSubtle, lineWidth: 1)
                         )
                         .opacity(0.72)
-                        .accessibilityLabel("Provider \(provider.displayName), non modifiable pour le MVP")
                     }
                 }
 

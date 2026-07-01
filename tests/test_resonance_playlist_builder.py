@@ -14,8 +14,14 @@ FIXTURE = REPO_ROOT / "tests" / "fixtures" / "playlist_generation_request.json"
 REQUIRED_BUILDER_SWIFT_PATHS = (
     REPO_ROOT / "apps" / "resonance" / "ResonanceCore" / "Sources" / "ResonanceCore" / "Validation.swift",
     REPO_ROOT / "apps" / "resonance" / "ResonanceCore" / "Sources" / "ResonanceCore" / "BridgeContracts.swift",
+    REPO_ROOT / "apps" / "resonance" / "ResonanceCore" / "Sources" / "ResonanceCore" / "BridgeClient.swift",
+    REPO_ROOT / "apps" / "resonance" / "ResonanceCore" / "Sources" / "ResonanceCore" / "ImportModels.swift",
+    REPO_ROOT / "apps" / "resonance" / "ResonanceMac" / "Sources" / "ResonanceMac" / "Services" / "PythonEngineBridgeService.swift",
+    REPO_ROOT / "apps" / "resonance" / "ResonanceMac" / "Sources" / "ResonanceMac" / "ViewModels" / "ImportViewModel.swift",
     REPO_ROOT / "apps" / "resonance" / "ResonanceMac" / "Sources" / "ResonanceMac" / "Screens" / "PlaylistBuilderView.swift",
     REPO_ROOT / "apps" / "resonance" / "ResonanceMac" / "Sources" / "ResonanceMac" / "Screens" / "PlaylistPreviewView.swift",
+    REPO_ROOT / "apps" / "resonance" / "ResonanceMac" / "Sources" / "ResonanceMac" / "Screens" / "ImportProgressView.swift",
+    REPO_ROOT / "apps" / "resonance" / "ResonanceMac" / "Sources" / "ResonanceMac" / "Screens" / "ImportReportView.swift",
     REPO_ROOT / "apps" / "resonance" / "ResonanceMac" / "Sources" / "ResonanceMac" / "ViewModels" / "PlaylistBuilderViewModel.swift",
 )
 

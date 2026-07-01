@@ -1,13 +1,5 @@
 import Foundation
 
-public enum BridgeCommand: String, Codable, Sendable {
-    case listProviders = "list_providers"
-    case validateGenerationRequest = "validate_generation_request"
-    case generatePlaylist = "generate_playlist"
-    case importPlaylist = "import_playlist"
-    case diagnostics = "diagnostics"
-}
-
 public enum BridgeContracts {
     public static func generationRequestDictionary(_ request: PlaylistGenerationRequest) -> [String: Any] {
         var payload: [String: Any] = [

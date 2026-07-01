@@ -4,7 +4,9 @@ import SwiftUI
 
 struct PlaylistPreviewView: View {
     let result: PlaylistGenerationResult
+    let previewSourceLabel: String
     let onEdit: () -> Void
+    let onImport: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
@@ -16,10 +18,10 @@ struct PlaylistPreviewView: View {
                     Text(result.playlistName)
                         .font(.largeTitle.weight(.semibold))
                         .foregroundStyle(palette.textPrimary)
-                    Text("\(result.trackCount) morceaux · score moyen \(String(format: "%.2f", result.averageScore))")
+                    Text("\(result.trackCount) morceaux · score moyen \(scoreLabel(result.averageScore))")
                         .font(.callout)
                         .foregroundStyle(palette.textSecondary)
-                    Text("Aperçu mock — prêt pour le Engine Bridge.")
+                    Text(previewSourceLabel)
                         .font(.caption)
                         .foregroundStyle(palette.textTertiary)
                 }
@@ -40,7 +42,7 @@ struct PlaylistPreviewView: View {
                                         .foregroundStyle(palette.textSecondary)
                                 }
                                 Spacer()
-                                Text(String(format: "%.0f%%", track.score * 100))
+                                Text(scoreLabel(track.score))
                                     .font(.caption.monospacedDigit())
                                     .foregroundStyle(palette.accentPrimary)
                             }
@@ -57,12 +59,19 @@ struct PlaylistPreviewView: View {
                     Button("Modifier le formulaire", action: onEdit)
                         .buttonStyle(.bordered)
                     Spacer()
-                    Label("Import non disponible (Phase 4.6)", systemImage: "square.and.arrow.down")
-                        .font(.caption)
-                        .foregroundStyle(palette.textTertiary)
+                    Button(action: onImport) {
+                        Label("Importer dans Apple Music", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accentPrimary)
                 }
             }
             .padding(24)
         }
+    }
+
+    private func scoreLabel(_ score: Double) -> String {
+        let percent = score > 1.0 ? score : score * 100
+        return String(format: "%.0f%%", percent)
     }
 }

@@ -69,6 +69,7 @@ class EngineBridgeBackend(Protocol):
         *,
         sync: bool,
         write_json_diagnostics: bool,
+        request_id: str = "import",
     ) -> Iterator[BridgeEvent | ImportPlaylistResult]: ...
 
     def diagnostics(self) -> DiagnosticsResult: ...

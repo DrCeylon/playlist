@@ -15,6 +15,7 @@ from playlist_builder.ui.bridge.commands import (
 )
 from playlist_builder.ui.bridge.events import BridgeEvent, BridgeEventType, diagnostic_event, progress_event
 from playlist_builder.ui.bridge.protocol import EngineBridgeBackend
+from playlist_builder.app.bridge_runtime import RuntimeEngineBridgeBackend
 from playlist_builder.ui.shared.dto import (
     GeneratedSectionPreview,
     GeneratedTrackPreview,
@@ -83,9 +84,10 @@ class FakeBackend(EngineBridgeBackend):
         *,
         sync: bool,
         write_json_diagnostics: bool,
+        request_id: str = "import",
     ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
-        yield progress_event("req-import", processed_tracks=1, total_tracks=1)
-        yield diagnostic_event("req-import", phase="gateway", message="import started")
+        yield progress_event(request_id, processed_tracks=1, total_tracks=1)
+        yield diagnostic_event(request_id, phase="gateway", message="import started")
         yield self.import_playlist(playlist, sync=sync, write_json_diagnostics=write_json_diagnostics)
 
     def diagnostics(self) -> DiagnosticsResult:

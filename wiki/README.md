@@ -18,7 +18,7 @@ cp wiki/*.md playlist.wiki/
 # 3. Pousser
 cd playlist.wiki
 git add .
-git commit -m "Mise à jour wiki — Phases 2-4 Resonance"
+git commit -m "Mise à jour wiki — Phase 4.6 Resonance + visuels"
 git push origin master
 ```
 
@@ -29,7 +29,7 @@ cd /chemin/vers/playlist
 cp wiki/*.md playlist.wiki/
 cd playlist.wiki
 git add .
-git commit -m "Mise à jour wiki — Phases 2-4 Resonance"
+git commit -m "Mise à jour wiki — Phase 4.6 Resonance + visuels"
 git push origin master
 ```
 
@@ -61,12 +61,13 @@ git pull origin main
 | `Principes-Produit.md` | Principes |
 | `Depannage-et-FAQ.md` | Dépannage |
 
-## Dernière mise à jour (juin 2026)
+## Dernière mise à jour (juillet 2026)
 
 Reflet des merges :
 - Phases 2–3 : gateway providers, intégration Apple Music E2E
 - Phase 4.1–4.4 : contrats UI, bridge, thèmes, shell macOS SwiftUI
-- Phase 4.5 : builder playlist (formulaire + preview mock)
+- Phase 4.5 : builder playlist (formulaire + preview)
+- Phase 4.6 : bridge runtime Python, import UX, premiers visuels textuels
 
 ## Mise à jour
 

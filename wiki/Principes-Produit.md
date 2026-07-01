@@ -58,7 +58,7 @@ Données invalides = erreur claire en français. Pas de demi-mesure.
 |------|-------|--------|
 | **Manuel** | JSON avec sections et morceaux | Playlist Apple Music |
 | **Assisté** | Mots-clés + morceaux de référence + contraintes | Playlist générée puis créée |
-| **Resonance** *(Phase 4)* | Formulaire graphique (même contrat) | Preview puis import (futur) |
+| **Resonance** *(Phase 4)* | Formulaire graphique (même contrat) | Génération + import Apple Music (macOS) |
 
 Les modes partagent les mêmes principes ci-dessus.
 

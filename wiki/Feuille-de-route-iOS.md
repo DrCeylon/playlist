@@ -23,7 +23,7 @@
 |-------|----------|--------|
 | 4.4 | Shell macOS (sidebar, Accueil, Paramètres) | ✅ |
 | 4.5 | Formulaire Nouvelle Playlist + preview | ✅ |
-| 4.6 | Import UX + bridge connecté | 📋 |
+| 4.6 | Import UX + bridge connecté | ✅ |
 | 4.7 | Laboratoire + historique | 📋 |
 | 4.9 | Shell iOS / iPadOS | 📋 |
 
@@ -52,7 +52,7 @@ cd apps/resonance && swift run ResonanceMac
 └─────────────────────────────────┘
 ```
 
-**Phase 4.5** implémente ce formulaire sur macOS (preview mockée).
+**Phase 4.5–4.6** — formulaire macOS, preview moteur Python, import Apple Music via bridge.
 
 ## Architecture cible
 

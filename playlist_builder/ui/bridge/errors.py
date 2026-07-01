@@ -11,6 +11,8 @@ class BridgeErrorCode(StrEnum):
     VALIDATION_FAILED = "validation_failed"
     NOT_CONFIGURED = "not_configured"
     ENGINE_ERROR = "engine_error"
+    PROVIDER_UNAVAILABLE = "provider_unavailable"
+    MANUAL_ACTION_REQUIRED = "manual_action_required"
 
 
 class BridgeError(Exception):

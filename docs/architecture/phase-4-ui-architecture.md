@@ -45,6 +45,14 @@ playlist_builder/
       protocol.py               # EngineBridge Protocol
       json_rpc.py               # JSON-lines adapter
       commands.py               # command enum
+    # Runtime adapter (NOT in ui/bridge — provider imports allowed)
+  app/
+    bridge_runtime/             # Phase 4.6 — RuntimeEngineBridgeBackend
+      backend.py
+      import_stream.py
+      mapping.py
+    cli/
+      engine_bridge.py          # stdin/stdout entry for Resonance
 
 apps/
   resonance/                    # Phase 4.4+ (not in 4.0)
@@ -94,15 +102,25 @@ full unit tests. Swift production ViewModels mirror the same public surface.
 | **Outputs** | `providers: list[ProviderOption]`, `selected` |
 | **Use cases** | `LoadProvidersUseCase` |
 
-### PlaylistBuilderViewModel
+### PlaylistBuilderViewModel (Swift — implemented)
 
 | Aspect | Detail |
 |--------|--------|
-| **Responsibility** | Form state for new playlist generation |
-| **Inputs** | Field edits, add/remove seed, add exclusion, `Generate` |
-| **Outputs** | `form: PlaylistGenerationRequest`, `validationErrors`, `isValid` |
-| **States** | `editing`, `generating` |
-| **Use cases** | `GeneratePlaylistUseCase` (new wrapper) |
+| **Responsibility** | Form state, validation, generation |
+| **Services** | `PlaylistGenerationServing` — `PythonEngineBridgeService` or mock |
+| **States** | `editing`, `generating`, `preview` |
+| **Outputs** | `previewResult`, `previewSourceLabel`, `validationErrors` |
+
+### ImportViewModel (Swift — Phase 4.6)
+
+| Aspect | Detail |
+|--------|--------|
+| **Responsibility** | Import stream UX, manual acquisition, report |
+| **Services** | `PlaylistImportServing` — same bridge service or mock |
+| **States** | `idle`, `importing`, `waitingForManualAcquisition`, `report`, `failed` |
+| **Bridge** | `import_playlist`, `continue_manual_acquisition` |
+
+### PlaylistBuilderViewModel (Python reference — planned)
 
 ### EnergyCurveViewModel
 
@@ -131,15 +149,12 @@ full unit tests. Swift production ViewModels mirror the same public surface.
 | **Outputs** | `result: PlaylistGenerationResult`, section groups |
 | **States** | `generated`, `regenerating` |
 
-### ImportProgressViewModel
+### ImportProgressViewModel (Python reference — planned)
 
 | Aspect | Detail |
 |--------|--------|
 | **Responsibility** | Stream import events, manual acquisition UX |
-| **Inputs** | `StartImport`, `ConfirmManualAcquisition`, `SkipTrack` |
-| **Outputs** | `progress: ImportProgressState`, `liveLog` |
-| **States** | `importing`, `waiting_for_manual_acquisition`, `completed`, `partial_success`, `failed` |
-| **Use cases** | `ImportPlaylistUseCase`, `GenerateAndImportPlaylistUseCase` |
+| **Implemented in Swift** | `ImportViewModel` + `ImportProgressView` (4.6) |
 
 ### DiagnosticsViewModel
 
@@ -176,15 +191,16 @@ full unit tests. Swift production ViewModels mirror the same public surface.
 
 | Use case | Status | Notes |
 |----------|--------|-------|
-| `ImportPlaylistUseCase` | ✅ | Wrap for UI via bridge |
+| `ImportPlaylistUseCase` | ✅ | CLI + bridge via `stream_import_playlist` |
 | `CheckCatalogUseCase` | ✅ | Used in lab / preflight |
+| Generation (bridge) | ✅ | `RuntimeEngineBridgeBackend.generate_playlist` (4.6) |
+| Import (bridge) | ✅ | `stream_import_playlist` + sessions (4.6) |
 
-### To create (Phase 4.1+)
+### To create (Phase 4.7+)
 
 | Use case | Responsibility |
 |----------|----------------|
-| `GeneratePlaylistUseCase` | Orchestrate discovery + planning → `PlaylistGenerationResult` |
-| `GenerateAndImportPlaylistUseCase` | Generate then import atomically |
+| `GenerateAndImportPlaylistUseCase` | Generate then import atomically (UI uses two steps today) |
 | `LoadProvidersUseCase` | Read `ProviderGatewayRegistry` → `ProviderOption` list |
 | `LoadThemesUseCase` | `ThemeRegistry.list()` |
 | `LoadSettingsUseCase` | `AppSettings` + `UserPreferences` merge |
@@ -313,7 +329,7 @@ DiagnosticBus (in-memory, async queue)
 
 | Stage | Approach |
 |-------|----------|
-| Dev | `xcodebuild` + `python -m playlist_builder.ui.bridge` |
+| Dev | `swift run ResonanceMac` + `python3 -m playlist_builder.cli.engine_bridge` |
 | macOS dist | Signed .app, embedded Python venv or PyInstaller sidecar |
 | Notarization | Apple notary service for engine binary |
 | iOS | TestFlight → App Store, MusicKit entitlement |
@@ -357,7 +373,8 @@ DiagnosticBus (in-memory, async queue)
 | **4.3** | Theme engine (Python) | ThemeRegistry, 3 bundled themes (**done**) |
 | **4.4** | macOS shell MVP | SwiftUI AppShell + Home + Settings (**done**) |
 | **4.5** | Playlist builder UI | Form + generate + preview (**done**) |
-| **4.6** | Import UX | Progress stream, manual acquisition |
+| **4.6** | Import UX + bridge runtime | Python engine connection, import screens (**done**) |
+| **4.6b** | Bridge hardening | Persistent process, live event stream |
 | **4.7** | Laboratory | Diagnostics screens |
 | **4.8** | iPadOS layout | Split view, adaptive navigation |
 | **4.9** | iOS + MusicKit | Mobile delivery path |
@@ -366,16 +383,17 @@ DiagnosticBus (in-memory, async queue)
 
 ## Acceptance criteria (Phase 4 implementation)
 
-- [ ] CLI unchanged and all pytest green
-- [ ] No provider imports in `playlist_builder/ui/`
-- [ ] All colors via design tokens
-- [ ] ViewModels testable without SwiftUI
-- [ ] Engine Bridge documented and contract-tested
+- [x] CLI unchanged and all pytest green (282+ tests)
+- [x] No provider imports in `playlist_builder/ui/bridge/`
+- [x] Runtime adapter in `app/bridge_runtime/` (composition root)
+- [x] All colors via design tokens
+- [x] ViewModels testable without SwiftUI
+- [x] Engine Bridge documented and contract-tested
+- [x] Manual acquisition flow — UX + session resume (4.6)
 - [ ] FR + EN string catalog started
 - [ ] VoiceOver labels on macOS MVP
-- [ ] Import never blocks main thread > 16ms
-- [ ] Manual acquisition flow matches CLI semantics
-- [ ] No playlist/library delete actions in UI
+- [ ] Live import event stream (4.6b)
+- [x] No playlist/library delete actions in UI
 
 ## Related
 

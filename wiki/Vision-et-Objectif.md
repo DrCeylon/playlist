@@ -20,7 +20,7 @@ Deux façons d'exprimer cette intention :
 |------|-------------|--------|
 | **Manuel** | Un fichier JSON avec sections et morceaux choisis | Crée la playlist dans Apple Music |
 | **Assisté** *(Phase 2)* | Des mots-clés, des morceaux de référence, des contraintes | Propose et assemble une playlist, puis la crée |
-| **App Resonance** *(Phase 4)* | Interface macOS SwiftUI | Même moteur, expérience graphique |
+| **App Resonance** *(Phase 4)* | Interface macOS SwiftUI | Génération + import Apple Music |
 
 Les modes coexistent. C'est **composer à la main**, **générer en CLI**, ou **utiliser l'app** selon ton envie.
 
@@ -82,7 +82,7 @@ Engine Bridge Phase 4.2            OK
 Theme engine Phase 4.3             OK
 App macOS shell Phase 4.4          OK
 Builder playlist Phase 4.5         OK
-Import UX Phase 4.6                A faire
+Import UX Phase 4.6                OK
 App iOS Phase 4.9                  A faire
 ```
 

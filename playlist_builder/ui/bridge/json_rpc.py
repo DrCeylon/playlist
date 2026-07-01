@@ -79,7 +79,7 @@ class JsonRpcEngineBridge(EngineBridge):
         if request.command == BridgeCommand.IMPORT_PLAYLIST:
             yield started_event(request.id, command=request.command.value).to_dict()
             final_result: ImportPlaylistResult | None = None
-            for item in self._import_playlist_stream(request.params):
+            for item in self._import_playlist_stream(request.id, request.params):
                 if isinstance(item, BridgeEvent):
                     yield item.to_dict()
                 else:
@@ -88,6 +88,13 @@ class JsonRpcEngineBridge(EngineBridge):
                 raise BridgeError(BridgeErrorCode.ENGINE_ERROR, "Import finished without a result.")
             yield completed_event(request.id, summary=final_result.to_dict()).to_dict()
             yield BridgeResponse(id=request.id, ok=True, result=final_result.to_dict()).to_dict()
+            return
+
+        if request.command == BridgeCommand.CONTINUE_MANUAL_ACQUISITION:
+            if self.backend is None or not hasattr(self.backend, "continue_manual_acquisition"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'import non configuré.")
+            result = self.backend.continue_manual_acquisition(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
             return
 
         if request.command == BridgeCommand.DIAGNOSTICS:
@@ -128,7 +135,11 @@ class JsonRpcEngineBridge(EngineBridge):
         except Exception as exc:
             raise BridgeError(BridgeErrorCode.ENGINE_ERROR, str(exc)) from exc
 
-    def _import_playlist_stream(self, params: dict[str, Any]) -> Iterator[BridgeEvent | ImportPlaylistResult]:
+    def _import_playlist_stream(
+        self,
+        request_id: str,
+        params: dict[str, Any],
+    ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
         if self.backend is None:
             raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'import non configuré.")
         playlist = _playlist_from_params(params)
@@ -139,6 +150,7 @@ class JsonRpcEngineBridge(EngineBridge):
                 playlist,
                 sync=sync,
                 write_json_diagnostics=write_json_diagnostics,
+                request_id=request_id,
             )
         except BridgeError:
             raise

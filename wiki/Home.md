@@ -16,7 +16,7 @@
 |------|--------|-------------|
 | **CLI manuel** | ✅ Disponible | JSON → `create_playlist.py` |
 | **CLI assisté** | ✅ Disponible | Seeds + mots-clés → `generate_playlist.py` |
-| **App macOS Resonance** | ✅ MVP | SwiftUI — shell, thèmes, builder playlist |
+| **App macOS Resonance** | ✅ MVP | SwiftUI — génération, import, thèmes |
 
 ## Ce que tu peux faire aujourd'hui
 
@@ -26,7 +26,7 @@
 | Vérifier le catalogue Apple | `check_catalog.py` | Gratuit |
 | Créer la playlist dans Apple Music (macOS) | `create_playlist.py` | Gratuit |
 | Prévisualiser sans toucher à Music | `--dry-run` | Gratuit |
-| App macOS Resonance (shell + thèmes) | `apps/resonance` | Gratuit |
+| App macOS Resonance (génération + import) | `apps/resonance` | Gratuit (macOS) |
 | MusicKit API (catalogue direct) | `--engine musickit` | **Expérimental** |
 
 ## Workflow CLI (3 étapes)
