@@ -16,7 +16,7 @@ cp /chemin/vers/playlist/wiki/*.md playlist.wiki/
 # 3. Pousser
 cd playlist.wiki
 git add .
-git commit -m "Documentation wiki complète en français"
+git commit -m "Mise à jour wiki — Phases 2-4 Resonance"
 git push origin master
 ```
 
@@ -34,19 +34,25 @@ git push origin master
 | `Commandes-et-Options.md` | Référence CLI |
 | `Architecture-Technique.md` | Architecture |
 | `Playlist-Orlando-Pool-Party.md` | Playlist Orlando |
-| `Phase-2-Generation.md` | Phase 2 |
+| `Phase-2-Generation.md` | Phase 2 — génération |
+| **`Phase-4-Interface-Resonance.md`** | **Phase 4 — app macOS Resonance** |
 | `MusicKit-Experimental.md` | MusicKit |
-| `Feuille-de-route-iOS.md` | iOS |
+| `Feuille-de-route-iOS.md` | iOS & cross-platform |
 | `Principes-Produit.md` | Principes |
 | `Depannage-et-FAQ.md` | Dépannage |
+
+## Dernière mise à jour (juin 2026)
+
+Reflet des merges :
+- Phases 2–3 : gateway providers, intégration Apple Music E2E
+- Phase 4.1–4.4 : contrats UI, bridge, thèmes, shell macOS SwiftUI
+- Phase 4.5 : builder playlist (en cours / PR)
 
 ## Mise à jour
 
 Quand le code évolue, mets à jour les pages concernées dans `wiki/` puis repousse vers le dépôt wiki.
 
 ## Lien depuis le README
-
-Ajoute dans le README principal :
 
 ```markdown
 📖 [Documentation complète (Wiki)](https://github.com/DrCeylon/playlist/wiki)

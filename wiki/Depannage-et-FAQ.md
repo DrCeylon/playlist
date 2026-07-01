@@ -19,7 +19,28 @@
 
 ### L'app iOS existe ?
 
-Pas encore. → [Feuille de route iOS](Feuille-de-route-iOS)
+Pas encore. Le shell **macOS Resonance** est disponible en développement (Phase 4.4+).
+
+→ [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance) · [Feuille de route iOS](Feuille-de-route-iOS)
+
+### L'app macOS Resonance, comment la lancer ?
+
+Sur macOS avec Xcode / Swift installé :
+
+```bash
+cd apps/resonance
+./scripts/build.sh
+swift run ResonanceMac
+```
+
+L'app propose aujourd'hui : navigation sidebar, Accueil, Paramètres (thèmes), et le formulaire Nouvelle Playlist (Phase 4.5). L'import Apple Music via l'UI arrive en Phase 4.6.
+
+### `generate_playlist.py` vs JSON manuel ?
+
+- **JSON manuel** : tu choisis chaque morceau (`create_playlist.py`)
+- **`generate_playlist.py`** : tu donnes seeds + mots-clés, le moteur assemble la playlist
+
+→ [Phase 2 — Génération](Phase-2-Generation) · [Commandes CLI](Commandes-et-Options)
 
 ### C'est lié à Guidewire / mon employeur ?
 

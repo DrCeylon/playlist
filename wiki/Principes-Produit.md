@@ -57,9 +57,10 @@ Données invalides = erreur claire en français. Pas de demi-mesure.
 | Mode | Input | Output |
 |------|-------|--------|
 | **Manuel** | JSON avec sections et morceaux | Playlist Apple Music |
-| **Assisté** *(Phase 2)* | Mots-clés + morceaux de référence + contraintes | Playlist générée puis créée |
+| **Assisté** | Mots-clés + morceaux de référence + contraintes | Playlist générée puis créée |
+| **Resonance** *(Phase 4)* | Formulaire graphique (même contrat) | Preview puis import (futur) |
 
-Les deux modes partagent les mêmes principes ci-dessus.
+Les modes partagent les mêmes principes ci-dessus.
 
 ## Décisions produit documentées
 
@@ -72,6 +73,9 @@ Les deux modes partagent les mêmes principes ci-dessus.
 | Rapport HTML cliquable | Réduire la friction d'ajout manuel |
 | Phase 2 planning/generation | Cœur de la vision, pas un bonus |
 | Exclusions via contraintes utilisateur | Liberté totale (ex. `excluded_terms`) |
+| UI provider-neutral (Phase 4) | `ui/` n'importe jamais les providers |
+| Pas de suppression dans l'UI | Même règle CLI et Resonance |
+| Engine Bridge | Contrat stable entre SwiftUI et Python |
 
 ## Hors périmètre (explicitement)
 
@@ -85,9 +89,11 @@ Les deux modes partagent les mêmes principes ci-dessus.
 
 ## Qualité et tests
 
-- Tests unitaires sur scoring, loader, cache, planning, génération
-- Pas de dépendance externe runtime
+- Tests unitaires : scoring, loader, cache, planning, génération, gateway
+- Tests contrats UI : `test_ui_shared_*`, `test_ui_bridge_*`, `test_resonance_*`
+- Pas de dépendance externe runtime (moteur Python)
 - Documentation wiki maintenue à jour
+- CI macOS : `apps/resonance/scripts/build.sh`
 
 ---
 

@@ -21,6 +21,7 @@
 
 **Évolution**
 - [Phase 2 — Génération](Phase-2-Generation)
+- [**Phase 4 — Resonance**](Phase-4-Interface-Resonance)
 - [MusicKit expérimental](MusicKit-Experimental)
 - [Feuille de route iOS](Feuille-de-route-iOS)
 

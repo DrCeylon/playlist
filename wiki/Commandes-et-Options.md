@@ -51,6 +51,53 @@ python3 check_catalog.py --sleep 1.0
 
 ---
 
+## `generate_playlist.py`
+
+Génère une playlist à partir de seeds, mots-clés et contraintes (Phase 2).
+
+### Usage
+
+```bash
+python3 generate_playlist.py [OPTIONS]
+# ou après pip install :
+playlist-generate [OPTIONS]
+```
+
+### Options principales
+
+| Option | Description |
+|--------|-------------|
+| `--name` | Nom de la playlist |
+| `--seed` | Graine `Artiste:Titre` (répétable) |
+| `--keywords` | Mots-clés séparés par des virgules |
+| `--duration` | Durée cible en minutes |
+| `--tracks` | Nombre de morceaux cible |
+| `--energy` | Profil : `chill`, `steady`, `rising`, `party`… |
+| `--exclude` | Terme à exclure (répétable) |
+| `--output` | Fichier JSON de sortie |
+
+### Exemple
+
+```bash
+python3 generate_playlist.py \
+  --name "Soirée été" \
+  --seed "Kygo:Firestone" \
+  --keywords "tropical,dance" \
+  --tracks 50 \
+  --energy rising \
+  --output playlists/soiree_ete.json
+```
+
+Puis importer dans Apple Music :
+
+```bash
+python3 create_playlist.py --playlist playlists/soiree_ete.json
+```
+
+→ Voir aussi [Phase 2 — Génération](Phase-2-Generation)
+
+---
+
 ## `create_playlist.py`
 
 Crée ou met à jour une playlist dans l'app Musique macOS.

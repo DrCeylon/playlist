@@ -20,8 +20,9 @@ Deux façons d'exprimer cette intention :
 |------|-------------|--------|
 | **Manuel** | Un fichier JSON avec sections et morceaux choisis | Crée la playlist dans Apple Music |
 | **Assisté** *(Phase 2)* | Des mots-clés, des morceaux de référence, des contraintes | Propose et assemble une playlist, puis la crée |
+| **App Resonance** *(Phase 4)* | Interface macOS SwiftUI | Même moteur, expérience graphique |
 
-Les deux modes coexistent. Ce n'est pas l'un ou l'autre — c'est **composer à la main** ou **déléguer l'assemblage** selon ton envie.
+Les modes coexistent. C'est **composer à la main**, **générer en CLI**, ou **utiliser l'app** selon ton envie.
 
 ### Exemples concrets
 
@@ -71,18 +72,23 @@ Le créateur du repo a ses **préférences personnelles** (voir Orlando), mais l
 ## Où on en est aujourd'hui
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  AUJOURD'HUI (Phase 1)          BIENTÔT (Phase 2+)      │
-│                                                         │
-│  ✅ JSON manuel                  🚧 Mots-clés + seeds     │
-│  ✅ Vérif catalogue              🚧 Génération auto     │
-│  ✅ Création Apple Music         📋 App iOS             │
-│  ✅ Rapports & traçabilité       📋 Export JSON         │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  AUJOURD'HUI                         EN COURS / BIENTÔT            │
+│                                                                  │
+│  ✅ CLI manuel (JSON)                ✅ CLI generate_playlist     │
+│  ✅ Vérif catalogue                  ✅ Gateway providers (Ph. 2-3)│
+│  ✅ Création Apple Music             ✅ Contrats UI (Phase 4.1)   │
+│  ✅ Planning & génération            ✅ Engine Bridge (4.2)       │
+│  ✅ Rapports & diagnostics           ✅ Theme engine (4.3)        │
+│                                      ✅ App macOS shell (4.4)     │
+│                                      🚧 Builder playlist (4.5)    │
+│                                      📋 Import UX (4.6)           │
+│                                      📋 App iOS (4.9)             │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-La Phase 1 est le **fondation** : contrat JSON, validation, création fiable.  
-La Phase 2 est le **cœur de la vision** : générer, pas seulement exécuter.
+La **CLI** reste le socle fiable.  
+La **Phase 4** apporte l'interface **Resonance** — même moteur, expérience produit.
 
 ---
 
@@ -104,4 +110,4 @@ Quel que soit le mode (manuel ou assisté) :
 
 ---
 
-→ Suite : [À propos](A-propos) · [Phase 2 — Génération](Phase-2-Generation) · [Feuille de route iOS](Feuille-de-route-iOS)
+→ Suite : [À propos](A-propos) · [Phase 2 — Génération](Phase-2-Generation) · [Phase 4 — Resonance](Phase-4-Interface-Resonance) · [Feuille de route iOS](Feuille-de-route-iOS)
