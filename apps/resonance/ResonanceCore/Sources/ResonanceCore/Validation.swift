@@ -140,6 +140,6 @@ public enum PlaylistGenerationValidator {
         for rule in request.exclusions {
             results.append(validateExclusionRule(rule))
         }
-        return ValidationResult.merge(results)
+        return results.reduce(ValidationResult()) { $0.merged(with: $1) }
     }
 }
