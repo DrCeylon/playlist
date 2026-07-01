@@ -1,6 +1,6 @@
 import Foundation
 
-enum ThemeValidation {
+public enum ThemeValidation {
     static let requiredColorKeys: [String] = [
         "color.background.primary",
         "color.background.secondary",
@@ -49,7 +49,7 @@ enum ThemeValidation {
         "shadow.elevated",
     ]
 
-    static func validate(theme: Theme) throws {
+    public static func validate(theme: Theme) throws {
         if theme.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             throw ThemeError.validationFailed("L'identifiant du thème est requis.")
         }
@@ -62,7 +62,7 @@ enum ThemeValidation {
         try validate(tokens: theme.tokens)
     }
 
-    static func validate(tokens: DesignTokens) throws {
+    public static func validate(tokens: DesignTokens) throws {
         for key in requiredColorKeys where tokens.colors[key] == nil {
             throw ThemeError.validationFailed("Jeton de couleur requis manquant : \(key)")
         }
@@ -90,7 +90,7 @@ enum ThemeValidation {
         }
     }
 
-    static func isValidColor(_ value: String) -> Bool {
+    public static func isValidColor(_ value: String) -> Bool {
         let pattern = #"^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"#
         return value.range(of: pattern, options: .regularExpression) != nil
     }
