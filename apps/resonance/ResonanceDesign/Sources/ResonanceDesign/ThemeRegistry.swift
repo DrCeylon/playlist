@@ -7,7 +7,11 @@ public final class ThemeRegistry: @unchecked Sendable {
         self.themes = Dictionary(uniqueKeysWithValues: themes.map { ($0.id, $0) })
     }
 
-    public static func loadBundled(bundle: Bundle = .module) throws -> ThemeRegistry {
+    public static func loadBundled() throws -> ThemeRegistry {
+        try loadBundled(bundle: .module)
+    }
+
+    public static func loadBundled(bundle: Bundle) throws -> ThemeRegistry {
         let definitions = try ThemeLoader.loadBundledDefinitions(bundle: bundle)
         let resolved = try ThemeLoader.resolve(definitions)
         let registry = ThemeRegistry()

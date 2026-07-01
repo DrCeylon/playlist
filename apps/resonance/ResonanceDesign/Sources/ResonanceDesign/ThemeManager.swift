@@ -1,9 +1,10 @@
 import Combine
 import Foundation
+import ResonanceCore
 
 @MainActor
 public final class ThemeManager: ObservableObject {
-    public static let defaultThemeID = "apple_music_light"
+    public nonisolated static let defaultThemeID = "apple_music_light"
 
     @Published public private(set) var active: Theme
     public let registry: ThemeRegistry

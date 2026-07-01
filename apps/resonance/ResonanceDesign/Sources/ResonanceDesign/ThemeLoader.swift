@@ -3,7 +3,11 @@ import Foundation
 public enum ThemeLoader {
     private static let maxThemeFileBytes = 256 * 1024
 
-    public static func loadBundledDefinitions(bundle: Bundle = .module) throws -> [ThemeDefinition] {
+    public static func loadBundledDefinitions() throws -> [ThemeDefinition] {
+        try loadBundledDefinitions(bundle: .module)
+    }
+
+    public static func loadBundledDefinitions(bundle: Bundle) throws -> [ThemeDefinition] {
         guard let themesURL = bundle.resourceURL?.appendingPathComponent("themes", isDirectory: true) else {
             throw ThemeError.loadFailed("Dossier de thèmes embarqués introuvable.")
         }

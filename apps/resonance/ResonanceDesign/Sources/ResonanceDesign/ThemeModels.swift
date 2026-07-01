@@ -1,4 +1,5 @@
 import Foundation
+import ResonanceCore
 
 public struct DesignTokens: Hashable, Sendable {
     public let colors: [String: String]
