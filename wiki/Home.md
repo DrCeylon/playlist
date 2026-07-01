@@ -1,68 +1,80 @@
-# 🎧 Apple Music Playlist Builder
+# 🎧 Resonance — Playlist Builder
 
-*Bienvenue — génère tes playlists Apple Music à partir de mots-clés, de morceaux de référence, ou d'une liste que tu as préparée.*
+*Bienvenue — génère tes playlists à partir de mots-clés, de morceaux de référence, ou d'une liste que tu as préparée.*
 
 ---
 
 ## En une phrase
 
-**Générer des playlists Apple Music** à partir de **mots-clés** ou de **morceaux de référence** — pour tout le monde, gratuitement, sans prise de tête.
+**Générer des playlists** à partir de **mots-clés** ou de **morceaux de référence** — en CLI aujourd'hui, en app macOS **Resonance** demain.
 
 → Vision complète : [Vision et objectif](Vision-et-Objectif)
 
-## Deux façons d'utiliser l'app
+## Trois façons d'utiliser le projet
 
 | Mode | Statut | Description |
 |------|--------|-------------|
-| **Manuel** | ✅ Disponible | Tu écris un JSON → l'app crée la playlist |
-| **Assisté** | 🚧 Phase 2 | Tu donnes des seeds + mots-clés → l'app génère et crée |
-
-Les deux coexistent. Choisis selon ton envie du moment.
+| **CLI manuel** | ✅ Disponible | JSON → `create_playlist.py` |
+| **CLI assisté** | ✅ Disponible | Seeds + mots-clés → `generate_playlist.py` |
+| **App macOS Resonance** | 🚧 Phase 4 | SwiftUI — shell + builder playlist |
 
 ## Ce que tu peux faire aujourd'hui
 
 | Action | Outil | Coût |
 |--------|-------|------|
-| Vérifier les morceaux dans le catalogue Apple | `check_catalog.py` | Gratuit |
+| Générer une playlist (seeds + contraintes) | `generate_playlist.py` | Gratuit |
+| Vérifier le catalogue Apple | `check_catalog.py` | Gratuit |
 | Créer la playlist dans Apple Music (macOS) | `create_playlist.py` | Gratuit |
 | Prévisualiser sans toucher à Music | `--dry-run` | Gratuit |
-| MusicKit API (catalogue direct) | `--engine musickit` | **Expérimental** — licence Apple Developer payante |
+| App macOS Resonance (shell + thèmes) | `apps/resonance` | Gratuit |
+| MusicKit API (catalogue direct) | `--engine musickit` | **Expérimental** |
 
-## Workflow manuel (3 étapes)
+## Workflow CLI (3 étapes)
 
 ```
-1. check_catalog.py     →  Rapport HTML avec liens Apple Music
-2. Ajout manuel         →  Morceaux manquants dans ta bibliothèque
-3. create_playlist.py   →  Playlist créée dans l'app Musique
+1. generate_playlist.py  →  JSON généré (optionnel)
+2. check_catalog.py      →  Rapport HTML avec liens Apple Music
+3. create_playlist.py    →  Playlist créée dans l'app Musique
 ```
+
+Le workflow manuel (JSON écrit à la main) reste supporté.
 
 ## Exemple fourni : Orlando Pool Party 2026
 
-Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive.  
-C'est **sa** pool party à Orlando, **ses** goûts. Toi, tu fais ce qui te plaît.
+Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive.
 
 → [Playlist Orlando Pool Party](Playlist-Orlando-Pool-Party)
 
 ## Navigation du wiki
 
+**Vision**
 - [**Vision et objectif**](Vision-et-Objectif) ← commence ici
 - [À propos — qui je suis](A-propos)
+- [Principes produit](Principes-Produit)
+
+**Démarrer**
 - [Guide de démarrage rapide](Guide-de-demarrage)
 - [Workflow complet](Workflow-complet)
+
+**Référence**
 - [Format JSON des playlists](Format-JSON-Playlist)
 - [Commandes et options CLI](Commandes-et-Options)
 - [Architecture technique](Architecture-Technique)
+
+**Évolution**
 - [Phase 2 — Génération intelligente](Phase-2-Generation)
+- [**Phase 4 — Interface Resonance**](Phase-4-Interface-Resonance) ← **nouveau**
 - [MusicKit (expérimental)](MusicKit-Experimental)
 - [Feuille de route iOS](Feuille-de-route-iOS)
-- [Principes produit](Principes-Produit)
+
+**Support**
 - [Dépannage et FAQ](Depannage-et-FAQ)
 
 ## Vision long terme
 
-Une **app iOS** pour que **n'importe qui** génère une playlist depuis son iPhone — mots-clés, morceaux de référence, un tap, c'est dans Apple Music.
+Une **app Apple** (macOS, puis iOS) — **Resonance** — où n'importe qui génère une playlist depuis une interface soignée, branchée sur le même moteur Python.
 
-→ [Feuille de route iOS](Feuille-de-route-iOS)
+→ [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance) · [Feuille de route iOS](Feuille-de-route-iOS)
 
 ---
 

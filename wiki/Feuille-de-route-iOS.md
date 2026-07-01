@@ -1,115 +1,113 @@
-# Feuille de route iOS
+# Feuille de route iOS & cross-platform
 
-*Générer des playlists depuis l'iPhone — pour tout le monde.*
+*Resonance sur iPhone et iPad — même moteur Python, shell SwiftUI natif.*
 
-→ Contexte : [Vision et objectif](Vision-et-Objectif)
+→ Contexte : [Vision et objectif](Vision-et-Objectif)  
+→ État macOS : [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance)
 
-## Objectif
+## Stratégie (ADR-011)
 
-Une **app iOS** où n'importe qui peut :
+| Couche | Technologie |
+|--------|-------------|
+| Moteur playlist | **Python** (inchangé) |
+| Contrats UI | DTO partagés (`ui/shared` + `ResonanceCore`) |
+| Thèmes | Fichiers JSON `.theme.json` (Python + Swift) |
+| Rendu Apple | **SwiftUI** (macOS, iOS, iPadOS) |
+| Communication | Engine Bridge JSON-lines |
 
-1. Saisir des **mots-clés** et/ou des **morceaux de référence**
-2. Prévisualiser la playlist générée par sections
-3. La créer dans Apple Music en un tap
+**Un moteur, plusieurs shells** — pas de réécriture métier en Swift.
 
-Pas besoin d'un Mac. Pas besoin de JSON. Pas besoin d'être le créateur du repo.
+## État actuel — macOS d'abord
 
-## Public cible
+| Phase | Livrable | Statut |
+|-------|----------|--------|
+| 4.4 | Shell macOS (sidebar, Accueil, Paramètres) | ✅ |
+| 4.5 | Formulaire Nouvelle Playlist + preview | 🚧 |
+| 4.6 | Import UX + bridge connecté | 📋 |
+| 4.7 | Laboratoire + historique | 📋 |
+| 4.9 | Shell iOS / iPadOS | 📋 |
 
-**Tout le monde** — pas seulement le créateur ou sa famille.
+```bash
+cd apps/resonance && swift run ResonanceMac
+```
 
-| Utilisateur | Cas d'usage |
-|-------------|-------------|
-| Toi | Pool party, running, soirée |
-| Un ami | Sa playlist anniversaire |
-| Un inconnu sur GitHub | Fork, adapte, crée la sienne |
-| Arthur & Léonard (un jour) | Leur playlist kids sur iPad |
-
-## Expérience cible
+## Expérience cible (toutes plateformes)
 
 ```
 ┌─────────────────────────────────┐
-│  🎧 Playlist Builder            │
+│  🎧 Resonance                   │
 │                                 │
 │  Morceaux de référence :        │
 │  [Kygo – Firestone        ] [+] │
-│  [Avicii – Levels         ] [+] │
 │                                 │
 │  Mots-clés :                    │
 │  [tropical] [dance] [rising]    │
 │                                 │
-│  Durée : [4h ▼]  Énergie : [↗] │
+│  Morceaux : [50]  Durée : [180] │
+│  Énergie : [Montée progressive]│
 │                                 │
 │  Exclure : [reggaeton] [+]      │
-│  (optionnel — ton choix)        │
 │                                 │
 │  [ Prévisualiser ]  [ Générer ] │
 └─────────────────────────────────┘
 ```
 
+**Phase 4.5** implémente ce formulaire sur macOS (preview mockée).
+
 ## Architecture cible
 
 ```
-┌─────────────────────────────────────┐
-│           App iOS (SwiftUI)         │
-│  ┌─────────┐  ┌──────────────────┐  │
-│  │   UI    │  │  Domain Layer    │  │
-│  │ Keywords│  │  Loader, Scoring│  │
-│  │ Seeds   │  │  Planner         │  │
-│  │ Preview │  │  Generator       │  │
-│  └─────────┘  └────────┬─────────┘  │
-└──────────────────────────┼──────────┘
-                           │
-              ┌────────────▼────────────┐
-              │   MusicKit (natif iOS)  │
-              └─────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│     Shell SwiftUI (Mac / iOS / iPad)            │
+│  ResonanceMac  ·  ResonanceIOS (futur)          │
+└────────────────────┬────────────────────────────┘
+                     │ Engine Bridge (JSON)
+┌────────────────────▼────────────────────────────┐
+│     Moteur Python (playlist_builder)            │
+│  use_cases · gateway · planning · generation   │
+└─────────────────────────────────────────────────┘
 ```
 
-## Modules Python → Swift
+## Modules partagés
 
-| Python | Swift | Priorité |
-|--------|-------|----------|
-| `planning/models.py` | `PlaylistRequest`, contraintes | P0 |
-| `planning/scoring.py` | `rankCandidates()` | P0 |
-| `generation/generator.py` | `PlaylistGenerator` | P0 |
-| `playlists/loader.py` | `Codable` JSON | P1 |
-| `catalog/scoring.py` | `CatalogScoring` | P1 |
-| MusicKit natif iOS | Remplace `musickit_client.py` | P0 |
+| Python (`ui/shared`) | Swift (`ResonanceCore`) |
+|----------------------|-------------------------|
+| `PlaylistGenerationRequest` | `PlaylistGenerationRequest` |
+| `AppRoute` | `AppRoute` / `SidebarItem` |
+| `validate_playlist_generation_request` | `PlaylistGenerationValidator` |
+| `ThemeRegistry` + `.theme.json` | `ThemeManager` + même JSON |
 
-## Phases iOS
+## Phases iOS (4.9+)
 
-### iOS-1 — MVP génération
+### iOS-1 — Shell & navigation
 
-- [ ] Saisie mots-clés + morceaux de référence
-- [ ] Génération playlist (porter Phase 2)
-- [ ] Prévisualisation par sections
-- [ ] Création Apple Music via MusicKit
+- [ ] `TabView` / `NavigationStack` miroir des `AppRoute`
+- [ ] Accueil + Paramètres
+- [ ] Thèmes depuis bundle
 
-### iOS-2 — Import & partage
+### iOS-2 — Builder & import
 
-- [ ] Import JSON existant
-- [ ] Export JSON
-- [ ] Partage AirDrop / Files
+- [ ] Formulaire Nouvelle Playlist (réutilise ResonanceCore)
+- [ ] Bridge runtime vers moteur Python
+- [ ] MusicKit pour livraison native iOS
 
 ### iOS-3 — Polish
 
-- [ ] UI soignée, accessible
-- [ ] Historique des playlists générées
-- [ ] Mode hors ligne (téléchargement)
+- [ ] Layout adaptatif iPhone / iPad
+- [ ] Historique sessions
+- [ ] Accessibilité VoiceOver
 
-## Principes iOS
-
-Identiques au projet Python :
+## Principes (inchangés)
 
 - **Liberté musicale** — zéro jugement, exclusions = choix utilisateur
-- **Non destructif** — pas de suppression
-- **Gratuit** pour l'utilisateur final
-- **Projet perso** — pas d'abonnement, pas de pub
+- **Non destructif** — pas de suppression playlist/bibliothèque
+- **Provider-neutral dans l'UI** — pas de logique Apple Music dans SwiftUI
+- **Gratuit** pour l'utilisateur final (workflow CLI)
 
 ## Nature du projet
 
-Projet **perso** du créateur, ouvert à **tous**. Pas une startup, pas un produit commercial. Un outil qu'il aurait aimé avoir — et qu'il partage.
+Projet **perso** du créateur, ouvert à **tous**. Resonance est le nom produit de l'interface — le repo reste `playlist`.
 
 ---
 
-*Un iPhone, quelques mots-clés, une playlist. Pour tout le monde. Même pour ceux qui aiment le reggaeton.*
+*D'abord macOS, ensuite iPhone. Même moteur, même contrat, même vibe.*

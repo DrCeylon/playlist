@@ -7,17 +7,40 @@ Ce dossier contient la documentation wiki complète en français.
 Le wiki GitHub est un dépôt Git séparé. Pour publier :
 
 ```bash
-# 1. Cloner le wiki (remplace par ton URL)
+# 1. Cloner le wiki (une seule fois — skip si playlist.wiki existe déjà)
 git clone https://github.com/DrCeylon/playlist.wiki.git
 
-# 2. Copier les fichiers
-cp /chemin/vers/playlist/wiki/*.md playlist.wiki/
+# 2. Copier les fichiers depuis la racine du dépôt playlist
+#    (tu dois être dans le dossier qui CONTIENT wiki/, pas dans wiki/ lui-même)
+cd /chemin/vers/playlist
+cp wiki/*.md playlist.wiki/
 
 # 3. Pousser
 cd playlist.wiki
 git add .
-git commit -m "Documentation wiki complète en français"
+git commit -m "Mise à jour wiki — Phases 2-4 Resonance"
 git push origin master
+```
+
+**Si `playlist.wiki` existe déjà** (pas besoin de re-cloner) :
+
+```bash
+cd /chemin/vers/playlist
+cp wiki/*.md playlist.wiki/
+cd playlist.wiki
+git add .
+git commit -m "Mise à jour wiki — Phases 2-4 Resonance"
+git push origin master
+```
+
+**Important :** récupère d'abord la dernière version du wiki dans le repo principal :
+
+```bash
+cd /chemin/vers/playlist
+git pull origin main
+# ou, si la PR #24 n'est pas encore mergée :
+git fetch origin cursor/wiki-phase4-update-ef21
+git checkout cursor/wiki-phase4-update-ef21
 ```
 
 ## Structure des pages
@@ -34,19 +57,25 @@ git push origin master
 | `Commandes-et-Options.md` | Référence CLI |
 | `Architecture-Technique.md` | Architecture |
 | `Playlist-Orlando-Pool-Party.md` | Playlist Orlando |
-| `Phase-2-Generation.md` | Phase 2 |
+| `Phase-2-Generation.md` | Phase 2 — génération |
+| **`Phase-4-Interface-Resonance.md`** | **Phase 4 — app macOS Resonance** |
 | `MusicKit-Experimental.md` | MusicKit |
-| `Feuille-de-route-iOS.md` | iOS |
+| `Feuille-de-route-iOS.md` | iOS & cross-platform |
 | `Principes-Produit.md` | Principes |
 | `Depannage-et-FAQ.md` | Dépannage |
+
+## Dernière mise à jour (juin 2026)
+
+Reflet des merges :
+- Phases 2–3 : gateway providers, intégration Apple Music E2E
+- Phase 4.1–4.4 : contrats UI, bridge, thèmes, shell macOS SwiftUI
+- Phase 4.5 : builder playlist (en cours / PR)
 
 ## Mise à jour
 
 Quand le code évolue, mets à jour les pages concernées dans `wiki/` puis repousse vers le dépôt wiki.
 
 ## Lien depuis le README
-
-Ajoute dans le README principal :
 
 ```markdown
 📖 [Documentation complète (Wiki)](https://github.com/DrCeylon/playlist/wiki)

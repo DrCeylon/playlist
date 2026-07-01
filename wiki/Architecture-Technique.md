@@ -1,178 +1,155 @@
 # Architecture technique
 
-*Comment c'est construit — pour les curieux et le futur moi sur iOS.*
+*Comment c'est construit — moteur Python, gateway providers, interface Resonance.*
 
-## Vue d'ensemble
+## Vue d'ensemble (2026)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    POINTS D'ENTRÉE                          │
-│  check_catalog.py          create_playlist.py               │
-└────────────┬──────────────────────────┬───────────────────┘
-             │                          │
-┌────────────▼────────────┐  ┌──────────▼───────────────────┐
-│  cli/check_catalog.py   │  │  cli/create_playlist.py      │
-└────────────┬────────────┘  └──────────┬───────────────────┘
-             │                          │
-┌────────────▼──────────────────────────▼───────────────────┐
-│                    COUCHE MÉTIER                            │
-│  playlists/loader   catalog/   music/   planning/         │
-│                     reports/   generation/                │
-└────────────┬──────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    POINTS D'ENTRÉE                               │
+│  CLI (check_catalog, generate, create)   apps/resonance (macOS) │
+└────────────┬───────────────────────────────┬──────────────────────┘
+             │                               │
+┌────────────▼──────────────┐   ┌───────────▼────────────────────┐
+│  playlist_builder/cli/     │   │  Engine Bridge (JSON-lines)    │
+│  + app/use_cases/          │   │  playlist_builder/ui/bridge/   │
+└────────────┬──────────────┘   └───────────┬────────────────────┘
+             │                               │
+┌────────────▼───────────────────────────────▼────────────────────┐
+│                    COUCHE UI (provider-neutral)                    │
+│  ui/shared/  — DTO, validation, navigation, theme engine        │
+└────────────┬────────────────────────────────────────────────────┘
              │
-┌────────────▼──────────────────────────────────────────────┐
-│                    COUCHE CORE                            │
-│  core/models   core/applescript   core/platform           │
-└───────────────────────────────────────────────────────────┘
+┌────────────▼────────────────────────────────────────────────────┐
+│                    COUCHE APPLICATION                            │
+│  app/use_cases/  ·  app/factory.py  ·  session/                 │
+└────────────┬────────────────────────────────────────────────────┘
+             │
+┌────────────▼────────────────────────────────────────────────────┐
+│                    INTÉGRATION GATEWAY                           │
+│  integration/gateway/  — registre providers neutre               │
+│  integration/apple_music/  — Apple Music (isolé)                 │
+└────────────┬────────────────────────────────────────────────────┘
+             │
+┌────────────▼────────────────────────────────────────────────────┐
+│                    MOTEUR MÉTIER                               │
+│  canonical/  ·  discovery/  ·  planning/  ·  generation/      │
+│  scoring/  ·  resolver/  ·  playlists/  ·  catalog/             │
+└────────────┬────────────────────────────────────────────────────┘
+             │
+┌────────────▼────────────────────────────────────────────────────┐
+│                    CORE + INFRASTRUCTURE                         │
+│  core/  ·  infrastructure/cache/  ·  reports/                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Package `playlist_builder`
 
+### Couche canonique & métier
+
 | Module | Rôle |
 |--------|------|
-| `core/models.py` | `TrackRef`, `CatalogMatch`, `TrackAddResult`… |
-| `core/applescript.py` | Échappement et exécution AppleScript |
-| `core/platform.py` | Garde macOS |
-| `playlists/loader.py` | Chargement et validation JSON |
-| `catalog/apple_search.py` | Client iTunes Search API |
-| `catalog/scoring.py` | Scoring des correspondances catalogue |
-| `catalog/cache.py` | Cache JSON différé |
-| `catalog/rate_limiter.py` | Limitation des appels API |
-| `catalog/retry_policy.py` | Backoff sur HTTP 429 |
-| `music/client.py` | Client AppleScript (moteur principal) |
-| `music/musickit_client.py` | Client MusicKit API (expérimental) |
-| `reports/catalog.py` | Rapports CSV/HTML catalogue |
-| `reports/playlist.py` | Rapport TXT création playlist |
-| `planning/` | Phase 2 — planification intelligente |
-| `generation/` | Phase 2 — génération déterministe |
+| `canonical/` | Modèles neutres, `ProviderId`, identités morceaux |
+| `discovery/` | Pipeline découverte candidats |
+| `planning/` | Planification avec contraintes (énergie, exclusions) |
+| `generation/` | Générateur déterministe |
+| `scoring/` | Moteur de scoring et contraintes |
+| `playlists/` | Chargement et export JSON |
 
-## Moteur AppleScript (`music/client.py`)
+### Intégration (Phases 2–3)
 
-### Optimisations
+| Module | Rôle |
+|--------|------|
+| `integration/gateway/` | `ProviderGatewayRegistry` — point d'entrée neutre |
+| `integration/apple_music/` | Gateway Apple Music, import, acquisition catalogue |
+| `app/use_cases/` | `ImportPlaylistUseCase`, `CheckCatalogUseCase` |
+| `app/factory.py` | Composition des dépendances |
 
-| Technique | Avant | Après |
-|-----------|-------|-------|
-| Détection doublons | 1 appel AppleScript par morceau | 1 scan initial de la playlist |
-| Ajout morceaux | 1 appel par morceau | Lots de 25 morceaux |
-| Ordre des résultats | Bug sur skips intercalés | Index préservés |
+**Règle :** `ui/` n'importe **jamais** `integration/apple_music/` directement.
 
-### Flux `add_tracks`
+### Couche UI (Phase 4)
 
+| Module | Rôle |
+|--------|------|
+| `ui/shared/dto/` | Contrats : `PlaylistGenerationRequest`, `ProviderOption`… |
+| `ui/shared/validation/` | Validateurs purs (Phase 4.1) |
+| `ui/shared/navigation/` | `AppRoute` |
+| `ui/shared/theme/` | `ThemeRegistry`, `ThemeManager`, `.theme.json` |
+| `ui/bridge/` | JSON-lines : commands, errors, json_rpc |
+
+→ [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance)
+
+### App macOS `apps/resonance/`
+
+| Target Swift | Rôle |
+|--------------|------|
+| `ResonanceCore` | Miroir DTO + validation + contrats bridge |
+| `ResonanceDesign` | `ThemeManager`, tokens JSON |
+| `ResonanceMac` | Shell SwiftUI (sidebar, Accueil, Paramètres, Builder) |
+
+```bash
+cd apps/resonance && ./scripts/build.sh && swift run ResonanceMac
 ```
-Pour chaque morceau (ordre JSON) :
-  ├─ Déjà en playlist ? → SKIPPED
-  └─ Sinon → file d'attente batch
 
-Pour chaque batch de 25 :
-  └─ 1 script AppleScript → duplicate depuis bibliothèque
-```
+## Moteur Apple Music (intégration)
 
-### AppleScript — bibliothèque
+Le workflow CLI macOS utilise `integration/apple_music/` :
 
-Le script cherche dans `library playlist 1` (bibliothèque principale Music) :
-1. Correspondance exacte artiste + titre
-2. Fallback : `contains` partiel
+- Résolution identité → bibliothèque → acquisition catalogue si absent
+- Livraison playlist via AppleScript (moteur principal)
+- MusicKit expérimental en option
 
-## Moteur Catalogue (`catalog/apple_search.py`)
-
-### Scoring
-
-| Critère | Points |
-|---------|--------|
-| Artiste exact | +50 |
-| Artiste partiel (inclusion) | +30 |
-| Titre exact | +50 |
-| Titre partiel | +30 |
-| **Seuil minimum** | **30** |
-
-Score max = 100 (match parfait).
-
-### Résilience
-
-- Rate limiter (0.5s par défaut)
-- Retry avec backoff exponentiel + jitter sur HTTP 429
-- Cache JSON (`cache/itunes_catalog.json`)
-- User-Agent explicite
-
-## Moteur MusicKit (`music/musickit_client.py`)
-
-**Statut : expérimental, non utilisé en production.**
-
-- API REST `https://api.music.apple.com/v1`
-- Seuil scoring plus strict (60)
-- Cache, retry, déduplication
-- Nécessite tokens JWT + user token
-
-→ [MusicKit expérimental](MusicKit-Experimental)
+L'**UI Resonance** n'embarque pas AppleScript — elle passera par le **Engine Bridge**.
 
 ## Phase 2 — Planning & Generation
 
-Deux modules préparent la génération intelligente future :
-
-### `planning/`
-
 ```python
 PlaylistPlanner.plan(request, candidates)
-```
-
-- Entrée : `PlaylistRequest` (seeds + contraintes)
-- Sortie : `GeneratedPlaylist` (candidats scorés)
-- Profils d'énergie : `chill`, `steady`, `rising`, `party`
-- Contraintes : durée cible, exclusions, termes préférés
-
-### `generation/`
-
-```python
 PlaylistGenerator.build(request, candidates)
 ```
 
-- Moteur déterministe sans effet de bord
-- Préserve les seeds en premier
-- Déduplique par clé morceau
-- Prêt pour branchement futur sur API similarité
+Profils d'énergie : `chill`, `steady`, `rising`, `party`, `max_from_start`, `random`.
 
 → [Phase 2 — Génération](Phase-2-Generation)
 
 ## Dépendances
 
-**Aucune dépendance runtime.** Python 3.10+ stdlib uniquement.
-
-Développement : `pytest>=8.0`
+**Runtime :** Python 3.12+ stdlib (moteur).  
+**Dev :** `pytest>=8.0`.  
+**macOS UI :** Swift 5.9+, Xcode toolchain.
 
 ## Tests
 
 ```bash
-python3 -m pytest -q
+python3 -m pytest -q                    # tout le repo (~270 tests)
+cd apps/resonance && ./scripts/build.sh  # Swift (macOS)
 ```
 
-Couverture actuelle :
-- Scoring catalogue
-- Validation JSON
-- Cache
-- Client AppleScript (ordre, normalisation)
-- Planning et génération Phase 2
-- MusicKit (mocks)
+Couverture :
+- Scoring, validation JSON, cache, planning, génération
+- Gateway Apple Music E2E
+- Contrats UI (`test_ui_shared_*`, `test_ui_bridge_*`, `test_ui_shared_theme`)
+- Guards : pas d'import provider dans `ui/`
+- Shell macOS (`test_resonance_mac_shell`)
 
 ## Fichiers générés (gitignored)
 
 | Dossier | Contenu |
 |---------|---------|
-| `reports/` | CSV, HTML, TXT |
-| `cache/` | Cache API iTunes et MusicKit |
-| `__pycache__/` | Bytecode Python |
+| `reports/` | CSV, HTML, TXT, diagnostics import |
+| `cache/` | Cache API et identités |
+| `apps/resonance/.build/` | Artefacts Swift |
 
-## Analogies Guidewire (pour mes collègues)
+## Analogies Guidewire
 
-| Concept Playlist Builder | Équivalent Guidewire |
-|--------------------------|----------------------|
-| `loader.py` | Validation PCF / règles de souscription |
-| `check_catalog.py` | Vérification externe (tierce partie) |
-| `create_playlist.py` | Émission / mise à jour de police |
-| `reports/` | Notes et documents ClaimCenter |
-| `scoring.py` | Moteur de règles / rating |
-| JSON playlist | Contrat / spécification produit |
-| Section ordonnée | Phase de parcours sinistre |
+| Concept | Équivalent Guidewire |
+|---------|----------------------|
+| `canonical/` + gateway | Product model + integration gateway |
+| `ui/shared` DTO | PCF / contrats de données |
+| Engine Bridge | API REST interne ClaimCenter |
+| `ThemeRegistry` | Thèmes PolicyCenter |
+| JSON playlist | Spécification produit |
 
 ---
 
-*Architecture propre, modules découplés, zéro suppression. Comme un bon delivery Guidewire — mais avec plus de Daft Punk.*
+*Architecture en couches, providers isolés, UI provider-neutral. Comme un bon delivery enterprise — mais avec plus de Daft Punk.*

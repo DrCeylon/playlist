@@ -20,8 +20,9 @@ Deux façons d'exprimer cette intention :
 |------|-------------|--------|
 | **Manuel** | Un fichier JSON avec sections et morceaux choisis | Crée la playlist dans Apple Music |
 | **Assisté** *(Phase 2)* | Des mots-clés, des morceaux de référence, des contraintes | Propose et assemble une playlist, puis la crée |
+| **App Resonance** *(Phase 4)* | Interface macOS SwiftUI | Même moteur, expérience graphique |
 
-Les deux modes coexistent. Ce n'est pas l'un ou l'autre — c'est **composer à la main** ou **déléguer l'assemblage** selon ton envie.
+Les modes coexistent. C'est **composer à la main**, **générer en CLI**, ou **utiliser l'app** selon ton envie.
 
 ### Exemples concrets
 
@@ -47,10 +48,10 @@ Les deux modes coexistent. Ce n'est pas l'un ou l'autre — c'est **composer à 
 
 Pas un outil fermé pour un usage privé. Un projet perso ouvert, que n'importe qui peut cloner, adapter, et faire sien.
 
-- Tu veux une playlist pool party ? ✅
-- Tu veux du reggaeton toute la nuit ? ✅ *(c'est ton choix, pas le mien)*
-- Tu veux une playlist étude, running, anniversaire ? ✅
-- Tu veux juste comprendre comment ça marche ? ✅
+- Tu veux une playlist pool party ? OK
+- Tu veux du reggaeton toute la nuit ? OK *(c'est ton choix, pas le mien)*
+- Tu veux une playlist étude, running, anniversaire ? OK
+- Tu veux juste comprendre comment ça marche ? OK
 
 Le créateur du repo a ses **préférences personnelles** (voir Orlando), mais l'outil n'impose aucun style musical à personne.
 
@@ -71,18 +72,22 @@ Le créateur du repo a ses **préférences personnelles** (voir Orlando), mais l
 ## Où on en est aujourd'hui
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  AUJOURD'HUI (Phase 1)          BIENTÔT (Phase 2+)      │
-│                                                         │
-│  ✅ JSON manuel                  🚧 Mots-clés + seeds     │
-│  ✅ Vérif catalogue              🚧 Génération auto     │
-│  ✅ Création Apple Music         📋 App iOS             │
-│  ✅ Rapports & traçabilité       📋 Export JSON         │
-└─────────────────────────────────────────────────────────┘
+CLI manuel (JSON)                 OK
+CLI generate_playlist              OK
+Verification catalogue             OK
+Creation Apple Music               OK
+Gateway providers Phases 2-3       OK
+Contrats UI Phase 4.1              OK
+Engine Bridge Phase 4.2            OK
+Theme engine Phase 4.3             OK
+App macOS shell Phase 4.4          OK
+Builder playlist Phase 4.5         OK
+Import UX Phase 4.6                A faire
+App iOS Phase 4.9                  A faire
 ```
 
-La Phase 1 est le **fondation** : contrat JSON, validation, création fiable.  
-La Phase 2 est le **cœur de la vision** : générer, pas seulement exécuter.
+La **CLI** reste le socle fiable.  
+La **Phase 4** apporte l'interface **Resonance** — même moteur, expérience produit.
 
 ---
 
@@ -104,4 +109,4 @@ Quel que soit le mode (manuel ou assisté) :
 
 ---
 
-→ Suite : [À propos](A-propos) · [Phase 2 — Génération](Phase-2-Generation) · [Feuille de route iOS](Feuille-de-route-iOS)
+→ Suite : [À propos](A-propos) · [Phase 2 — Génération](Phase-2-Generation) · [Phase 4 — Resonance](Phase-4-Interface-Resonance) · [Feuille de route iOS](Feuille-de-route-iOS)
