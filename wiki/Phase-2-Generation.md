@@ -74,7 +74,7 @@ C'est l'objectif principal de l'application — aujourd'hui en CLI, demain dans 
 | `generate_playlist.py` CLI | ✅ |
 | Gateway Apple Music E2E | ✅ |
 | Contrats UI (`PlaylistGenerationRequest`) | ✅ Phase 4.1 |
-| App macOS formulaire génération | 🚧 Phase 4.5 |
+| App macOS formulaire génération | ✅ Phase 4.5 |
 | Bridge runtime (UI ↔ moteur) | 📋 Phase 4.6 |
 
 ## CLI — génération

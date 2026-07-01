@@ -16,7 +16,7 @@
 |------|--------|-------------|
 | **CLI manuel** | ✅ Disponible | JSON → `create_playlist.py` |
 | **CLI assisté** | ✅ Disponible | Seeds + mots-clés → `generate_playlist.py` |
-| **App macOS Resonance** | 🚧 Phase 4 | SwiftUI — shell + builder playlist |
+| **App macOS Resonance** | ✅ MVP | SwiftUI — shell, thèmes, builder playlist |
 
 ## Ce que tu peux faire aujourd'hui
 
