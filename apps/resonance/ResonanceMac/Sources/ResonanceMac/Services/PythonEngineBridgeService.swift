@@ -53,7 +53,7 @@ public struct PythonEngineBridgeConfiguration: Sendable {
     }
 }
 
-public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, @unchecked Sendable {
+public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, DiagnosticsServing, @unchecked Sendable {
     private let transport: BridgeTransport?
     private let fallbackGeneration: MockPlaylistGenerationService
     private let fallbackImport: MockPlaylistImportService
@@ -143,6 +143,43 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             throw PlaylistImportError.invalidResponse
         }
         return try BridgePayloadBuilder.importResult(from: ["import": importObject])
+    }
+
+    public func fetchDiagnostics() async throws -> DiagnosticsSnapshot {
+        guard let transport else {
+            throw DiagnosticsServiceError.bridgeUnavailable
+        }
+        do {
+            let (response, _) = try await transport.send(command: .diagnostics, params: [:])
+            return try BridgePayloadBuilder.diagnosticsSnapshot(from: response.result)
+        } catch let error as BridgeClientError {
+            throw mapDiagnosticsError(error)
+        }
+    }
+
+    public func listProviders() async throws -> [ProviderOption] {
+        guard let transport else {
+            return DefaultProviders.options
+        }
+        do {
+            let (response, _) = try await transport.send(command: .listProviders, params: [:])
+            return try BridgePayloadBuilder.providerOptions(from: response.result)
+        } catch let error as BridgeClientError {
+            throw mapDiagnosticsError(error)
+        }
+    }
+
+    private func mapDiagnosticsError(_ error: BridgeClientError) -> DiagnosticsServiceError {
+        switch error {
+        case .bridge(let payload):
+            return .bridge(payload)
+        case .processUnavailable, .bridgeUnavailable:
+            return .bridgeUnavailable
+        case .timeout:
+            return .timeout
+        case .invalidResponse:
+            return .invalidResponse
+        }
     }
 
     private func mapError(_ error: BridgeClientError) -> Error {

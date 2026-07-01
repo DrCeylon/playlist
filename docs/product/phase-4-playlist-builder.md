@@ -52,6 +52,7 @@ Import from preview → [phase-4-import-ux.md](phase-4-import-ux.md).
 - [phase-4-macos-shell.md](phase-4-macos-shell.md)
 - [phase-4-engine-bridge.md](phase-4-engine-bridge.md)
 - [phase-4-import-ux.md](phase-4-import-ux.md)
+- [phase-4-diagnostics-lab.md](phase-4-diagnostics-lab.md)
 
 ## Status
 
@@ -59,4 +60,5 @@ Import from preview → [phase-4-import-ux.md](phase-4-import-ux.md).
 |-------|--------|
 | 4.5 form + validation | ✅ Done |
 | 4.6 bridge runtime + import | ✅ Done (see import UX doc) |
-| 4.7 laboratory + history | 📋 Planned |
+| 4.7 laboratory | ✅ Done (see diagnostics lab doc) |
+| 4.7 history | 📋 Planned |

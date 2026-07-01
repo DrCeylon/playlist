@@ -27,7 +27,8 @@ Construire **Resonance** : une interface provider-neutral au-dessus du moteur Py
 | **4.4** | Shell macOS SwiftUI (Accueil + Paramètres) | ✅ |
 | **4.5** | Formulaire Nouvelle Playlist + preview | ✅ |
 | **4.6** | Import UX + bridge runtime Python | ✅ |
-| **4.7** | Laboratoire + historique | 📋 |
+| **4.7** | Laboratoire diagnostics | ✅ |
+| **4.7b** | Historique sessions | 📋 |
 | **4.9** | Shell iOS / iPadOS | 📋 |
 
 ## Premiers écrans (visuels textuels)
@@ -197,7 +198,7 @@ swift build && swift run ResonanceMac
 | Accueil | ✅ MVP |
 | Nouvelle Playlist | ✅ formulaire + génération + import |
 | Historique | 📋 placeholder |
-| Laboratoire | 📋 placeholder |
+| Laboratoire | ✅ diagnostics bridge |
 | Paramètres | ✅ sélecteur de thème |
 
 ## Phase 4.5 — Builder playlist
@@ -214,6 +215,16 @@ swift build && swift run ResonanceMac
 4. **Rapport** final
 
 **Limitation (4.6b)** : un process Python par commande bridge ; pas de streaming live pendant l'exécution. Fonctionnel sur **macOS** avec Music.app.
+
+## Phase 4.7 — Laboratoire / Diagnostics
+
+1. **Écran Laboratoire** dans la sidebar — snapshot bridge provider-neutral
+2. **Résumé** — statut bridge, version moteur, caches, providers
+3. **Timeline** — événements `DiagnosticEvent`
+4. **Modes** Simple / Architecte
+5. **Rapports récents** — résumés JSON sans `persistent_id`
+
+Voir [phase-4-diagnostics-lab.md](../docs/product/phase-4-diagnostics-lab.md).
 
 ## Lancer les tests
 

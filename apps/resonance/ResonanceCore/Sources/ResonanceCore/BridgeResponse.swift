@@ -1,15 +1,5 @@
 import Foundation
 
-public struct BridgeErrorPayload: Equatable, Sendable {
-    public let code: BridgeErrorCode
-    public let message: String
-
-    public init(code: BridgeErrorCode, message: String) {
-        self.code = code
-        self.message = message
-    }
-}
-
 public struct BridgeResponseMessage: Sendable {
     public let id: String
     public let ok: Bool
@@ -80,12 +70,4 @@ public enum BridgeResponseParser {
         }
         return BridgeErrorPayload(code: code, message: message)
     }
-}
-
-public enum BridgeClientError: Error, Equatable {
-    case processUnavailable
-    case timeout
-    case invalidResponse
-    case bridgeUnavailable
-    case bridge(BridgeErrorPayload)
 }

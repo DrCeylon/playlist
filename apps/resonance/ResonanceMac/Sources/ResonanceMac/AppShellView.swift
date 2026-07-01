@@ -27,10 +27,7 @@ struct AppShellView: View {
                 message: "L'historique des sessions arrive en Phase 4.7."
             )
         case .laboratory:
-            PlaceholderScreenView(
-                title: "Laboratoire",
-                message: "Les diagnostics arrivent en Phase 4.7."
-            )
+            DiagnosticsView()
         case .settings:
             SettingsView()
         }

@@ -93,13 +93,17 @@ class ImportPlaylistResult:
 @dataclass(frozen=True, slots=True)
 class DiagnosticsResult:
     engine_version: str
+    summary: dict[str, Any] = field(default_factory=dict)
     events: tuple[DiagnosticEvent, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "engine_version": self.engine_version,
             "events": [dto_to_dict(event) for event in self.events],
         }
+        if self.summary:
+            payload["summary"] = self.summary
+        return payload
 
 
 def parse_bridge_request(payload: dict[str, Any]) -> BridgeRequest:
