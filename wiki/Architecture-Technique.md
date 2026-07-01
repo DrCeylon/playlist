@@ -11,13 +11,13 @@
 └────────────┬───────────────────────────────┬──────────────────────┘
              │                               │
 ┌────────────▼──────────────┐   ┌───────────▼────────────────────┐
-│  playlist_builder/cli/     │   │  Engine Bridge (JSON-lines)    │
-│  + app/use_cases/          │   │  playlist_builder/ui/bridge/   │
+│  playlist_builder/cli/     │   │  cli/engine_bridge.py (4.6)   │
+│  + app/use_cases/          │   │  + app/bridge_runtime/        │
 └────────────┬──────────────┘   └───────────┬────────────────────┘
              │                               │
 ┌────────────▼───────────────────────────────▼────────────────────┐
-│                    COUCHE UI (provider-neutral)                    │
-│  ui/shared/  — DTO, validation, navigation, theme engine        │
+│  ui/bridge/  (JSON-lines, provider-neutral)                       │
+│  ui/shared/  — DTO, validation, thèmes                            │
 └────────────┬────────────────────────────────────────────────────┘
              │
 ┌────────────▼────────────────────────────────────────────────────┐
@@ -76,6 +76,8 @@
 | `ui/shared/navigation/` | `AppRoute` |
 | `ui/shared/theme/` | `ThemeRegistry`, `ThemeManager`, `.theme.json` |
 | `ui/bridge/` | JSON-lines : commands, errors, json_rpc |
+| `app/bridge_runtime/` | Runtime moteur ↔ bridge (Phase 4.6) |
+| `cli/engine_bridge.py` | Point d'entrée stdin/stdout pour Resonance |
 
 → [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance)
 

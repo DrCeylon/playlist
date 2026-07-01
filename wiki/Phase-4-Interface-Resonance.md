@@ -30,6 +30,124 @@ Construire **Resonance** : une interface provider-neutral au-dessus du moteur Py
 | **4.7** | Laboratoire + historique | 📋 |
 | **4.9** | Shell iOS / iPadOS | 📋 |
 
+## Premiers écrans (visuels textuels)
+
+*Wireframes alignés sur l'implémentation macOS actuelle — juillet 2026.*
+
+### 1. Shell — Accueil + sidebar
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Resonance                                                    ⚙ Paramètres│
+├──────────────┬───────────────────────────────────────────────────────────┤
+│ ● Accueil    │  Bienvenue dans Resonance                                 │
+│ ○ Nouvelle   │                                                           │
+│   Playlist   │  Génère des playlists à partir de mots-clés ou de seeds.  │
+│ ○ Historique │  Le moteur Python reste la source de vérité.              │
+│ ○ Laboratoire│                                                           │
+│              │  ┌─────────────┐  ┌─────────────┐                         │
+│              │  │ + Nouvelle  │  │  Thèmes     │                         │
+│              │  │   playlist  │  │  (4.4)      │                         │
+│              │  └─────────────┘  └─────────────┘                         │
+└──────────────┴───────────────────────────────────────────────────────────┘
+```
+
+### 2. Nouvelle Playlist — formulaire (4.5)
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Nouvelle Playlist                                                        │
+├──────────────┬───────────────────────────────────────────────────────────┤
+│ sidebar      │  Identité                                                 │
+│              │  Nom        [ Orlando Pool Party________________ ]        │
+│              │  Description[ Montée progressive, sans reggaeton____ ]    │
+│              │                                                           │
+│              │  Provider   🎧 Apple Music (sélectionné, MVP)           │
+│              │                                                           │
+│              │  Graines    Artiste [ Kygo____ ]  Morceau [ Firestone ]   │
+│              │  Mots-clés  [ tropical, dance, rising________________ ]   │
+│              │  Taille     Morceaux [ 50 ]   Durée [    ] min            │
+│              │  Énergie    [ Montée progressive ▼ ]                      │
+│              │  Exclusions [ + Ajouter une exclusion ]                   │
+│              │                                                           │
+│              │                              [ ✨ Générer ]                │
+└──────────────┴───────────────────────────────────────────────────────────┘
+```
+
+### 3. Preview — résultat moteur Python (4.5 + 4.6)
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Orlando Pool Party                                                       │
+│ 50 morceaux · score moyen 84 %                                           │
+│ Aperçu moteur Python                                                     │
+├──────────────────────────────────────────────────────────────────────────┤
+│  ▼ Montée                                                                │
+│  ┌────────────────────────────────────────────────────────────────────┐  │
+│  │ Firestone          Kygo                              score 92 %   │  │
+│  │ Reality            Lost Frequencies                  score 88 %   │  │
+│  │ Jubel              Klingande                         score 81 %   │  │
+│  └────────────────────────────────────────────────────────────────────┘  │
+│                                                                          │
+│  [ Modifier le formulaire ]          [ ⬇ Importer dans Apple Music ]    │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4. Import — progression (4.6)
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Import Apple Music                                                       │
+├──────────────────────────────────────────────────────────────────────────┤
+│  ████████████████░░░░░░░░░░░░  32 / 50                                   │
+│  Résolution des morceaux…                                                │
+│  Kygo — Firestone                                                        │
+│                                                                          │
+│  Laboratoire                                                             │
+│  · Cache IdentityCache : Kygo — Firestone                                │
+│  · Acquisition catalogue : Kyo — Dernière danse                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 5. Acquisition manuelle Music.app (4.6)
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ⚠ Acquisition manuelle requise                                           │
+├──────────────────────────────────────────────────────────────────────────┤
+│  Kyo — Dernière danse                                                    │
+│  Catalogue : Kyo — Dernière danse                                        │
+│                                                                          │
+│  Ajoute le morceau à ta bibliothèque dans Music.app,                     │
+│  puis confirme ici.                                                      │
+│                                                                          │
+│              [ J'ai ajouté le morceau, continuer ]                        │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 6. Rapport d'import — style laboratoire (4.6)
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Rapport d'import                                                         │
+│ Orlando Pool Party                                                       │
+│ Transfert terminé. Le laboratoire confirme une playlist stable.          │
+├──────────────────────────────────────────────────────────────────────────┤
+│  ┌────────┐ ┌────────┐ ┌────────────┐ ┌────────┐                       │
+│  │ 48     │ │ 2      │ │ 0          │ │ 0      │                       │
+│  │ Ajoutés│ │ Ignorés│ │ Introuvables│ │ Erreurs│                       │
+│  └────────┘ └────────┘ └────────────┘ └────────┘                       │
+│                                                                          │
+│  ✓ Firestone — Kygo          Ajouté                                      │
+│  ✓ Reality — Lost Freq.      Ajouté                                      │
+│  ↩ Levels — Avicii           Déjà présent                                │
+│                                                                          │
+│                                              [ Fermer ]                  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+→ Wireframes complets (cible produit) : `docs/product/phase-4-wireframes.md` dans le repo.
+
 ## Structure du dépôt
 
 ```text
@@ -39,13 +157,13 @@ playlist_builder/
     bridge/          # Protocole JSON Engine Bridge (provider-neutral)
   app/
     bridge_runtime/  # Runtime moteur ↔ bridge (Phase 4.6)
+    use_cases/       # Cas d'usage métier
   integration/       # Providers (Apple Music isolé)
-  app/use_cases/     # Cas d'usage métier
 
 apps/resonance/      # App macOS SwiftUI
   ResonanceCore/     # DTO, BridgeClient, validation
   ResonanceDesign/   # ThemeManager + tokens JSON
-  ResonanceMac/      # Exécutable SwiftUI + import UX
+  ResonanceMac/      # Exécutable + import UX
 ```
 
 ## Phase 4.2 — Engine Bridge
@@ -61,8 +179,6 @@ Protocole JSON-lines entre shells SwiftUI et le moteur Python :
 | `continue_manual_acquisition` | Reprise après ajout manuel Music.app |
 | `diagnostics` | Version moteur / événements |
 
-Codes d'erreur stables : `invalid_request`, `validation_failed`, `engine_error`, `provider_unavailable`, `manual_action_required`.
-
 Point d'entrée runtime :
 
 ```bash
@@ -76,8 +192,6 @@ cd apps/resonance
 swift build && swift run ResonanceMac
 ```
 
-Navigation sidebar :
-
 | Écran | Statut |
 |-------|--------|
 | Accueil | ✅ MVP |
@@ -88,42 +202,32 @@ Navigation sidebar :
 
 ## Phase 4.5 — Builder playlist
 
-Formulaire aligné sur `PlaylistGenerationRequest` :
-
-- Nom, description, seeds, mots-clés, taille, énergie, exclusions
+- Formulaire aligné sur `PlaylistGenerationRequest`
 - Validation UI (mêmes règles que Python 4.1)
-- Bouton **Générer** → preview moteur Python (ou mock si bridge indisponible)
+- **Générer** → preview moteur Python (fallback mock si bridge indisponible)
 
 ## Phase 4.6 — Import UX + moteur connecté
 
-Flux depuis la preview :
+1. **Importer dans Apple Music** depuis la preview
+2. **Progression** — résolution, cache, catalogue
+3. **Acquisition manuelle** si nécessaire
+4. **Rapport** final
 
-1. **Importer dans Apple Music** — lance `import_playlist` via bridge
-2. **Progression** — résolution, cache IdentityCache, catalogue, acquisition
-3. **Acquisition manuelle** — instruction claire + bouton « J'ai ajouté le morceau, continuer »
-4. **Rapport** — morceaux ajoutés, ignorés, introuvables, erreurs (style laboratoire)
-
-**Limitation documentée (4.6b)** : un process Python par commande ; pas de streaming live pendant l'exécution. Fonctionnel sur macOS avec Music.app.
-
-Toute la logique Apple Music reste côté Python — aucun AppleScript ni MusicKit dans Swift.
+**Limitation (4.6b)** : un process Python par commande bridge ; pas de streaming live pendant l'exécution. Fonctionnel sur **macOS** avec Music.app.
 
 ## Lancer les tests
 
 ```bash
-# Python (tout le repo)
 python3 -m pytest -q
-
-# Swift (macOS uniquement)
-cd apps/resonance && ./scripts/build.sh
+cd apps/resonance && ./scripts/build.sh   # macOS
 ```
 
 ## Documentation technique (repo)
 
-- `docs/product/phase-4-import-ux.md` — import UX + critères d'acceptation
-- `docs/product/phase-4-playlist-builder.md` — formulaire 4.5
-- `docs/product/phase-4-6-bridge-runtime.md` — notes runtime
-- `docs/architecture/phase-4-ui-architecture.md` — architecture cible
+- `docs/product/phase-4-import-ux.md`
+- `docs/product/phase-4-playlist-builder.md`
+- `docs/architecture/phase-4-ui-architecture.md`
 
 ---
 
-*Le moteur reste Python. L'interface devient belle. Comme un PolicyCenter qui garde ses règles — mais avec des playlists.*
+*Le moteur reste Python. L'interface devient belle.*
