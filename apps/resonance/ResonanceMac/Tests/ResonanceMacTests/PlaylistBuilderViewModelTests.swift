@@ -1,6 +1,8 @@
 import ResonanceCore
 import XCTest
 
+@testable import ResonanceMac
+
 @MainActor
 final class PlaylistBuilderViewModelTests: XCTestCase {
     func testBuildRequestMapsFormFields() {
@@ -30,7 +32,7 @@ final class PlaylistBuilderViewModelTests: XCTestCase {
 
         await viewModel.generate()
 
-        XCTAssertEqual(viewModel.screenState, .preview)
+        XCTAssertEqual(viewModel.screenState, PlaylistBuilderViewModel.ScreenState.preview)
         XCTAssertNotNil(viewModel.previewResult)
         XCTAssertGreaterThan(viewModel.previewResult?.trackCount ?? 0, 0)
     }
