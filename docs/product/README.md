@@ -12,6 +12,7 @@ Phase 4 — Product discovery & UI contracts.
 | [theme-engine.md](theme-engine.md) | ThemeRegistry, ThemeManager, skin format |
 | [phase-4-macos-shell.md](phase-4-macos-shell.md) | macOS SwiftUI shell MVP (Phase 4.4) |
 | [phase-4-playlist-builder.md](phase-4-playlist-builder.md) | Playlist builder form + preview (Phase 4.5) |
+| [phase-4-6-bridge-runtime.md](phase-4-6-bridge-runtime.md) | Engine Bridge runtime + import UX (Phase 4.6) |
 | [ios-planned-structure.md](ios-planned-structure.md) | Future iOS layout |
 
 ## Phase 4.1 — Shared contracts (code)

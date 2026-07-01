@@ -28,6 +28,7 @@ class BridgeCommand(StrEnum):
     GENERATE_PLAYLIST = "generate_playlist"
     IMPORT_PLAYLIST = "import_playlist"
     DIAGNOSTICS = "diagnostics"
+    CONTINUE_MANUAL_ACQUISITION = "continue_manual_acquisition"
 
 
 @dataclass(frozen=True, slots=True)

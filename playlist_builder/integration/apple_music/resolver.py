@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import time
+
 from dataclasses import dataclass
 from enum import StrEnum
-import time
+from typing import TYPE_CHECKING, Callable
 
 from playlist_builder.canonical.compat import legacy_track_from_canonical
 from playlist_builder.canonical.contracts import CatalogSearchPort
@@ -23,6 +25,11 @@ from playlist_builder.integration.apple_music.mapper import resolution_candidate
 from playlist_builder.integration.apple_music.models import AppleMusicTrack
 from playlist_builder.resolver.query import generate_query_variants
 from playlist_builder.scoring.resolution import ResolutionCandidate, select_best_resolution
+
+if TYPE_CHECKING:
+    from playlist_builder.canonical.models import CanonicalCandidate
+
+ManualAcquisitionHook = Callable[["CanonicalTrack", "CanonicalCandidate", str], None]
 
 _MANUAL_ACQUISITION_LIBRARY_ATTEMPTS = 4
 _MANUAL_ACQUISITION_RETRY_DELAY_SECONDS = 5.0
@@ -63,6 +70,7 @@ class AppleMusicResolver:
         acquire_missing: bool = False,
         wait_for_manual_catalog_add: bool = False,
         catalog_acquisition_min_confidence: float = 70.0,
+        manual_acquisition_hook: ManualAcquisitionHook | None = None,
     ) -> None:
         self._applescript = applescript
         self._identity_cache = identity_cache
@@ -73,6 +81,7 @@ class AppleMusicResolver:
         self._wait_for_manual_catalog_add = wait_for_manual_catalog_add
         self._catalog_acquisition_min_confidence = catalog_acquisition_min_confidence
         self._acquisition = AppleMusicLibraryAcquisition(applescript)
+        self._manual_acquisition_hook = manual_acquisition_hook
 
     def resolve(
         self,
@@ -257,7 +266,10 @@ class AppleMusicResolver:
             return library_candidates, True, acquisition.detail, True
 
         if acquisition.opened and self._wait_for_manual_catalog_add:
-            self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
+            if self._manual_acquisition_hook is not None:
+                self._manual_acquisition_hook(track, catalog_candidate, acquisition.detail)
+            else:
+                self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
             library_candidates = self._refresh_library_candidates_with_retries(
                 legacy,
                 catalog_candidate,

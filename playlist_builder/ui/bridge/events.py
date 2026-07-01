@@ -15,6 +15,7 @@ class BridgeEventType(StrEnum):
     DIAGNOSTIC = "diagnostic"
     COMPLETED = "completed"
     ERROR = "error"
+    MANUAL_ACQUISITION_REQUIRED = "manual_acquisition_required"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +53,32 @@ def completed_event(request_id: str, *, summary: dict[str, Any] | None = None) -
         id=request_id,
         event=BridgeEventType.COMPLETED,
         payload=summary or {},
+    )
+
+
+def manual_acquisition_required_event(
+    request_id: str,
+    *,
+    token: str,
+    artist: str,
+    title: str,
+    instructions: str,
+    catalog_label: str = "",
+    import_session_id: str = "",
+) -> BridgeEvent:
+    payload: dict[str, Any] = {
+        "token": token,
+        "artist": artist,
+        "title": title,
+        "instructions": instructions,
+        "catalog_label": catalog_label,
+    }
+    if import_session_id:
+        payload["import_session_id"] = import_session_id
+    return BridgeEvent(
+        id=request_id,
+        event=BridgeEventType.MANUAL_ACQUISITION_REQUIRED,
+        payload=payload,
     )
 
 
