@@ -29,6 +29,8 @@ REQUIRED_SWIFT_PATHS = (
     RESONANCE_ROOT / "ResonanceMac" / "Sources" / "ResonanceMac" / "AppShellView.swift",
     RESONANCE_ROOT / "ResonanceMac" / "Sources" / "ResonanceMac" / "HomeView.swift",
     RESONANCE_ROOT / "ResonanceMac" / "Sources" / "ResonanceMac" / "SettingsView.swift",
+    RESONANCE_ROOT / "ResonanceMac" / "Sources" / "ResonanceMac" / "Screens" / "PlaylistBuilderView.swift",
+    RESONANCE_ROOT / "ResonanceMac" / "Sources" / "ResonanceMac" / "Screens" / "PlaylistPreviewView.swift",
 )
 
 BUNDLED_THEME_IDS = (
