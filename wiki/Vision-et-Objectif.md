@@ -48,10 +48,10 @@ Les modes coexistent. C'est **composer à la main**, **générer en CLI**, ou **
 
 Pas un outil fermé pour un usage privé. Un projet perso ouvert, que n'importe qui peut cloner, adapter, et faire sien.
 
-- Tu veux une playlist pool party ? ✅
-- Tu veux du reggaeton toute la nuit ? ✅ *(c'est ton choix, pas le mien)*
-- Tu veux une playlist étude, running, anniversaire ? ✅
-- Tu veux juste comprendre comment ça marche ? ✅
+- Tu veux une playlist pool party ? OK
+- Tu veux du reggaeton toute la nuit ? OK *(c'est ton choix, pas le mien)*
+- Tu veux une playlist étude, running, anniversaire ? OK
+- Tu veux juste comprendre comment ça marche ? OK
 
 Le créateur du repo a ses **préférences personnelles** (voir Orlando), mais l'outil n'impose aucun style musical à personne.
 
@@ -72,19 +72,18 @@ Le créateur du repo a ses **préférences personnelles** (voir Orlando), mais l
 ## Où on en est aujourd'hui
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  AUJOURD'HUI                         EN COURS / BIENTÔT            │
-│                                                                  │
-│  ✅ CLI manuel (JSON)                ✅ CLI generate_playlist     │
-│  ✅ Vérif catalogue                  ✅ Gateway providers (Ph. 2-3)│
-│  ✅ Création Apple Music             ✅ Contrats UI (Phase 4.1)   │
-│  ✅ Planning & génération            ✅ Engine Bridge (4.2)       │
-│  ✅ Rapports & diagnostics           ✅ Theme engine (4.3)        │
-│                                      ✅ App macOS shell (4.4)     │
-│                                      🚧 Builder playlist (4.5)    │
-│                                      📋 Import UX (4.6)           │
-│                                      📋 App iOS (4.9)             │
-└──────────────────────────────────────────────────────────────────┘
+CLI manuel (JSON)                 OK
+CLI generate_playlist              OK
+Verification catalogue             OK
+Creation Apple Music               OK
+Gateway providers Phases 2-3       OK
+Contrats UI Phase 4.1              OK
+Engine Bridge Phase 4.2            OK
+Theme engine Phase 4.3             OK
+App macOS shell Phase 4.4          OK
+Builder playlist Phase 4.5         OK
+Import UX Phase 4.6                A faire
+App iOS Phase 4.9                  A faire
 ```
 
 La **CLI** reste le socle fiable.  
