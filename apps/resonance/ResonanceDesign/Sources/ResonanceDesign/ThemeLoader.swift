@@ -8,19 +8,25 @@ public enum ThemeLoader {
     }
 
     public static func loadBundledDefinitions(bundle: Bundle) throws -> [ThemeDefinition] {
-        guard let themesURL = bundle.resourceURL?.appendingPathComponent("themes", isDirectory: true) else {
-            throw ThemeError.loadFailed("Dossier de thèmes embarqués introuvable.")
-        }
-        let urls = try FileManager.default.contentsOfDirectory(
-            at: themesURL,
-            includingPropertiesForKeys: nil
-        ).filter { $0.pathExtension == "json" && $0.lastPathComponent.hasSuffix(".theme.json") }
-        if urls.isEmpty {
-            throw ThemeError.loadFailed("Aucun thème embarqué trouvé.")
-        }
-        return try urls.sorted { $0.lastPathComponent < $1.lastPathComponent }.map { url in
+        let urls = try bundledThemeURLs(in: bundle)
+        return try urls.map { url in
             try loadThemeFile(at: url)
         }
+    }
+
+    private static func bundledThemeURLs(in bundle: Bundle) throws -> [URL] {
+        let nested = bundle.urls(forResourcesWithExtension: "json", subdirectory: "themes") ?? []
+        let nestedThemes = nested.filter { $0.lastPathComponent.hasSuffix(".theme.json") }
+        if !nestedThemes.isEmpty {
+            return nestedThemes.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        }
+
+        let root = bundle.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? []
+        let rootThemes = root.filter { $0.lastPathComponent.hasSuffix(".theme.json") }
+        if rootThemes.isEmpty {
+            throw ThemeError.loadFailed("Aucun thème embarqué trouvé.")
+        }
+        return rootThemes.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
     public static func loadThemeFile(at url: URL) throws -> ThemeDefinition {

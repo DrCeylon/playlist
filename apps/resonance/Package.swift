@@ -21,8 +21,8 @@ let package = Package(
             dependencies: ["ResonanceCore"],
             path: "ResonanceDesign/Sources/ResonanceDesign",
             resources: [
-                .process("Resources"),
-            ]
+            .copy("Resources/themes"),
+        ],
         ),
         .testTarget(
             name: "ResonanceDesignTests",
