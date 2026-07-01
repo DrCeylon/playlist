@@ -10,7 +10,7 @@ public struct ValidationError: Hashable, Codable, Sendable {
     }
 }
 
-public struct ValidationResult: Sendable {
+public struct ValidationResult: Equatable, Sendable {
     public let errors: [ValidationError]
 
     public init(errors: [ValidationError] = []) {
