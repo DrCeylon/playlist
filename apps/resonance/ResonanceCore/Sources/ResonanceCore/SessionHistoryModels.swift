@@ -59,7 +59,7 @@ public struct SessionHistorySummary: Identifiable, Hashable, Sendable {
     }
 }
 
-public struct SessionHistoryDetail: Hashable, Sendable {
+public struct SessionHistoryDetail: Sendable {
     public let summary: SessionHistorySummary
     public let generationRequest: BridgeJSONObject
     public let generationResult: BridgeJSONObject
