@@ -164,18 +164,16 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             return try await fallbackImport.importPlaylist(result, onEvent: onEvent)
         }
         do {
-            let (response, events) = try await transport.send(
+            let (response, _) = try await transport.send(
                 command: .importPlaylist,
                 params: [
                     "playlist": .object(BridgePayloadBuilder.playlistDictionary(from: result)),
                     "sync": .bool(true),
                     "write_json_diagnostics": .bool(true),
                     "history_session_id": .string(result.historySessionID),
-                ]
+                ],
+                onEvent: onEvent
             )
-            for event in events {
-                onEvent(event)
-            }
             if let importState = try? BridgePayloadBuilder.importResult(from: response.result),
                importState.phase == .waitingForManualAcquisition {
                 return importState

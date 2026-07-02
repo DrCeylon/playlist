@@ -24,7 +24,12 @@ public struct BridgeClientConfiguration: Sendable {
 
 /// Shared transport contract used by Resonance shells to call Python bridge commands.
 public protocol BridgeTransport: Sendable {
-    func send(command: BridgeCommand, requestID: String, params: BridgeJSONObject) async throws -> (
+    func send(
+        command: BridgeCommand,
+        requestID: String,
+        params: BridgeJSONObject,
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)?
+    ) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
     )
@@ -35,9 +40,10 @@ public extension BridgeTransport {
     func send(
         command: BridgeCommand,
         requestID: String = UUID().uuidString,
-        params: BridgeJSONObject = [:]
+        params: BridgeJSONObject = [:],
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)? = nil
     ) async throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
-        try await send(command: command, requestID: requestID, params: params)
+        try await send(command: command, requestID: requestID, params: params, onEvent: onEvent)
     }
 }
 
@@ -53,7 +59,8 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
     public func send(
         command: BridgeCommand,
         requestID: String = UUID().uuidString,
-        params: BridgeJSONObject = [:]
+        params: BridgeJSONObject = [:],
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)? = nil
     ) async throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
         let payload: BridgeJSONObject = [
             "id": .string(requestID),
@@ -61,8 +68,25 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             "params": .object(params),
         ]
         let requestLine = try Self.encodeJSONObject(payload)
-        let lines = try await runProcess(requestLine: requestLine)
+        let lines = try await runProcess(requestLine: requestLine, onLine: { line in
+            Self.dispatchStreamingEvent(line: line, onEvent: onEvent)
+        })
         return try Self.parseConversation(requestID: requestID, lines: lines)
+    }
+
+    static func dispatchStreamingEvent(
+        line: String,
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)?
+    ) {
+        guard let onEvent else { return }
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let object = try? BridgeResponseParser.parseJSONObject(trimmed),
+              object["type"]?.stringValue == "event",
+              let event = try? BridgeResponseParser.parseEventLine(trimmed) else {
+            return
+        }
+        onEvent(event)
     }
 
     static func parseConversation(
@@ -90,7 +114,10 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
         return (response, events)
     }
 
-    private func runProcess(requestLine: String) async throws -> [String] {
+    private func runProcess(
+        requestLine: String,
+        onLine: (@Sendable (String) -> Void)? = nil
+    ) async throws -> [String] {
         try await withCheckedThrowingContinuation { continuation in
             lock.lock()
             defer { lock.unlock() }
@@ -125,20 +152,67 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             }
             inputPipe.fileHandleForWriting.closeFile()
 
+            var buffer = ""
+            var lines: [String] = []
             let deadline = Date().addingTimeInterval(configuration.timeoutSeconds)
+
+            func consumeChunk(_ chunk: String) {
+                buffer += chunk
+                while let newlineIndex = buffer.firstIndex(of: "\n") {
+                    let line = String(buffer[..<newlineIndex])
+                    buffer = String(buffer[buffer.index(after: newlineIndex)...])
+                    lines.append(line)
+                    onLine?(line)
+                }
+            }
+
+            outputPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+                consumeChunk(String(decoding: data, as: UTF8.self))
+            }
+
             DispatchQueue.global().async {
                 while process.isRunning && Date() < deadline {
                     Thread.sleep(forTimeInterval: 0.05)
                 }
+
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                let trailingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                if !trailingOutput.isEmpty {
+                    consumeChunk(String(decoding: trailingOutput, as: UTF8.self))
+                }
+                if !buffer.isEmpty {
+                    lines.append(buffer)
+                    onLine?(buffer)
+                    buffer = ""
+                }
+
                 if process.isRunning {
                     process.terminate()
                     continuation.resume(throwing: BridgeClientError.timeout)
                     return
                 }
 
-                let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                let text = String(decoding: outputData, as: UTF8.self)
-                let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+                let exitCode = process.terminationStatus
+                if exitCode != 0 {
+                    let stderr = String(
+                        decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+                        as: UTF8.self
+                    ).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !stderr.isEmpty, lines.isEmpty {
+                        continuation.resume(
+                            throwing: BridgeClientError.bridge(
+                                BridgeErrorPayload(
+                                    code: .engineError,
+                                    message: stderr
+                                )
+                            )
+                        )
+                        return
+                    }
+                }
+
                 continuation.resume(returning: lines)
             }
         }

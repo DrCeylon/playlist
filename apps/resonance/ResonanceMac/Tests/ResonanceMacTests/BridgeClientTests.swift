@@ -6,10 +6,16 @@ final class MockBridgeTransport: BridgeTransport, @unchecked Sendable {
     var lastCommand: BridgeCommand?
     var handler: ((BridgeCommand, BridgeJSONObject) -> (BridgeResponseMessage, [BridgeEventMessage]))?
 
-    func send(command: BridgeCommand, requestID: String, params: BridgeJSONObject) async throws -> (
+    func send(
+        command: BridgeCommand,
+        requestID: String,
+        params: BridgeJSONObject,
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)?
+    ) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
     ) {
+        _ = onEvent
         lastCommand = command
         if let handler {
             return handler(command, params)
@@ -113,6 +119,18 @@ final class BridgeClientTests: XCTestCase {
         let response = try BridgeResponseParser.parseResponseLine(line)
         XCTAssertTrue(response.ok)
         XCTAssertNotNil(response.result["generation"]?.objectValue)
+    }
+
+    func testDispatchStreamingEventParsesProgressEvent() {
+        let line = """
+        {"id":"req-1","type":"event","event":"progress","payload":{"phase":"resolving","total_tracks":3,"processed_tracks":1}}
+        """
+        var received: BridgeEventMessage?
+        BridgeClient.dispatchStreamingEvent(line: line) { event in
+            received = event
+        }
+        XCTAssertEqual(received?.event, .progress)
+        XCTAssertEqual(received?.payload["total_tracks"]?.intValue, 3)
     }
 
     func testGenerationRequestDictionaryUsesSnakeCase() {

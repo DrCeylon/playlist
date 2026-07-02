@@ -25,7 +25,11 @@ final class ImportViewModel: ObservableObject {
 
     func importPlaylist(_ generationResult: PlaylistGenerationResult) async {
         screenState = .importing
-        progress = ImportProgressSnapshot(playlistName: generationResult.playlistName)
+        progress = ImportProgressSnapshot(
+            playlistName: generationResult.playlistName,
+            totalTracks: generationResult.trackCount,
+            diagnostics: ["Envoi de la commande import_playlist au moteur Python…"]
+        )
         manualPrompt = nil
         importSessionID = nil
         report = nil
@@ -82,6 +86,8 @@ final class ImportViewModel: ObservableObject {
 
     private func handle(event: BridgeEventMessage) {
         switch event.event {
+        case .started:
+            appendDiagnostic(startedMessage(from: event.payload))
         case .progress:
             if let phaseRaw = event.payload["phase"]?.stringValue,
                let phase = ImportPhase(rawValue: phaseRaw) {
@@ -90,12 +96,19 @@ final class ImportViewModel: ObservableObject {
             progress.totalTracks = event.payload["total_tracks"]?.intValue ?? progress.totalTracks
             progress.processedTracks = event.payload["processed_tracks"]?.intValue ?? progress.processedTracks
             progress.currentTrackLabel = event.payload["current_track_label"]?.stringValue ?? progress.currentTrackLabel
+            if let playlistName = event.payload["playlist_name"]?.stringValue, !playlistName.isEmpty {
+                progress.playlistName = playlistName
+            }
             if let sessionID = event.payload["import_session_id"]?.stringValue {
                 importSessionID = sessionID
             }
         case .diagnostic:
             if let message = event.payload["message"]?.stringValue {
-                progress.diagnostics.append(message)
+                appendDiagnostic(message)
+            }
+        case .error:
+            if let message = event.payload["message"]?.stringValue, !message.isEmpty {
+                screenState = .failed(message)
             }
         case .manualAcquisitionRequired:
             importSessionID = event.payload["import_session_id"]?.stringValue
@@ -112,16 +125,44 @@ final class ImportViewModel: ObservableObject {
         }
     }
 
+    private func appendDiagnostic(_ message: String) {
+        guard !message.isEmpty else { return }
+        if progress.diagnostics.last != message {
+            progress.diagnostics.append(message)
+        }
+    }
+
+    private func startedMessage(from payload: BridgeJSONObject) -> String {
+        if let message = payload["message"]?.stringValue, !message.isEmpty {
+            return message
+        }
+        if let command = payload["command"]?.stringValue, !command.isEmpty {
+            return "Commande bridge envoyée : \(command)"
+        }
+        return "Import démarré"
+    }
+
     private func message(for error: PlaylistImportError) -> String {
         switch error {
         case .bridgeUnavailable:
             return "Le moteur Python est indisponible. Vérifie l'installation du projet."
         case .timeout:
-            return "Le moteur Python n'a pas répondu à temps."
+            return "Le moteur Python n'a pas répondu à temps. Vérifie que Music.app est ouvert et que Resonance est autorisé dans Réglages > Confidentialité > Automatisation."
         case .invalidResponse:
             return "Réponse bridge invalide."
         case .bridge(let payload):
-            return payload.message
+            return humanizeBridgeMessage(payload.message)
         }
+    }
+
+    private func humanizeBridgeMessage(_ message: String) -> String {
+        let lowered = message.lowercased()
+        if lowered.contains("not authorized")
+            || lowered.contains("automation")
+            || lowered.contains("-1743")
+            || lowered.contains("autorisation") {
+            return "Autorise Resonance ou Terminal à contrôler Music dans Réglages > Confidentialité > Automatisation."
+        }
+        return message
     }
 }

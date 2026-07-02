@@ -36,7 +36,7 @@ struct ImportProgressView: View {
 
             if !progress.diagnostics.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Laboratoire")
+                    Text("Étapes")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(palette.textSecondary)
                     ForEach(Array(progress.diagnostics.enumerated()), id: \.offset) { _, line in

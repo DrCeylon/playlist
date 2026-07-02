@@ -150,48 +150,58 @@ private struct PlaylistBuilderFormView: View {
     let onCommitDraft: () -> Void
     let onPushDraft: () -> Void
 
+    private var draftsLookComplete: Bool {
+        let trimmedName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasSeed = !draftSeedArtist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !draftSeedTrack.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !draftKeywords.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !trimmedName.isEmpty && hasSeed
+    }
+
     var body: some View {
-        Form {
-            BuilderHelpSection(palette: palette)
-            ValidationSection(errors: viewModel.validationErrors, palette: palette)
-            BridgeMessageSection(message: viewModel.bridgeFallbackMessage, palette: palette)
-            EssentialFieldsSection(
-                palette: palette,
-                draftName: $draftName,
-                draftSeedArtist: $draftSeedArtist,
-                draftSeedTrack: $draftSeedTrack,
-                draftKeywords: $draftKeywords,
-                draftTrackCount: $draftTrackCount
-            )
-            AdvancedOptionsSection(
-                viewModel: viewModel,
-                palette: palette,
-                draftDescription: $draftDescription,
-                draftDuration: $draftDuration,
-                isExpanded: $showAdvancedOptions
-            )
-            ExclusionsSection(
-                viewModel: viewModel,
-                palette: palette,
-                isExpanded: $showExclusions,
-                onPushDraft: onPushDraft
-            )
-            GenerateSection(
-                viewModel: viewModel,
-                palette: palette,
-                onPushDraft: onPushDraft
-            )
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                BuilderHelpSection(palette: palette)
+                ValidationSection(errors: viewModel.validationErrors, palette: palette)
+                BridgeMessageSection(message: viewModel.bridgeFallbackMessage, palette: palette)
+                EssentialFieldsSection(
+                    palette: palette,
+                    draftName: $draftName,
+                    draftSeedArtist: $draftSeedArtist,
+                    draftSeedTrack: $draftSeedTrack,
+                    draftKeywords: $draftKeywords,
+                    draftTrackCount: $draftTrackCount,
+                    onCommitDraft: onCommitDraft
+                )
+                AdvancedOptionsSection(
+                    viewModel: viewModel,
+                    palette: palette,
+                    draftDescription: $draftDescription,
+                    draftDuration: $draftDuration,
+                    isExpanded: $showAdvancedOptions,
+                    onCommitDraft: onCommitDraft
+                )
+                ExclusionsSection(
+                    viewModel: viewModel,
+                    palette: palette,
+                    isExpanded: $showExclusions,
+                    onPushDraft: onPushDraft
+                )
+                GenerateSection(
+                    viewModel: viewModel,
+                    palette: palette,
+                    canGenerateFromDrafts: draftsLookComplete,
+                    onPushDraft: onPushDraft,
+                    onCommitDraft: onCommitDraft
+                )
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .onChange(of: draftName) { _, _ in onCommitDraft() }
-        .onChange(of: draftSeedArtist) { _, _ in onCommitDraft() }
-        .onChange(of: draftSeedTrack) { _, _ in onCommitDraft() }
-        .onChange(of: draftKeywords) { _, _ in onCommitDraft() }
-        .onChange(of: draftTrackCount) { _, _ in onCommitDraft() }
-        .onChange(of: draftDescription) { _, _ in onCommitDraft() }
-        .onChange(of: draftDuration) { _, _ in onCommitDraft() }
-        .onChange(of: viewModel.energyProfile) { _, _ in viewModel.validateForm() }
+        .onChange(of: viewModel.energyProfile) { _, _ in
+            onPushDraft()
+            viewModel.validateForm()
+        }
         .onChange(of: viewModel.exclusions) { _, _ in
             onPushDraft()
             viewModel.validateForm()
@@ -203,11 +213,9 @@ private struct BuilderHelpSection: View {
     let palette: ThemePalette
 
     var body: some View {
-        Section {
-            Text("Remplis au minimum un nom et une graine ou des mots-clés.")
-                .font(.callout)
-                .foregroundStyle(palette.textSecondary)
-        }
+        Text("Remplis au minimum un nom et une graine ou des mots-clés.")
+            .font(.callout)
+            .foregroundStyle(palette.textSecondary)
     }
 }
 
@@ -216,10 +224,8 @@ private struct ValidationSection: View {
     let palette: ThemePalette
 
     var body: some View {
-        if errors.isEmpty {
-            EmptyView()
-        } else {
-            Section {
+        if !errors.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(errors, id: \.self) { error in
                     ValidationRow(error: error, palette: palette)
                 }
@@ -248,11 +254,9 @@ private struct BridgeMessageSection: View {
 
     var body: some View {
         if let message {
-            Section {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(palette.textTertiary)
-            }
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(palette.textTertiary)
         }
     }
 }
@@ -264,18 +268,23 @@ private struct EssentialFieldsSection: View {
     @Binding var draftSeedTrack: String
     @Binding var draftKeywords: String
     @Binding var draftTrackCount: String
+    let onCommitDraft: () -> Void
 
     var body: some View {
-        Section("Essentiel") {
-            NativeFormTextField(title: "Nom de la playlist", text: $draftName, palette: palette)
-            NativeFormTextField(title: "Artiste seed", text: $draftSeedArtist, palette: palette)
-            NativeFormTextField(title: "Morceau seed", text: $draftSeedTrack, palette: palette)
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Essentiel")
+                .font(.headline)
+                .foregroundStyle(palette.textPrimary)
+            NativeFormTextField(title: "Nom de la playlist", text: $draftName, palette: palette, onCommit: onCommitDraft)
+            NativeFormTextField(title: "Artiste seed", text: $draftSeedArtist, palette: palette, onCommit: onCommitDraft)
+            NativeFormTextField(title: "Morceau seed", text: $draftSeedTrack, palette: palette, onCommit: onCommitDraft)
             NativeFormTextField(
                 title: "Mots-clés (séparés par des virgules)",
                 text: $draftKeywords,
-                palette: palette
+                palette: palette,
+                onCommit: onCommitDraft
             )
-            NativeFormTextField(title: "Nombre de morceaux", text: $draftTrackCount, palette: palette)
+            NativeFormTextField(title: "Nombre de morceaux", text: $draftTrackCount, palette: palette, onCommit: onCommitDraft)
         }
     }
 }
@@ -286,23 +295,28 @@ private struct AdvancedOptionsSection: View {
     @Binding var draftDescription: String
     @Binding var draftDuration: String
     @Binding var isExpanded: Bool
+    let onCommitDraft: () -> Void
 
     var body: some View {
-        Section {
-            DisclosureGroup("Options avancées", isExpanded: $isExpanded) {
+        DisclosureGroup("Options avancées", isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 16) {
                 NativeFormTextField(
                     title: "Description",
                     text: $draftDescription,
                     palette: palette,
-                    axis: .vertical
+                    isMultiline: true,
+                    onCommit: onCommitDraft
                 )
-                NativeFormTextField(title: "Durée cible (min)", text: $draftDuration, palette: palette)
+                NativeFormTextField(title: "Durée cible (min)", text: $draftDuration, palette: palette, onCommit: onCommitDraft)
                 EnergyProfilePicker(selection: $viewModel.energyProfile)
                 if let provider = viewModel.selectedProvider {
                     LabeledContent("Provider", value: provider.displayName)
                 }
             }
+            .padding(.top, 12)
         }
+        .font(.headline)
+        .foregroundStyle(palette.textPrimary)
     }
 }
 
@@ -325,11 +339,12 @@ private struct ExclusionsSection: View {
     let onPushDraft: () -> Void
 
     var body: some View {
-        Section {
-            DisclosureGroup("Exclusions", isExpanded: $isExpanded) {
-                ExclusionsList(viewModel: viewModel, palette: palette, onPushDraft: onPushDraft)
-            }
+        DisclosureGroup("Exclusions", isExpanded: $isExpanded) {
+            ExclusionsList(viewModel: viewModel, palette: palette, onPushDraft: onPushDraft)
+                .padding(.top, 12)
         }
+        .font(.headline)
+        .foregroundStyle(palette.textPrimary)
     }
 }
 
@@ -376,32 +391,42 @@ private struct ExclusionsList: View {
 private struct GenerateSection: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
     let palette: ThemePalette
+    let canGenerateFromDrafts: Bool
     let onPushDraft: () -> Void
+    let onCommitDraft: () -> Void
 
     var body: some View {
-        Section {
-            if !viewModel.canGenerate {
+        VStack(alignment: .leading, spacing: 12) {
+            if !canGenerateFromDrafts {
                 Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
                     .font(.caption)
                     .foregroundStyle(palette.textTertiary)
             }
-            GenerateButton(viewModel: viewModel, onPushDraft: onPushDraft)
+            GenerateButton(
+                viewModel: viewModel,
+                canGenerateFromDrafts: canGenerateFromDrafts,
+                onCommitDraft: onCommitDraft,
+                onPushDraft: onPushDraft
+            )
         }
     }
 }
 
 private struct GenerateButton: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
+    let canGenerateFromDrafts: Bool
+    let onCommitDraft: () -> Void
     let onPushDraft: () -> Void
 
     var body: some View {
         Button {
+            onCommitDraft()
             onPushDraft()
             Task { await viewModel.generate() }
         } label: {
             GenerateButtonLabel(isGenerating: viewModel.screenState == .generating)
         }
-        .disabled(!viewModel.canGenerate)
+        .disabled(!canGenerateFromDrafts || viewModel.screenState == .generating)
     }
 }
 
@@ -422,12 +447,22 @@ private struct NativeFormTextField: View {
     let title: String
     @Binding var text: String
     let palette: ThemePalette
-    var axis: Axis = .horizontal
+    var isMultiline: Bool = false
+    var onCommit: (() -> Void)?
 
     var body: some View {
-        TextField(title, text: $text, axis: axis)
-            .textFieldStyle(.roundedBorder)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
+            MacKeyboardTextField(
+                placeholder: title,
+                text: $text,
+                isMultiline: isMultiline,
+                onCommit: onCommit
+            )
             .foregroundStyle(palette.inputText)
+        }
     }
 }
 
@@ -471,8 +506,7 @@ private struct ExclusionEditorRow: View {
                 }
                 .buttonStyle(.borderless)
             }
-            TextField("Valeur", text: $rule.value)
-                .textFieldStyle(.roundedBorder)
+            MacKeyboardTextField(placeholder: "Valeur", text: $rule.value)
                 .foregroundStyle(palette.inputText)
         }
     }

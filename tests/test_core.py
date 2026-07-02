@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from playlist_builder.catalog.scoring import MIN_MATCH_SCORE, pick_best_match, score_track_match
-from playlist_builder.core.applescript import apple_escape
+from playlist_builder.core.applescript import apple_escape, format_applescript_error
 from playlist_builder.playlists.loader import PlaylistValidationError, load_playlist
 
 
@@ -34,6 +34,14 @@ def test_pick_best_match_returns_best_above_threshold():
 
 def test_apple_escape_handles_special_characters():
     assert apple_escape('Say "Hello"\n') == 'Say \\"Hello\\"\\n'
+
+
+def test_format_applescript_error_surfaces_automation_permission():
+    message = format_applescript_error(
+        'execution error: Not authorized to send Apple events to Music. (-1743)'
+    )
+    assert "Automatisation" in message
+    assert "Music" in message
 
 
 def test_load_playlist_valid(tmp_path):

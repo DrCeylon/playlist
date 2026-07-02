@@ -44,6 +44,8 @@ def stream_import_playlist(
 
     import_service = apple_gateway.import_service
     resolver = import_service.resolver
+    applescript = resolver._applescript  # noqa: SLF001
+
     if context.settings.wait_for_manual_catalog_add:
         from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionGate
 
@@ -62,6 +64,27 @@ def stream_import_playlist(
     canonical = canonical_playlist_from_legacy(playlist)
     rows = _flatten_rows(canonical)
     total = len(rows)
+
+    yield diagnostic_event(
+        request_id,
+        phase="import_start",
+        message=f"Commande import_playlist reçue — {total} morceau(x) à traiter",
+    )
+    yield diagnostic_event(
+        request_id,
+        phase="music_app",
+        message="Connexion à Music.app via AppleScript…",
+    )
+    try:
+        applescript.ensure_running()
+    except RuntimeError as exc:
+        raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
+    yield diagnostic_event(
+        request_id,
+        phase="music_app",
+        message="Music.app accessible",
+    )
+
     yield progress_event(
         request_id,
         phase=ImportPhase.RESOLVING.value,
@@ -85,6 +108,11 @@ def stream_import_playlist(
             total_tracks=total,
             current_track_label=label,
             import_session_id=session_id,
+        )
+        yield diagnostic_event(
+            request_id,
+            phase="resolve",
+            message=f"Résolution du morceau : {label}",
         )
         try:
             outcome = resolver.resolve(track, section=section_name)
@@ -162,11 +190,23 @@ def stream_import_playlist(
         import_session_id=session_id,
     )
 
+    yield diagnostic_event(
+        request_id,
+        phase="delivering",
+        message=f"Création/synchronisation de la playlist « {playlist.name} » dans Music.app…",
+    )
+
     try:
         import_service.delivery.ensure_playlist(playlist.name)
         report = import_service.delivery.sync_playlist(canonical, [item[0] for item in outcomes])
     except RuntimeError as exc:
         raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
+
+    yield diagnostic_event(
+        request_id,
+        phase="delivering",
+        message="Playlist synchronisée dans Music.app",
+    )
 
     aligned = track_results_aligned_with_playlist(playlist.tracks, report)
     if write_json_diagnostics:
