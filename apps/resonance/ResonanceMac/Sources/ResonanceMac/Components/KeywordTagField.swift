@@ -5,7 +5,7 @@ import SwiftUI
 struct KeywordTagField: View {
     let title: String
     @Binding var keywords: [KeywordRef]
-    @ObservedObject var engineHolder: AutocompleteEngineHolder<KeywordRef>
+    @ObservedObject var engineHolder: AutocompleteEngineHolder<LocalKeywordSuggestionProvider>
     let palette: ThemePalette
     let onCommit: () -> Void
 

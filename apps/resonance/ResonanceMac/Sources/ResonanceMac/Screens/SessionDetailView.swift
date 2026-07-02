@@ -119,9 +119,14 @@ struct SessionDetailView: View {
         isPrimary: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Button(title, action: action)
-                .buttonStyle(isPrimary ? .borderedProminent : .bordered)
-                .tint(isPrimary ? palette.accentPrimary : nil)
+            if isPrimary {
+                Button(title, action: action)
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accentPrimary)
+            } else {
+                Button(title, action: action)
+                    .buttonStyle(.bordered)
+            }
                 .disabled(!isEnabled)
             Text(description)
                 .font(.caption)
