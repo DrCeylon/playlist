@@ -7,7 +7,6 @@ struct PlaylistBuilderView: View {
     @StateObject private var importViewModel: ImportViewModel
     @EnvironmentObject private var themeManager: ThemeManager
 
-    // Local draft state — macOS TextField binds reliably to @State, not always to @Published.
     @State private var draftName = ""
     @State private var draftSeedArtist = ""
     @State private var draftSeedTrack = ""
@@ -48,7 +47,9 @@ struct PlaylistBuilderView: View {
                     }
                 }
             case .failed(let message):
-                failureView(message: message, palette: palette)
+                ImportFailureView(message: message, palette: palette) {
+                    importViewModel.reset()
+                }
             case .idle:
                 builderOrPreview(palette: palette)
             }
@@ -86,126 +87,22 @@ struct PlaylistBuilderView: View {
                 )
             }
         case .editing, .generating:
-            builderForm(palette: palette)
+            PlaylistBuilderFormView(
+                viewModel: viewModel,
+                palette: palette,
+                draftName: $draftName,
+                draftSeedArtist: $draftSeedArtist,
+                draftSeedTrack: $draftSeedTrack,
+                draftKeywords: $draftKeywords,
+                draftTrackCount: $draftTrackCount,
+                draftDescription: $draftDescription,
+                draftDuration: $draftDuration,
+                showAdvancedOptions: $showAdvancedOptions,
+                showExclusions: $showExclusions,
+                onCommitDraft: commitDraftAndValidate,
+                onPushDraft: pushDraftToViewModel
+            )
         }
-    }
-
-    @ViewBuilder
-    private func builderForm(palette: ThemePalette) -> some View {
-        Form {
-            Section {
-                Text("Remplis au minimum un nom et une graine ou des mots-clés.")
-                    .font(.callout)
-                    .foregroundStyle(palette.textSecondary)
-            }
-
-            if !viewModel.validationErrors.isEmpty {
-                Section {
-                    ForEach(viewModel.validationErrors, id: \.self) { error in
-                        Text("\(error.field): \(error.message)")
-                            .font(.callout)
-                            .foregroundStyle(palette.statusWarning)
-                    }
-                }
-            }
-
-            if let bridgeMessage = viewModel.bridgeFallbackMessage {
-                Section {
-                    Text(bridgeMessage)
-                        .font(.caption)
-                        .foregroundStyle(palette.textTertiary)
-                }
-            }
-
-            Section("Essentiel") {
-                nativeTextField("Nom de la playlist", text: $draftName, palette: palette)
-                nativeTextField("Artiste seed", text: $draftSeedArtist, palette: palette)
-                nativeTextField("Morceau seed", text: $draftSeedTrack, palette: palette)
-                nativeTextField("Mots-clés (séparés par des virgules)", text: $draftKeywords, palette: palette)
-                nativeTextField("Nombre de morceaux", text: $draftTrackCount, palette: palette)
-            }
-
-            Section {
-                DisclosureGroup("Options avancées", isExpanded: $showAdvancedOptions) {
-                    nativeTextField("Description", text: $draftDescription, palette: palette, axis: .vertical)
-                    nativeTextField("Durée cible (min)", text: $draftDuration, palette: palette)
-                    Picker("Courbe d'énergie", selection: $viewModel.energyProfile) {
-                        ForEach(EnergyCurveProfile.allCases) { profile in
-                            Text(profile.displayName).tag(profile)
-                        }
-                    }
-                    if let provider = viewModel.selectedProvider {
-                        LabeledContent("Provider", value: provider.displayName)
-                    }
-                }
-            }
-
-            Section {
-                DisclosureGroup("Exclusions", isExpanded: $showExclusions) {
-                    if viewModel.exclusions.isEmpty {
-                        Text("Aucune exclusion pour le moment.")
-                            .foregroundStyle(palette.textSecondary)
-                    } else {
-                        ForEach($viewModel.exclusions) { $rule in
-                            ExclusionEditorRow(rule: $rule, palette: palette) {
-                                viewModel.removeExclusion(rule.wrappedValue)
-                            }
-                        }
-                    }
-                    Button("Ajouter une exclusion") {
-                        viewModel.addExclusion()
-                        pushDraftToViewModel()
-                        viewModel.validateForm()
-                    }
-                }
-            }
-
-            Section {
-                if !viewModel.canGenerate {
-                    Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
-                        .font(.caption)
-                        .foregroundStyle(palette.textTertiary)
-                }
-                Button {
-                    pushDraftToViewModel()
-                    Task { await viewModel.generate() }
-                } label: {
-                    if viewModel.screenState == .generating {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Label("Générer", systemImage: "sparkles")
-                    }
-                }
-                .disabled(!viewModel.canGenerate)
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .onChange(of: draftName) { _, _ in commitDraftAndValidate() }
-        .onChange(of: draftSeedArtist) { _, _ in commitDraftAndValidate() }
-        .onChange(of: draftSeedTrack) { _, _ in commitDraftAndValidate() }
-        .onChange(of: draftKeywords) { _, _ in commitDraftAndValidate() }
-        .onChange(of: draftTrackCount) { _, _ in commitDraftAndValidate() }
-        .onChange(of: draftDescription) { _, _ in commitDraftAndValidate() }
-        .onChange(of: draftDuration) { _, _ in commitDraftAndValidate() }
-        .onChange(of: viewModel.energyProfile) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.exclusions) { _, _ in
-            pushDraftToViewModel()
-            viewModel.validateForm()
-        }
-    }
-
-    @ViewBuilder
-    private func nativeTextField(
-        _ title: String,
-        text: Binding<String>,
-        palette: ThemePalette,
-        axis: Axis = .horizontal
-    ) -> some View {
-        TextField(title, text: text, axis: axis)
-            .textFieldStyle(.roundedBorder)
-            .foregroundStyle(palette.inputText)
     }
 
     private func syncDraftFromViewModel() {
@@ -232,20 +129,307 @@ struct PlaylistBuilderView: View {
         pushDraftToViewModel()
         viewModel.validateForm()
     }
+}
 
-    @ViewBuilder
-    private func failureView(message: String, palette: ThemePalette) -> some View {
+// MARK: - Form
+
+private struct PlaylistBuilderFormView: View {
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    let palette: ThemePalette
+
+    @Binding var draftName: String
+    @Binding var draftSeedArtist: String
+    @Binding var draftSeedTrack: String
+    @Binding var draftKeywords: String
+    @Binding var draftTrackCount: String
+    @Binding var draftDescription: String
+    @Binding var draftDuration: String
+    @Binding var showAdvancedOptions: Bool
+    @Binding var showExclusions: Bool
+
+    let onCommitDraft: () -> Void
+    let onPushDraft: () -> Void
+
+    var body: some View {
+        Form {
+            BuilderHelpSection(palette: palette)
+            ValidationSection(errors: viewModel.validationErrors, palette: palette)
+            BridgeMessageSection(message: viewModel.bridgeFallbackMessage, palette: palette)
+            EssentialFieldsSection(
+                palette: palette,
+                draftName: $draftName,
+                draftSeedArtist: $draftSeedArtist,
+                draftSeedTrack: $draftSeedTrack,
+                draftKeywords: $draftKeywords,
+                draftTrackCount: $draftTrackCount
+            )
+            AdvancedOptionsSection(
+                viewModel: viewModel,
+                palette: palette,
+                draftDescription: $draftDescription,
+                draftDuration: $draftDuration,
+                isExpanded: $showAdvancedOptions
+            )
+            ExclusionsSection(
+                viewModel: viewModel,
+                palette: palette,
+                isExpanded: $showExclusions,
+                onPushDraft: onPushDraft
+            )
+            GenerateSection(
+                viewModel: viewModel,
+                palette: palette,
+                onPushDraft: onPushDraft
+            )
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .onChange(of: draftName) { _, _ in onCommitDraft() }
+        .onChange(of: draftSeedArtist) { _, _ in onCommitDraft() }
+        .onChange(of: draftSeedTrack) { _, _ in onCommitDraft() }
+        .onChange(of: draftKeywords) { _, _ in onCommitDraft() }
+        .onChange(of: draftTrackCount) { _, _ in onCommitDraft() }
+        .onChange(of: draftDescription) { _, _ in onCommitDraft() }
+        .onChange(of: draftDuration) { _, _ in onCommitDraft() }
+        .onChange(of: viewModel.energyProfile) { _, _ in viewModel.validateForm() }
+        .onChange(of: viewModel.exclusions) { _, _ in
+            onPushDraft()
+            viewModel.validateForm()
+        }
+    }
+}
+
+private struct BuilderHelpSection: View {
+    let palette: ThemePalette
+
+    var body: some View {
+        Section {
+            Text("Remplis au minimum un nom et une graine ou des mots-clés.")
+                .font(.callout)
+                .foregroundStyle(palette.textSecondary)
+        }
+    }
+}
+
+private struct ValidationSection: View {
+    let errors: [ValidationError]
+    let palette: ThemePalette
+
+    var body: some View {
+        if errors.isEmpty {
+            EmptyView()
+        } else {
+            Section {
+                ForEach(errors, id: \.self) { error in
+                    ValidationRow(error: error, palette: palette)
+                }
+            }
+        }
+    }
+}
+
+private struct ValidationRow: View {
+    let error: ValidationError
+    let palette: ThemePalette
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(error.field)
+            Text(error.message)
+        }
+        .font(.callout)
+        .foregroundStyle(palette.statusWarning)
+    }
+}
+
+private struct BridgeMessageSection: View {
+    let message: String?
+    let palette: ThemePalette
+
+    var body: some View {
+        if let message {
+            Section {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(palette.textTertiary)
+            }
+        }
+    }
+}
+
+private struct EssentialFieldsSection: View {
+    let palette: ThemePalette
+    @Binding var draftName: String
+    @Binding var draftSeedArtist: String
+    @Binding var draftSeedTrack: String
+    @Binding var draftKeywords: String
+    @Binding var draftTrackCount: String
+
+    var body: some View {
+        Section("Essentiel") {
+            NativeFormTextField(title: "Nom de la playlist", text: $draftName, palette: palette)
+            NativeFormTextField(title: "Artiste seed", text: $draftSeedArtist, palette: palette)
+            NativeFormTextField(title: "Morceau seed", text: $draftSeedTrack, palette: palette)
+            NativeFormTextField(
+                title: "Mots-clés (séparés par des virgules)",
+                text: $draftKeywords,
+                palette: palette
+            )
+            NativeFormTextField(title: "Nombre de morceaux", text: $draftTrackCount, palette: palette)
+        }
+    }
+}
+
+private struct AdvancedOptionsSection: View {
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    let palette: ThemePalette
+    @Binding var draftDescription: String
+    @Binding var draftDuration: String
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        Section {
+            DisclosureGroup("Options avancées", isExpanded: $isExpanded) {
+                NativeFormTextField(
+                    title: "Description",
+                    text: $draftDescription,
+                    palette: palette,
+                    axis: .vertical
+                )
+                NativeFormTextField(title: "Durée cible (min)", text: $draftDuration, palette: palette)
+                EnergyProfilePicker(selection: $viewModel.energyProfile)
+                if let provider = viewModel.selectedProvider {
+                    LabeledContent("Provider", value: provider.displayName)
+                }
+            }
+        }
+    }
+}
+
+private struct EnergyProfilePicker: View {
+    @Binding var selection: EnergyCurveProfile
+
+    var body: some View {
+        Picker("Courbe d'énergie", selection: $selection) {
+            ForEach(EnergyCurveProfile.allCases) { profile in
+                Text(profile.displayName).tag(profile)
+            }
+        }
+    }
+}
+
+private struct ExclusionsSection: View {
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    let palette: ThemePalette
+    @Binding var isExpanded: Bool
+    let onPushDraft: () -> Void
+
+    var body: some View {
+        Section {
+            DisclosureGroup("Exclusions", isExpanded: $isExpanded) {
+                ExclusionsList(viewModel: viewModel, palette: palette, onPushDraft: onPushDraft)
+            }
+        }
+    }
+}
+
+private struct ExclusionsList: View {
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    let palette: ThemePalette
+    let onPushDraft: () -> Void
+
+    var body: some View {
+        if viewModel.exclusions.isEmpty {
+            Text("Aucune exclusion pour le moment.")
+                .foregroundStyle(palette.textSecondary)
+        } else {
+            ForEach($viewModel.exclusions) { $rule in
+                ExclusionEditorRow(rule: $rule, palette: palette) {
+                    viewModel.removeExclusion(rule.wrappedValue)
+                }
+            }
+        }
+        Button("Ajouter une exclusion") {
+            viewModel.addExclusion()
+            onPushDraft()
+            viewModel.validateForm()
+        }
+    }
+}
+
+private struct GenerateSection: View {
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    let palette: ThemePalette
+    let onPushDraft: () -> Void
+
+    var body: some View {
+        Section {
+            if !viewModel.canGenerate {
+                Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
+                    .font(.caption)
+                    .foregroundStyle(palette.textTertiary)
+            }
+            GenerateButton(viewModel: viewModel, onPushDraft: onPushDraft)
+        }
+    }
+}
+
+private struct GenerateButton: View {
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    let onPushDraft: () -> Void
+
+    var body: some View {
+        Button {
+            onPushDraft()
+            Task { await viewModel.generate() }
+        } label: {
+            GenerateButtonLabel(isGenerating: viewModel.screenState == .generating)
+        }
+        .disabled(!viewModel.canGenerate)
+    }
+}
+
+private struct GenerateButtonLabel: View {
+    let isGenerating: Bool
+
+    var body: some View {
+        if isGenerating {
+            ProgressView()
+                .controlSize(.small)
+        } else {
+            Label("Générer", systemImage: "sparkles")
+        }
+    }
+}
+
+private struct NativeFormTextField: View {
+    let title: String
+    @Binding var text: String
+    let palette: ThemePalette
+    var axis: Axis = .horizontal
+
+    var body: some View {
+        TextField(title, text: $text, axis: axis)
+            .textFieldStyle(.roundedBorder)
+            .foregroundStyle(palette.inputText)
+    }
+}
+
+private struct ImportFailureView: View {
+    let message: String
+    let palette: ThemePalette
+    let onReset: () -> Void
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Label("Import impossible", systemImage: "exclamationmark.triangle")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(palette.statusWarning)
             Text(message)
                 .foregroundStyle(palette.textSecondary)
-            Button("Revenir à l'aperçu") {
-                importViewModel.reset()
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(palette.accentPrimary)
+            Button("Revenir à l'aperçu", action: onReset)
+                .buttonStyle(.borderedProminent)
+                .tint(palette.accentPrimary)
         }
         .padding(24)
     }
