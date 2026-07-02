@@ -166,6 +166,15 @@ full unit tests. Swift production ViewModels mirror the same public surface.
 | **Modes** | Simple / Architecte |
 | **Bridge** | `diagnostics`, `list_providers` |
 
+### HistoryViewModel (Swift — Phase 4.8)
+
+| Aspect | Detail |
+|--------|--------|
+| **Responsibility** | Local session list, detail selection, replay/delete/clear |
+| **Services** | `SessionHistoryServing` — `PythonEngineBridgeService` |
+| **States** | `idle`, `loading`, `ready`, `failed` |
+| **Bridge** | `list_history`, `get_history_session`, `delete_history_session`, `clear_history`, `replay_generation`, `export_history_session` |
+
 ### DiagnosticsViewModel (Python reference — planned)
 
 | Aspect | Detail |
@@ -207,6 +216,7 @@ full unit tests. Swift production ViewModels mirror the same public surface.
 | Import (bridge) | ✅ | `stream_import_playlist` + sessions (4.6) |
 | Diagnostics (bridge) | ✅ | `RuntimeEngineBridgeBackend.diagnostics` (4.7) |
 | Load providers (bridge) | ✅ | `list_providers` via Swift `DiagnosticsServing` (4.7) |
+| Session history (bridge) | ✅ | local repository via `data/history/sessions.json` (4.8) |
 
 ### To create (Phase 4.8+)
 
@@ -388,7 +398,7 @@ DiagnosticBus (in-memory, async queue)
 | **4.6** | Import UX + bridge runtime | Python engine connection, import screens (**done**) |
 | **4.6b** | Bridge hardening | Persistent process, live event stream |
 | **4.7** | Laboratory | Diagnostics screens ✅ |
-| **4.8** | History | Session list |
+| **4.8** | History | Session list + detail + replay |
 | **4.8** | iPadOS layout | Split view, adaptive navigation |
 | **4.9** | iOS + MusicKit | Mobile delivery path |
 

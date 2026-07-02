@@ -13,6 +13,8 @@ Phase 4 — Product discovery & UI contracts.
 | [phase-4-macos-shell.md](phase-4-macos-shell.md) | macOS SwiftUI shell MVP (Phase 4.4) |
 | [phase-4-playlist-builder.md](phase-4-playlist-builder.md) | Playlist builder form + preview (Phase 4.5) |
 | [phase-4-import-ux.md](phase-4-import-ux.md) | Import UX + bridge runtime (Phase 4.6) |
+| [phase-4-diagnostics-lab.md](phase-4-diagnostics-lab.md) | Diagnostics laboratory (Phase 4.7) |
+| [phase-4-session-history.md](phase-4-session-history.md) | Session history (Phase 4.8) |
 | [phase-4-6-bridge-runtime.md](phase-4-6-bridge-runtime.md) | Bridge runtime technical notes |
 | [ios-planned-structure.md](ios-planned-structure.md) | Future iOS layout |
 
@@ -32,7 +34,7 @@ Tests : `tests/test_ui_shared_*.py`
 Package `playlist_builder/ui/bridge/` :
 
 - JSON-lines requests/responses/events
-- Commands : `list_providers`, `validate_generation_request`, `generate_playlist`, `import_playlist`, `diagnostics`
+- Commands : `list_providers`, `validate_generation_request`, `generate_playlist`, `import_playlist`, `diagnostics`, `list_history`, `get_history_session`, `delete_history_session`, `clear_history`, `replay_generation`, `export_history_session`
 - `EngineBridgeBackend` injection for engine-specific work
 
 Doc : [phase-4-engine-bridge.md](phase-4-engine-bridge.md)  

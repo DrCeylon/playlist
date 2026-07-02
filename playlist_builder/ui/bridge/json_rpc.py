@@ -71,7 +71,7 @@ class JsonRpcEngineBridge(EngineBridge):
 
         if request.command == BridgeCommand.GENERATE_PLAYLIST:
             yield started_event(request.id, command=request.command.value).to_dict()
-            result = self._generate_playlist(request.params)
+            result = self._generate_playlist(request.id, request.params)
             yield completed_event(request.id, summary=result.to_dict()).to_dict()
             yield BridgeResponse(id=request.id, ok=True, result=result.to_dict()).to_dict()
             return
@@ -102,6 +102,62 @@ class JsonRpcEngineBridge(EngineBridge):
             yield BridgeResponse(id=request.id, ok=True, result=result.to_dict()).to_dict()
             return
 
+        if request.command == BridgeCommand.LIST_HISTORY:
+            if self.backend is None or not hasattr(self.backend, "list_history"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'historique non configuré.")
+            sessions = self.backend.list_history()
+            yield BridgeResponse(id=request.id, ok=True, result={"sessions": list(sessions)}).to_dict()
+            return
+
+        if request.command == BridgeCommand.GET_HISTORY_SESSION:
+            if self.backend is None or not hasattr(self.backend, "get_history_session"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'historique non configuré.")
+            session_id = str(request.params.get("session_id", "")).strip()
+            if not session_id:
+                raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "session_id est requis.")
+            session = self.backend.get_history_session(session_id)
+            yield BridgeResponse(id=request.id, ok=True, result={"session": session}).to_dict()
+            return
+
+        if request.command == BridgeCommand.DELETE_HISTORY_SESSION:
+            if self.backend is None or not hasattr(self.backend, "delete_history_session"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'historique non configuré.")
+            session_id = str(request.params.get("session_id", "")).strip()
+            if not session_id:
+                raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "session_id est requis.")
+            deleted = bool(self.backend.delete_history_session(session_id))
+            yield BridgeResponse(id=request.id, ok=True, result={"deleted": deleted}).to_dict()
+            return
+
+        if request.command == BridgeCommand.CLEAR_HISTORY:
+            if self.backend is None or not hasattr(self.backend, "clear_history"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'historique non configuré.")
+            cleared = bool(self.backend.clear_history())
+            yield BridgeResponse(id=request.id, ok=True, result={"cleared": cleared}).to_dict()
+            return
+
+        if request.command == BridgeCommand.EXPORT_HISTORY_SESSION:
+            if self.backend is None or not hasattr(self.backend, "export_history_session"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'historique non configuré.")
+            session_id = str(request.params.get("session_id", "")).strip()
+            if not session_id:
+                raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "session_id est requis.")
+            exported = self.backend.export_history_session(session_id)
+            yield BridgeResponse(id=request.id, ok=True, result={"export": exported}).to_dict()
+            return
+
+        if request.command == BridgeCommand.REPLAY_GENERATION:
+            if self.backend is None or not hasattr(self.backend, "replay_generation"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de replay non configuré.")
+            session_id = str(request.params.get("session_id", "")).strip()
+            if not session_id:
+                raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "session_id est requis.")
+            yield started_event(request.id, command=request.command.value).to_dict()
+            result = self.backend.replay_generation(session_id, request_id=request.id)
+            yield completed_event(request.id, summary=result.to_dict()).to_dict()
+            yield BridgeResponse(id=request.id, ok=True, result=result.to_dict()).to_dict()
+            return
+
         raise BridgeError(
             BridgeErrorCode.UNKNOWN_COMMAND,
             f"Commande inconnue : {request.command.value}",
@@ -117,7 +173,7 @@ class JsonRpcEngineBridge(EngineBridge):
         validation = validate_playlist_generation_request(generation_request)
         return ValidateGenerationRequestResult(valid=validation.is_valid, errors=validation.errors)
 
-    def _generate_playlist(self, params: dict[str, Any]) -> GeneratePlaylistResult:
+    def _generate_playlist(self, request_id: str, params: dict[str, Any]) -> GeneratePlaylistResult:
         if self.backend is None:
             raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de génération non configuré.")
         generation_request = _parse_generation_request_from_params(params)
@@ -129,7 +185,11 @@ class JsonRpcEngineBridge(EngineBridge):
                 details=tuple((error.field, error.message) for error in validation.errors),
             )
         try:
-            return self.backend.generate_playlist(generation_request)
+            try:
+                return self.backend.generate_playlist(generation_request, request_id=request_id)
+            except TypeError:
+                # Backward compatibility for lightweight test backends.
+                return self.backend.generate_playlist(generation_request)
         except BridgeError:
             raise
         except Exception as exc:
@@ -145,13 +205,24 @@ class JsonRpcEngineBridge(EngineBridge):
         playlist = _playlist_from_params(params)
         sync = bool(params.get("sync", True))
         write_json_diagnostics = bool(params.get("write_json_diagnostics", True))
+        history_session_id_raw = params.get("history_session_id")
+        history_session_id = str(history_session_id_raw).strip() if history_session_id_raw else None
         try:
-            yield from self.backend.import_playlist_stream(
-                playlist,
-                sync=sync,
-                write_json_diagnostics=write_json_diagnostics,
-                request_id=request_id,
-            )
+            try:
+                yield from self.backend.import_playlist_stream(
+                    playlist,
+                    sync=sync,
+                    write_json_diagnostics=write_json_diagnostics,
+                    request_id=request_id,
+                    history_session_id=history_session_id,
+                )
+            except TypeError:
+                yield from self.backend.import_playlist_stream(
+                    playlist,
+                    sync=sync,
+                    write_json_diagnostics=write_json_diagnostics,
+                    request_id=request_id,
+                )
         except BridgeError:
             raise
         except Exception as exc:

@@ -101,15 +101,18 @@ public struct ImportResultState: Hashable, Codable, Sendable {
     public var playlistName: String
     public var outcomes: [ImportTrackOutcome]
     public var phase: ImportPhase
+    public var historySessionID: String
 
     public init(
         playlistName: String,
         outcomes: [ImportTrackOutcome] = [],
-        phase: ImportPhase = .completed
+        phase: ImportPhase = .completed,
+        historySessionID: String = ""
     ) {
         self.playlistName = playlistName
         self.outcomes = outcomes
         self.phase = phase
+        self.historySessionID = historySessionID
     }
 
     public var addedCount: Int {

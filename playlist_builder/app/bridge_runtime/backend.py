@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 
 from playlist_builder import __version__
 from playlist_builder.app.factory import AppContext
@@ -28,6 +30,13 @@ from playlist_builder.app.bridge_runtime.mapping import (
     ui_request_to_playlist_request,
 )
 from playlist_builder.ui.shared.dto import PlaylistGenerationRequest, ProviderOption, default_provider_options
+from playlist_builder.ui.shared.history import (
+    HistoryDiagnosticsSummary,
+    SessionHistoryRepository,
+    SessionHistoryService,
+    record_to_dict,
+)
+from playlist_builder.ui.shared.validation import dto_to_dict
 
 
 class RuntimeEngineBridgeBackend:
@@ -37,6 +46,7 @@ class RuntimeEngineBridgeBackend:
         self._context = context
         self._session_store = session_store or ImportSessionStore()
         self._generation_engine = self._build_generation_engine(context)
+        self._history = SessionHistoryService(SessionHistoryRepository(Path("data/history/sessions.json")))
 
     def continue_manual_acquisition(self, params: dict) -> dict[str, object]:
         session_id = str(params.get("import_session_id", "")).strip()
@@ -82,7 +92,7 @@ class RuntimeEngineBridgeBackend:
             providers.append(option)
         return ListProvidersResult(providers=tuple(providers))
 
-    def generate_playlist(self, request: PlaylistGenerationRequest) -> GeneratePlaylistResult:
+    def generate_playlist(self, request: PlaylistGenerationRequest, request_id: str = "generate") -> GeneratePlaylistResult:
         playlist_request = ui_request_to_playlist_request(request)
         playlist_request.validate()
         try:
@@ -93,7 +103,15 @@ class RuntimeEngineBridgeBackend:
             raise BridgeError(BridgeErrorCode.ENGINE_ERROR, str(exc)) from exc
 
         ui_result = generated_playlist_to_ui_result(session.generated_playlist, provider_id=request.provider_id)
-        return GeneratePlaylistResult(result=ui_result)
+        history = self._history.create_generation_session(
+            request_id=request_id,
+            playlist_name=ui_result.playlist_name,
+            provider_id=request.provider_id,
+            generation_request=dto_to_dict(request),
+            generation_result=dto_to_dict(ui_result),
+            track_count=ui_result.track_count,
+        )
+        return GeneratePlaylistResult(result=ui_result, history_session_id=history.session_id)
 
     def import_playlist(
         self,
@@ -121,21 +139,68 @@ class RuntimeEngineBridgeBackend:
         sync: bool,
         write_json_diagnostics: bool,
         request_id: str = "import",
+        history_session_id: str | None = None,
     ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
         del sync  # sync import only for MVP — incremental arrives later
-        yield from stream_import_playlist(
+        for item in stream_import_playlist(
             self._context,
             playlist,
             request_id=request_id,
             sync=True,
             write_json_diagnostics=write_json_diagnostics,
             session_store=self._session_store,
-        )
+        ):
+            if isinstance(item, ImportPlaylistResult):
+                diagnostics = HistoryDiagnosticsSummary()
+                if item.import_result.phase.value == "failed":
+                    diagnostics = HistoryDiagnosticsSummary(errors=1, last_message="Import failed")
+                updated = self._history.attach_import_result(
+                    session_id=history_session_id,
+                    playlist_name=item.import_result.playlist_name,
+                    provider_id=ProviderId.APPLE_MUSIC,
+                    result=item.import_result,
+                    diagnostics=diagnostics,
+                )
+                yield ImportPlaylistResult(import_result=item.import_result, history_session_id=updated.session_id)
+                continue
+            yield item
 
     def diagnostics(self) -> DiagnosticsResult:
         providers = self.list_providers().providers
         summary, events = build_diagnostics_snapshot(self._context, providers=providers)
+        summary["recent_history_sessions"] = [record_to_dict(item) for item in self._history.list_sessions()[:5]]
         return DiagnosticsResult(engine_version=__version__, summary=summary, events=events)
+
+    def list_history(self) -> tuple[dict[str, Any], ...]:
+        return tuple(record_to_dict(item) for item in self._history.list_sessions())
+
+    def get_history_session(self, session_id: str) -> dict[str, Any] | None:
+        session = self._history.get_session(session_id)
+        if session is None:
+            return None
+        return record_to_dict(session)
+
+    def delete_history_session(self, session_id: str) -> bool:
+        return self._history.delete_session(session_id)
+
+    def clear_history(self) -> bool:
+        self._history.clear()
+        return True
+
+    def export_history_session(self, session_id: str) -> dict[str, Any] | None:
+        return self._history.export_session(session_id)
+
+    def replay_generation(self, session_id: str, request_id: str = "replay") -> GeneratePlaylistResult:
+        payload = self._history.export_session(session_id)
+        if payload is None:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Session historique introuvable.")
+        request_payload = payload.get("generation_request")
+        if not isinstance(request_payload, dict):
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Session sans requête de génération.")
+        from playlist_builder.ui.bridge.commands import playlist_generation_request_from_dict
+
+        request = playlist_generation_request_from_dict(request_payload)
+        return self.generate_playlist(request, request_id=request_id)
 
     @staticmethod
     def _build_generation_engine(context: AppContext) -> GenerationSessionEngine:

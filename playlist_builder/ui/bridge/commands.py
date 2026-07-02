@@ -29,6 +29,12 @@ class BridgeCommand(StrEnum):
     IMPORT_PLAYLIST = "import_playlist"
     DIAGNOSTICS = "diagnostics"
     CONTINUE_MANUAL_ACQUISITION = "continue_manual_acquisition"
+    LIST_HISTORY = "list_history"
+    GET_HISTORY_SESSION = "get_history_session"
+    DELETE_HISTORY_SESSION = "delete_history_session"
+    CLEAR_HISTORY = "clear_history"
+    REPLAY_GENERATION = "replay_generation"
+    EXPORT_HISTORY_SESSION = "export_history_session"
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,17 +83,25 @@ class ValidateGenerationRequestResult:
 @dataclass(frozen=True, slots=True)
 class GeneratePlaylistResult:
     result: PlaylistGenerationResult
+    history_session_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {"generation": dto_to_dict(self.result)}
+        payload: dict[str, Any] = {"generation": dto_to_dict(self.result)}
+        if self.history_session_id:
+            payload["history_session_id"] = self.history_session_id
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
 class ImportPlaylistResult:
     import_result: ImportResultState
+    history_session_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {"import": dto_to_dict(self.import_result)}
+        payload: dict[str, Any] = {"import": dto_to_dict(self.import_result)}
+        if self.history_session_id:
+            payload["history_session_id"] = self.history_session_id
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +118,22 @@ class DiagnosticsResult:
         if self.summary:
             payload["summary"] = self.summary
         return payload
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryListResult:
+    sessions: tuple[dict[str, Any], ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"sessions": [dict(item) for item in self.sessions]}
+
+
+@dataclass(frozen=True, slots=True)
+class HistorySessionResult:
+    session: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"session": dict(self.session) if self.session else None}
 
 
 def parse_bridge_request(payload: dict[str, Any]) -> BridgeRequest:

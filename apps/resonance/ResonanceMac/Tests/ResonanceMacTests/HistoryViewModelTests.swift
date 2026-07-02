@@ -1,0 +1,111 @@
+import ResonanceCore
+@testable import ResonanceMac
+import XCTest
+
+@MainActor
+final class HistoryViewModelTests: XCTestCase {
+    func testRefreshSuccessLoadsSessions() async {
+        let service = StubHistoryService()
+        let viewModel = HistoryViewModel(service: service)
+        await viewModel.refresh()
+        XCTAssertEqual(viewModel.screenState, .ready)
+        XCTAssertEqual(viewModel.sessions.count, 1)
+    }
+
+    func testRefreshErrorShowsFailure() async {
+        let viewModel = HistoryViewModel(service: FailingHistoryService())
+        await viewModel.refresh()
+        if case .failed = viewModel.screenState {
+            XCTAssertTrue(true)
+        } else {
+            XCTFail("Expected failure state")
+        }
+    }
+
+    func testSessionDetailMappingAndReplayAction() async {
+        let service = StubHistoryService()
+        let viewModel = HistoryViewModel(service: service)
+        await viewModel.refresh()
+        guard let session = viewModel.sessions.first else {
+            XCTFail("Expected one session")
+            return
+        }
+        await viewModel.select(session: session)
+        XCTAssertEqual(viewModel.selectedDetail?.summary.sessionID, session.sessionID)
+        let replay = await viewModel.replayGeneration()
+        XCTAssertEqual(replay?.playlistName, "Replay Demo")
+    }
+}
+
+private struct StubHistoryService: SessionHistoryServing {
+    func listHistory() async throws -> [SessionHistorySummary] {
+        [
+            SessionHistorySummary(
+                sessionID: "hist-1",
+                startedAtISO: "2026-07-02T08:00:00",
+                finishedAtISO: "2026-07-02T08:01:00",
+                playlistName: "Demo",
+                providerID: .appleMusic,
+                status: .generated,
+                trackCount: 5,
+                addedCount: 0,
+                skippedCount: 0,
+                notFoundCount: 0,
+                errorCount: 0,
+                durationMS: 1000,
+                textReportPath: "",
+                jsonReportPath: ""
+            ),
+        ]
+    }
+
+    func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? {
+        SessionHistoryDetail(
+            summary: SessionHistorySummary(
+                sessionID: sessionID,
+                startedAtISO: "2026-07-02T08:00:00",
+                finishedAtISO: "2026-07-02T08:01:00",
+                playlistName: "Demo",
+                providerID: .appleMusic,
+                status: .generated,
+                trackCount: 5,
+                addedCount: 0,
+                skippedCount: 0,
+                notFoundCount: 0,
+                errorCount: 0,
+                durationMS: 1000,
+                textReportPath: "",
+                jsonReportPath: ""
+            ),
+            generationRequest: ["name": .string("Demo")]
+        )
+    }
+
+    func deleteHistorySession(sessionID: String) async throws -> Bool { true }
+    func clearHistory() async throws -> Bool { true }
+
+    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult {
+        PlaylistGenerationResult(playlistName: "Replay Demo", sections: [], averageScore: 0.7, providerID: .appleMusic)
+    }
+
+    func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? {
+        SessionHistoryExport(
+            sessionID: sessionID,
+            playlistName: "Demo",
+            providerID: .appleMusic,
+            status: .generated,
+            textReportPath: "",
+            jsonReportPath: ""
+        )
+    }
+}
+
+private struct FailingHistoryService: SessionHistoryServing {
+    func listHistory() async throws -> [SessionHistorySummary] { throw NSError(domain: "test", code: 1) }
+    func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? { nil }
+    func deleteHistorySession(sessionID: String) async throws -> Bool { false }
+    func clearHistory() async throws -> Bool { false }
+    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult { throw NSError(domain: "test", code: 2) }
+    func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
+}
+

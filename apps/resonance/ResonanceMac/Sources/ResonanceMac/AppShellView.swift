@@ -22,10 +22,7 @@ struct AppShellView: View {
         case .newPlaylist:
             PlaylistBuilderView()
         case .history:
-            PlaceholderScreenView(
-                title: "Historique",
-                message: "L'historique des sessions arrive en Phase 4.7."
-            )
+            HistoryView()
         case .laboratory:
             DiagnosticsView()
         case .settings:
