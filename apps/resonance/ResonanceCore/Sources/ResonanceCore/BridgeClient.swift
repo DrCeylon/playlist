@@ -22,8 +22,9 @@ public struct BridgeClientConfiguration: Sendable {
     }
 }
 
+/// Shared transport contract used by Resonance shells to call Python bridge commands.
 public protocol BridgeTransport: Sendable {
-    func send(command: BridgeCommand, requestID: String, params: [String: Any]) async throws -> (
+    func send(command: BridgeCommand, requestID: String, params: BridgeJSONObject) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
     )
@@ -34,12 +35,13 @@ public extension BridgeTransport {
     func send(
         command: BridgeCommand,
         requestID: String = UUID().uuidString,
-        params: [String: Any] = [:]
+        params: BridgeJSONObject = [:]
     ) async throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
         try await send(command: command, requestID: requestID, params: params)
     }
 }
 
+/// Process wrapper guarded by an internal lock; safe to share as bridge transport.
 public final class BridgeClient: BridgeTransport, @unchecked Sendable {
     private let configuration: BridgeClientConfiguration
     private let lock = NSLock()
@@ -51,12 +53,12 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
     public func send(
         command: BridgeCommand,
         requestID: String = UUID().uuidString,
-        params: [String: Any] = [:]
+        params: BridgeJSONObject = [:]
     ) async throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
-        let payload: [String: Any] = [
-            "id": requestID,
-            "command": command.rawValue,
-            "params": params,
+        let payload: BridgeJSONObject = [
+            "id": .string(requestID),
+            "command": .string(command.rawValue),
+            "params": .object(params),
         ]
         let requestLine = try Self.encodeJSONObject(payload)
         let lines = try await runProcess(requestLine: requestLine)
@@ -71,11 +73,11 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
         var response: BridgeResponseMessage?
         for line in lines where !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let object = try BridgeResponseParser.parseJSONObject(line)
-            if object["type"] as? String == "event" {
+            if object["type"]?.stringValue == "event" {
                 events.append(try BridgeResponseParser.parseEventLine(line))
                 continue
             }
-            if object["type"] as? String == "response", object["id"] as? String == requestID {
+            if object["type"]?.stringValue == "response", object["id"]?.stringValue == requestID {
                 response = try BridgeResponseParser.parseResponseLine(line)
             }
         }
@@ -142,8 +144,8 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
         }
     }
 
-    static func encodeJSONObject(_ object: [String: Any]) throws -> String {
-        let data = try JSONSerialization.data(withJSONObject: object)
+    static func encodeJSONObject(_ object: BridgeJSONObject) throws -> String {
+        let data = try JSONSerialization.data(withJSONObject: object.mapValues(\.anyValue))
         guard let line = String(data: data, encoding: .utf8) else {
             throw BridgeClientError.invalidResponse
         }
@@ -152,68 +154,68 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
 }
 
 public enum BridgePayloadBuilder {
-    public static func playlistDictionary(from result: PlaylistGenerationResult) -> [String: Any] {
+    public static func playlistDictionary(from result: PlaylistGenerationResult) -> BridgeJSONObject {
         [
-            "name": result.playlistName,
-            "description": "Importée depuis Resonance.",
-            "sections": result.sections.map { section in
-                [
-                    "name": section.name,
-                    "tracks": section.tracks.map { track in
-                        [
-                            "artist": track.artist,
-                            "title": track.title,
-                            "section": track.section,
-                        ]
-                    },
-                ]
-            },
+            "name": .string(result.playlistName),
+            "description": .string("Importée depuis Resonance."),
+            "sections": .array(result.sections.map { section in
+                .object([
+                    "name": .string(section.name),
+                    "tracks": .array(section.tracks.map { track in
+                        .object([
+                            "artist": .string(track.artist),
+                            "title": .string(track.title),
+                            "section": .string(track.section),
+                        ])
+                    }),
+                ])
+            }),
         ]
     }
 
-    public static func importResult(from payload: [String: Any]) throws -> ImportResultState {
-        guard let importObject = payload["import"] as? [String: Any] else {
+    public static func importResult(from payload: BridgeJSONObject) throws -> ImportResultState {
+        guard let importObject = payload["import"]?.objectValue else {
             throw BridgeClientError.invalidResponse
         }
-        let playlistName = importObject["playlist_name"] as? String ?? ""
-        let phaseRaw = importObject["phase"] as? String ?? ImportPhase.completed.rawValue
+        let playlistName = importObject["playlist_name"]?.stringValue ?? ""
+        let phaseRaw = importObject["phase"]?.stringValue ?? ImportPhase.completed.rawValue
         let phase = ImportPhase(rawValue: phaseRaw) ?? .completed
-        let outcomesRaw = importObject["outcomes"] as? [[String: Any]] ?? []
-        let outcomes = outcomesRaw.map { item in
+        let outcomesRaw = importObject["outcomes"]?.arrayValue ?? []
+        let outcomes = outcomesRaw.compactMap(\.objectValue).map { item in
             ImportTrackOutcome(
-                artist: item["artist"] as? String ?? "",
-                title: item["title"] as? String ?? "",
-                section: item["section"] as? String ?? "",
-                status: ImportTrackStatus(rawValue: item["status"] as? String ?? "") ?? .error,
-                message: item["message"] as? String ?? ""
+                artist: item["artist"]?.stringValue ?? "",
+                title: item["title"]?.stringValue ?? "",
+                section: item["section"]?.stringValue ?? "",
+                status: ImportTrackStatus(rawValue: item["status"]?.stringValue ?? "") ?? .error,
+                message: item["message"]?.stringValue ?? ""
             )
         }
         return ImportResultState(playlistName: playlistName, outcomes: outcomes, phase: phase)
     }
 
-    public static func generationResult(from payload: [String: Any]) throws -> PlaylistGenerationResult {
-        guard let generation = payload["generation"] as? [String: Any] else {
+    public static func generationResult(from payload: BridgeJSONObject) throws -> PlaylistGenerationResult {
+        guard let generation = payload["generation"]?.objectValue else {
             throw BridgeClientError.invalidResponse
         }
-        let playlistName = generation["playlist_name"] as? String ?? ""
-        let averageScore = generation["average_score"] as? Double ?? 0
-        let providerRaw = generation["provider_id"] as? String ?? ProviderID.appleMusic.rawValue
+        let playlistName = generation["playlist_name"]?.stringValue ?? ""
+        let averageScore = generation["average_score"]?.doubleValue ?? 0
+        let providerRaw = generation["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
         let providerID = ProviderID(rawValue: providerRaw) ?? .appleMusic
-        let sectionsRaw = generation["sections"] as? [[String: Any]] ?? []
-        let sections = sectionsRaw.map { section in
-            let tracksRaw = section["tracks"] as? [[String: Any]] ?? []
-            let tracks = tracksRaw.map { track in
+        let sectionsRaw = generation["sections"]?.arrayValue ?? []
+        let sections = sectionsRaw.compactMap(\.objectValue).map { section in
+            let tracksRaw = section["tracks"]?.arrayValue ?? []
+            let tracks = tracksRaw.compactMap(\.objectValue).map { track in
                 GeneratedTrackPreview(
-                    artist: track["artist"] as? String ?? "",
-                    title: track["title"] as? String ?? "",
-                    section: track["section"] as? String ?? "",
-                    score: track["score"] as? Double ?? 0,
-                    confidence: ConfidenceLevel(rawValue: track["confidence"] as? String ?? "") ?? .medium,
-                    source: track["source"] as? String ?? ""
+                    artist: track["artist"]?.stringValue ?? "",
+                    title: track["title"]?.stringValue ?? "",
+                    section: track["section"]?.stringValue ?? "",
+                    score: track["score"]?.doubleValue ?? 0,
+                    confidence: ConfidenceLevel(rawValue: track["confidence"]?.stringValue ?? "") ?? .medium,
+                    source: track["source"]?.stringValue ?? ""
                 )
             }
             return GeneratedSectionPreview(
-                name: section["name"] as? String ?? "Playlist",
+                name: section["name"]?.stringValue ?? "Playlist",
                 tracks: tracks
             )
         }
@@ -225,84 +227,84 @@ public enum BridgePayloadBuilder {
         )
     }
 
-    public static func diagnosticsSnapshot(from payload: [String: Any]) throws -> DiagnosticsSnapshot {
-        let engineVersion = payload["engine_version"] as? String ?? ""
-        guard let summaryObject = payload["summary"] as? [String: Any] else {
+    public static func diagnosticsSnapshot(from payload: BridgeJSONObject) throws -> DiagnosticsSnapshot {
+        let engineVersion = payload["engine_version"]?.stringValue ?? ""
+        guard let summaryObject = payload["summary"]?.objectValue else {
             throw BridgeClientError.invalidResponse
         }
         let summary = try diagnosticsSummary(from: summaryObject)
-        let eventsRaw = payload["events"] as? [[String: Any]] ?? []
-        let events = eventsRaw.map(diagnosticEvent)
+        let eventsRaw = payload["events"]?.arrayValue ?? []
+        let events = eventsRaw.compactMap(\.objectValue).map(diagnosticEvent)
         return DiagnosticsSnapshot(engineVersion: engineVersion, summary: summary, events: events)
     }
 
-    public static func providerOptions(from payload: [String: Any]) throws -> [ProviderOption] {
-        let providersRaw = payload["providers"] as? [[String: Any]] ?? []
-        return providersRaw.map(providerOption)
+    public static func providerOptions(from payload: BridgeJSONObject) throws -> [ProviderOption] {
+        let providersRaw = payload["providers"]?.arrayValue ?? []
+        return providersRaw.compactMap(\.objectValue).map(providerOption)
     }
 
-    private static func diagnosticsSummary(from object: [String: Any]) throws -> DiagnosticsSummary {
-        let providersRaw = object["active_providers"] as? [[String: Any]] ?? []
-        let reportsRaw = object["recent_reports"] as? [[String: Any]] ?? []
+    private static func diagnosticsSummary(from object: BridgeJSONObject) throws -> DiagnosticsSummary {
+        let providersRaw = object["active_providers"]?.arrayValue ?? []
+        let reportsRaw = object["recent_reports"]?.arrayValue ?? []
         return DiagnosticsSummary(
-            bridgeStatus: object["bridge_status"] as? String ?? "unknown",
-            platform: object["platform"] as? String ?? "",
-            executionMS: object["execution_ms"] as? Int ?? 0,
-            catalogCacheEntries: object["catalog_cache_entries"] as? Int ?? 0,
-            identityCacheEntries: object["identity_cache_entries"] as? Int ?? 0,
-            catalogCacheEnabled: object["catalog_cache_enabled"] as? Bool ?? false,
-            countryCode: object["country_code"] as? String ?? "",
-            activeProviders: providersRaw.map(providerOption),
-            recentReports: reportsRaw.map(reportSummary),
-            reportsDirectory: object["reports_directory"] as? String ?? ""
+            bridgeStatus: object["bridge_status"]?.stringValue ?? "unknown",
+            platform: object["platform"]?.stringValue ?? "",
+            executionMS: object["execution_ms"]?.intValue ?? 0,
+            catalogCacheEntries: object["catalog_cache_entries"]?.intValue ?? 0,
+            identityCacheEntries: object["identity_cache_entries"]?.intValue ?? 0,
+            catalogCacheEnabled: object["catalog_cache_enabled"]?.boolValue ?? false,
+            countryCode: object["country_code"]?.stringValue ?? "",
+            activeProviders: providersRaw.compactMap(\.objectValue).map(providerOption),
+            recentReports: reportsRaw.compactMap(\.objectValue).map(reportSummary),
+            reportsDirectory: object["reports_directory"]?.stringValue ?? ""
         )
     }
 
-    private static func providerOption(_ object: [String: Any]) -> ProviderOption {
-        let providerRaw = object["provider_id"] as? String ?? ProviderID.appleMusic.rawValue
+    private static func providerOption(_ object: BridgeJSONObject) -> ProviderOption {
+        let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
         return ProviderOption(
             providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
-            displayName: object["display_name"] as? String ?? providerRaw,
-            isAvailable: object["is_available"] as? Bool ?? false,
-            isConnected: object["is_connected"] as? Bool ?? false,
-            unavailableReason: object["unavailable_reason"] as? String ?? ""
+            displayName: object["display_name"]?.stringValue ?? providerRaw,
+            isAvailable: object["is_available"]?.boolValue ?? false,
+            isConnected: object["is_connected"]?.boolValue ?? false,
+            unavailableReason: object["unavailable_reason"]?.stringValue ?? ""
         )
     }
 
-    private static func reportSummary(_ object: [String: Any]) -> DiagnosticsReportSummary {
-        let trackSummary = object["track_summary"] as? [String: Any] ?? [:]
+    private static func reportSummary(_ object: BridgeJSONObject) -> DiagnosticsReportSummary {
+        let trackSummary = object["track_summary"]?.objectValue ?? [:]
         return DiagnosticsReportSummary(
-            filename: object["filename"] as? String ?? "",
-            playlistName: object["playlist_name"] as? String ?? "",
-            generatedAt: object["generated_at"] as? String ?? "",
-            added: trackSummary["added"] as? Int ?? 0,
-            notFound: trackSummary["not_found"] as? Int ?? 0,
-            skipped: trackSummary["skipped"] as? Int ?? 0,
-            errors: trackSummary["errors"] as? Int ?? 0
+            filename: object["filename"]?.stringValue ?? "",
+            playlistName: object["playlist_name"]?.stringValue ?? "",
+            generatedAt: object["generated_at"]?.stringValue ?? "",
+            added: trackSummary["added"]?.intValue ?? 0,
+            notFound: trackSummary["not_found"]?.intValue ?? 0,
+            skipped: trackSummary["skipped"]?.intValue ?? 0,
+            errors: trackSummary["errors"]?.intValue ?? 0
         )
     }
 
-    private static func diagnosticEvent(_ object: [String: Any]) -> DiagnosticEvent {
-        let payloadRaw = object["payload"] as? [Any] ?? []
+    private static func diagnosticEvent(_ object: BridgeJSONObject) -> DiagnosticEvent {
+        let payloadRaw = object["payload"]?.arrayValue ?? []
         let payload = payloadRaw.compactMap { item -> DiagnosticEventPayload? in
-            if let dict = item as? [String: Any],
-               let key = dict["key"] as? String,
-               let value = dict["value"] as? String {
+            if let dict = item.objectValue,
+               let key = dict["key"]?.stringValue,
+               let value = dict["value"]?.stringValue {
                 return DiagnosticEventPayload(key: key, value: value)
             }
-            if let pair = item as? [Any], pair.count == 2,
-               let key = pair[0] as? String,
-               let value = pair[1] as? String {
+            if let pair = item.arrayValue, pair.count == 2,
+               let key = pair[0].stringValue,
+               let value = pair[1].stringValue {
                 return DiagnosticEventPayload(key: key, value: value)
             }
             return nil
         }
-        let levelRaw = object["level"] as? String ?? DiagnosticLevel.info.rawValue
+        let levelRaw = object["level"]?.stringValue ?? DiagnosticLevel.info.rawValue
         return DiagnosticEvent(
-            phase: object["phase"] as? String ?? "",
-            message: object["message"] as? String ?? "",
+            phase: object["phase"]?.stringValue ?? "",
+            message: object["message"]?.stringValue ?? "",
             level: DiagnosticLevel(rawValue: levelRaw) ?? .info,
-            timestampISO: object["timestamp_iso"] as? String ?? "",
+            timestampISO: object["timestamp_iso"]?.stringValue ?? "",
             payload: payload
         )
     }

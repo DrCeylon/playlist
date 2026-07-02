@@ -1,53 +1,55 @@
 import Foundation
 
 public enum BridgeContracts {
-    public static func generationRequestDictionary(_ request: PlaylistGenerationRequest) -> [String: Any] {
-        var payload: [String: Any] = [
-            "name": request.name,
-            "provider_id": request.providerID.rawValue,
-            "description": request.description,
-            "playlist_theme": request.playlistTheme,
-            "seeds": request.seeds.map(seedDictionary),
-            "keywords": request.keywords,
-            "exclusions": request.exclusions.map(exclusionDictionary),
-            "energy_curve": energyCurveDictionary(request.energyCurve),
+    public static func generationRequestDictionary(_ request: PlaylistGenerationRequest) -> BridgeJSONObject {
+        var payload: BridgeJSONObject = [
+            "name": .string(request.name),
+            "provider_id": .string(request.providerID.rawValue),
+            "description": .string(request.description),
+            "playlist_theme": .string(request.playlistTheme),
+            "seeds": .array(request.seeds.map(seedDictionary).map(BridgeJSONValue.object)),
+            "keywords": .array(request.keywords.map(BridgeJSONValue.string)),
+            "exclusions": .array(request.exclusions.map(exclusionDictionary).map(BridgeJSONValue.object)),
+            "energy_curve": .object(energyCurveDictionary(request.energyCurve)),
         ]
         if let targetTrackCount = request.targetTrackCount {
-            payload["target_track_count"] = targetTrackCount
+            payload["target_track_count"] = .number(Double(targetTrackCount))
         }
         if let targetDurationMinutes = request.targetDurationMinutes {
-            payload["target_duration_minutes"] = targetDurationMinutes
+            payload["target_duration_minutes"] = .number(Double(targetDurationMinutes))
         }
         return payload
     }
 
-    public static func validationErrorsDictionary(_ result: ValidationResult) -> [String: Any] {
+    public static func validationErrorsDictionary(_ result: ValidationResult) -> BridgeJSONObject {
         [
-            "valid": result.isValid,
-            "errors": result.errors.map { ["field": $0.field, "message": $0.message] },
+            "valid": .bool(result.isValid),
+            "errors": .array(result.errors.map {
+                .object(["field": .string($0.field), "message": .string($0.message)])
+            }),
         ]
     }
 
-    private static func seedDictionary(_ seed: SeedReference) -> [String: Any] {
+    private static func seedDictionary(_ seed: SeedReference) -> BridgeJSONObject {
         [
-            "artist": seed.artist,
-            "title": seed.title,
-            "weight": seed.weight,
+            "artist": .string(seed.artist),
+            "title": .string(seed.title),
+            "weight": .number(seed.weight),
         ]
     }
 
-    private static func exclusionDictionary(_ rule: ExclusionRule) -> [String: Any] {
+    private static func exclusionDictionary(_ rule: ExclusionRule) -> BridgeJSONObject {
         [
-            "kind": rule.kind.rawValue,
-            "value": rule.value,
-            "reason": rule.reason,
+            "kind": .string(rule.kind.rawValue),
+            "value": .string(rule.value),
+            "reason": .string(rule.reason),
         ]
     }
 
-    private static func energyCurveDictionary(_ curve: EnergyCurveOption) -> [String: Any] {
+    private static func energyCurveDictionary(_ curve: EnergyCurveOption) -> BridgeJSONObject {
         [
-            "profile": curve.profile.rawValue,
-            "chapter_labels": curve.chapterLabels,
+            "profile": .string(curve.profile.rawValue),
+            "chapter_labels": .array(curve.chapterLabels.map(BridgeJSONValue.string)),
         ]
     }
 }

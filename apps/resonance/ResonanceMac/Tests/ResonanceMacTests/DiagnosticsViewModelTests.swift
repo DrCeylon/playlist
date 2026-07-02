@@ -55,7 +55,7 @@ final class DiagnosticsViewModelTests: XCTestCase {
     }
 }
 
-private final class StubDiagnosticsService: DiagnosticsServing, @unchecked Sendable {
+private struct StubDiagnosticsService: DiagnosticsServing {
     func fetchDiagnostics() async throws -> DiagnosticsSnapshot {
         DiagnosticsSnapshot(
             engineVersion: "1.2.3",

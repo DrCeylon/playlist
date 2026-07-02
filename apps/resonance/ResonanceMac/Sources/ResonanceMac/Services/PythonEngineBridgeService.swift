@@ -54,6 +54,7 @@ public struct PythonEngineBridgeConfiguration: Sendable {
     }
 }
 
+/// Immutable service wrapper around bridge transport and stateless fallback services.
 public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, DiagnosticsServing, @unchecked Sendable {
     private let transport: BridgeTransport?
     private let fallbackGeneration: MockPlaylistGenerationService
@@ -92,7 +93,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         do {
             let (response, _) = try await transport.send(
                 command: .generatePlaylist,
-                params: ["request": BridgeContracts.generationRequestDictionary(request)]
+                params: ["request": .object(BridgeContracts.generationRequestDictionary(request))]
             )
             return try BridgePayloadBuilder.generationResult(from: response.result)
         } catch let error as BridgeClientError {
@@ -114,9 +115,9 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             let (response, events) = try await transport.send(
                 command: .importPlaylist,
                 params: [
-                    "playlist": BridgePayloadBuilder.playlistDictionary(from: result),
-                    "sync": true,
-                    "write_json_diagnostics": true,
+                    "playlist": .object(BridgePayloadBuilder.playlistDictionary(from: result)),
+                    "sync": .bool(true),
+                    "write_json_diagnostics": .bool(true),
                 ]
             )
             for event in events {
@@ -138,12 +139,12 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         }
         let (response, _) = try await transport.send(
             command: .continueManualAcquisition,
-            params: ["import_session_id": importSessionID]
+            params: ["import_session_id": .string(importSessionID)]
         )
-        guard let importObject = response.result["import"] as? [String: Any] else {
+        guard let importObject = response.result["import"]?.objectValue else {
             throw PlaylistImportError.invalidResponse
         }
-        return try BridgePayloadBuilder.importResult(from: ["import": importObject])
+        return try BridgePayloadBuilder.importResult(from: ["import": .object(importObject)])
     }
 
     public func fetchDiagnostics() async throws -> DiagnosticsSnapshot {

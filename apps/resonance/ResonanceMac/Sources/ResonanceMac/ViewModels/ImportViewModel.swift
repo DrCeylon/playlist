@@ -83,28 +83,28 @@ final class ImportViewModel: ObservableObject {
     private func handle(event: BridgeEventMessage) {
         switch event.event {
         case .progress:
-            if let phaseRaw = event.payload["phase"] as? String,
+            if let phaseRaw = event.payload["phase"]?.stringValue,
                let phase = ImportPhase(rawValue: phaseRaw) {
                 progress.phase = phase
             }
-            progress.totalTracks = event.payload["total_tracks"] as? Int ?? progress.totalTracks
-            progress.processedTracks = event.payload["processed_tracks"] as? Int ?? progress.processedTracks
-            progress.currentTrackLabel = event.payload["current_track_label"] as? String ?? progress.currentTrackLabel
-            if let sessionID = event.payload["import_session_id"] as? String {
+            progress.totalTracks = event.payload["total_tracks"]?.intValue ?? progress.totalTracks
+            progress.processedTracks = event.payload["processed_tracks"]?.intValue ?? progress.processedTracks
+            progress.currentTrackLabel = event.payload["current_track_label"]?.stringValue ?? progress.currentTrackLabel
+            if let sessionID = event.payload["import_session_id"]?.stringValue {
                 importSessionID = sessionID
             }
         case .diagnostic:
-            if let message = event.payload["message"] as? String {
+            if let message = event.payload["message"]?.stringValue {
                 progress.diagnostics.append(message)
             }
         case .manualAcquisitionRequired:
-            importSessionID = event.payload["import_session_id"] as? String
+            importSessionID = event.payload["import_session_id"]?.stringValue
             manualPrompt = ManualAcquisitionPrompt(
-                token: event.payload["token"] as? String ?? "",
-                artist: event.payload["artist"] as? String ?? "",
-                title: event.payload["title"] as? String ?? "",
-                instructions: event.payload["instructions"] as? String ?? "",
-                catalogLabel: event.payload["catalog_label"] as? String ?? ""
+                token: event.payload["token"]?.stringValue ?? "",
+                artist: event.payload["artist"]?.stringValue ?? "",
+                title: event.payload["title"]?.stringValue ?? "",
+                instructions: event.payload["instructions"]?.stringValue ?? "",
+                catalogLabel: event.payload["catalog_label"]?.stringValue ?? ""
             )
             screenState = .waitingForManualAcquisition
         default:
