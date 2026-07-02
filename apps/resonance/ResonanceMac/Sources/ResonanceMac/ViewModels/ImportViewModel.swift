@@ -15,6 +15,7 @@ final class ImportViewModel: ObservableObject {
     @Published var progress = ImportProgressSnapshot()
     @Published var manualPrompt: ManualAcquisitionPrompt?
     @Published var report: ImportResultState?
+    @Published var architectErrorDetail: String?
 
     private let service: any PlaylistImportServing
     private var importSessionID: String?
@@ -25,9 +26,11 @@ final class ImportViewModel: ObservableObject {
 
     func importPlaylist(_ generationResult: PlaylistGenerationResult) async {
         screenState = .importing
+        architectErrorDetail = nil
         progress = ImportProgressSnapshot(
             playlistName: generationResult.playlistName,
             totalTracks: generationResult.trackCount,
+            currentStep: "Préparation de l'import…",
             diagnostics: ["Envoi de la commande import_playlist au moteur Python…"]
         )
         manualPrompt = nil
@@ -45,12 +48,15 @@ final class ImportViewModel: ObservableObject {
                 report = result
                 return
             }
+            applyFinalCounts(from: result)
             report = result
             screenState = .report
         } catch let error as PlaylistImportError {
-            screenState = .failed(message(for: error))
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
+            screenState = .failed(ImportErrorHumanizer.message(for: error))
         } catch {
-            screenState = .failed("L'import a échoué : \(error.localizedDescription)")
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
+            screenState = .failed(ImportErrorHumanizer.userMessage(for: error))
         }
     }
 
@@ -60,19 +66,23 @@ final class ImportViewModel: ObservableObject {
             return
         }
         screenState = .importing
+        progress.currentStep = "Reprise après ajout manuel…"
         do {
             let result = try await service.continueManualAcquisition(importSessionID: importSessionID)
-                if result.phase == .waitingForManualAcquisition {
-                    screenState = .waitingForManualAcquisition
-                    report = result
-                    return
-                }
+            if result.phase == .waitingForManualAcquisition {
+                screenState = .waitingForManualAcquisition
                 report = result
-                screenState = .report
+                return
+            }
+            applyFinalCounts(from: result)
+            report = result
+            screenState = .report
         } catch let error as PlaylistImportError {
-            screenState = .failed(message(for: error))
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
+            screenState = .failed(ImportErrorHumanizer.message(for: error))
         } catch {
-            screenState = .failed("La reprise d'import a échoué.")
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
+            screenState = .failed(ImportErrorHumanizer.userMessage(for: error))
         }
     }
 
@@ -82,16 +92,20 @@ final class ImportViewModel: ObservableObject {
         manualPrompt = nil
         report = nil
         importSessionID = nil
+        architectErrorDetail = nil
     }
 
     private func handle(event: BridgeEventMessage) {
         switch event.event {
         case .started:
-            appendDiagnostic(startedMessage(from: event.payload))
+            let message = startedMessage(from: event.payload)
+            progress.currentStep = message
+            appendDiagnostic(message)
         case .progress:
             if let phaseRaw = event.payload["phase"]?.stringValue,
                let phase = ImportPhase(rawValue: phaseRaw) {
                 progress.phase = phase
+                progress.currentStep = stepLabel(for: phase)
             }
             progress.totalTracks = event.payload["total_tracks"]?.intValue ?? progress.totalTracks
             progress.processedTracks = event.payload["processed_tracks"]?.intValue ?? progress.processedTracks
@@ -102,18 +116,24 @@ final class ImportViewModel: ObservableObject {
             if let sessionID = event.payload["import_session_id"]?.stringValue {
                 importSessionID = sessionID
             }
+            progress.addedCount = event.payload["added_count"]?.intValue ?? progress.addedCount
+            progress.skippedCount = event.payload["skipped_count"]?.intValue ?? progress.skippedCount
+            progress.notFoundCount = event.payload["not_found_count"]?.intValue ?? progress.notFoundCount
+            progress.errorCount = event.payload["error_count"]?.intValue ?? progress.errorCount
         case .diagnostic:
             if let message = event.payload["message"]?.stringValue {
-                let isBridgeLine = message.hasPrefix("[stderr]")
-                    || message.hasPrefix("[bridge error]")
-                    || message.contains("resonance-bridge:")
-                    || message.contains("resonance-import:")
-                appendDiagnostic(message, force: isBridgeLine)
+                progress.currentStep = message
+                updateRunningCounts(from: message)
+                if shouldSurfaceDiagnostic(message) {
+                    appendDiagnostic(message)
+                }
             }
         case .error:
             if let message = event.payload["message"]?.stringValue, !message.isEmpty {
+                progress.errorCount += 1
                 appendDiagnostic(message, force: true)
-                screenState = .failed(humanizeBridgeMessage(message))
+                architectErrorDetail = message
+                screenState = .failed(ImportErrorHumanizer.humanizeBridgeMessage(message))
             }
         case .manualAcquisitionRequired:
             importSessionID = event.payload["import_session_id"]?.stringValue
@@ -124,16 +144,56 @@ final class ImportViewModel: ObservableObject {
                 instructions: event.payload["instructions"]?.stringValue ?? "",
                 catalogLabel: event.payload["catalog_label"]?.stringValue ?? ""
             )
+            progress.currentStep = "En attente d'ajout manuel dans Music.app"
             screenState = .waitingForManualAcquisition
         default:
             break
         }
     }
 
+    private func applyFinalCounts(from result: ImportResultState) {
+        progress.addedCount = result.addedCount
+        progress.skippedCount = result.skippedCount
+        progress.notFoundCount = result.notFoundCount
+        progress.errorCount = result.errorCount
+        progress.currentStep = finalStepLabel(for: result)
+    }
+
     private func appendDiagnostic(_ message: String, force: Bool = false) {
         guard !message.isEmpty else { return }
-        if force || progress.diagnostics.last != message {
-            progress.diagnostics.append(message)
+        if !force, progress.diagnostics.last == message {
+            return
+        }
+        if progress.diagnostics.count >= ImportProgressSnapshot.maxVisibleDiagnostics {
+            progress.diagnostics.removeFirst(progress.diagnostics.count - ImportProgressSnapshot.maxVisibleDiagnostics + 1)
+        }
+        progress.diagnostics.append(message)
+    }
+
+    private func shouldSurfaceDiagnostic(_ message: String) -> Bool {
+        let lowered = message.lowercased()
+        if message.hasPrefix("[stderr]") || message.hasPrefix("[bridge error]") {
+            return lowered.contains("failed")
+                || lowered.contains("error")
+                || lowered.contains("échec")
+                || lowered.contains("introuvable")
+        }
+        return lowered.contains("music.app")
+            || lowered.contains("résolution")
+            || lowered.contains("resolve")
+            || lowered.contains("synchronis")
+            || lowered.contains("création")
+            || lowered.contains("commande")
+            || lowered.contains("livraison")
+            || lowered.contains("deliver")
+            || lowered.contains("introuvable")
+            || lowered.contains("cache")
+    }
+
+    private func updateRunningCounts(from message: String) {
+        let lowered = message.lowercased()
+        if lowered.contains("introuvable") || lowered.contains("not found") {
+            progress.notFoundCount += 1
         }
     }
 
@@ -147,27 +207,26 @@ final class ImportViewModel: ObservableObject {
         return "Import démarré"
     }
 
-    private func message(for error: PlaylistImportError) -> String {
-        switch error {
-        case .bridgeUnavailable:
-            return "Le moteur Python est indisponible. Vérifie l'installation du projet."
-        case .timeout:
-            return "Le moteur Python n'a pas répondu à temps. Vérifie que Music.app est ouvert et que Terminal/Resonance/Python est autorisé dans Réglages Système > Confidentialité et sécurité > Automatisation."
-        case .invalidResponse:
-            return "Réponse bridge invalide."
-        case .bridge(let payload):
-            return humanizeBridgeMessage(payload.message)
+    private func stepLabel(for phase: ImportPhase) -> String {
+        switch phase {
+        case .resolving: return "Résolution des morceaux dans Apple Music…"
+        case .acquiring: return "Acquisition catalogue…"
+        case .delivering: return "Ajout à la playlist Apple Music…"
+        case .waitingForManualAcquisition: return "En attente d'ajout manuel"
+        default: return "Import en cours…"
         }
     }
 
-    private func humanizeBridgeMessage(_ message: String) -> String {
-        let lowered = message.lowercased()
-        if lowered.contains("not authorized")
-            || lowered.contains("automation")
-            || lowered.contains("-1743")
-            || lowered.contains("autorisation") {
-            return "Autorise Terminal, Resonance ou Python à contrôler Music dans Réglages Système > Confidentialité et sécurité > Automatisation."
+    private func finalStepLabel(for result: ImportResultState) -> String {
+        switch result.phase {
+        case .completed:
+            return "Playlist créée — \(result.addedCount) morceau(x) ajouté(s)"
+        case .partialSuccess:
+            return "Import partiel — \(result.addedCount) ajouté(s), \(result.notFoundCount) introuvable(s), \(result.skippedCount) ignoré(s)"
+        case .failed:
+            return "Import échoué"
+        default:
+            return "Import terminé"
         }
-        return message
     }
 }

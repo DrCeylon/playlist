@@ -4,10 +4,14 @@ import SwiftUI
 enum ResonanceFeatureFlags {
     static var keyboardDebugEnabled: Bool {
         #if DEBUG
-        return true
+        return ProcessInfo.processInfo.environment["RESONANCE_KEYBOARD_DEBUG"] == "1"
         #else
         return ProcessInfo.processInfo.environment["RESONANCE_KEYBOARD_DEBUG"] == "1"
         #endif
+    }
+
+    static var architectModeEnabled: Bool {
+        ProcessInfo.processInfo.environment["RESONANCE_ARCHITECT_MODE"] == "1"
     }
 }
 
@@ -19,7 +23,7 @@ struct DebugInputSection: View {
     @State private var isKeyWindow = false
     @State private var keyMonitor: Any?
 
-    private let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(every: 2.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -50,7 +54,9 @@ struct DebugInputSection: View {
             removeKeyMonitor()
         }
         .onReceive(timer) { _ in
-            refreshResponderState()
+            if ResonanceFeatureFlags.keyboardDebugEnabled {
+                refreshResponderState()
+            }
         }
     }
 

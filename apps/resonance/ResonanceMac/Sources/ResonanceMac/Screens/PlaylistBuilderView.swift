@@ -34,6 +34,7 @@ struct PlaylistBuilderView: View {
                 ImportProgressView(
                     progress: importViewModel.progress,
                     manualPrompt: importViewModel.manualPrompt,
+                    architectErrorDetail: importViewModel.architectErrorDetail,
                     onConfirmManual: {
                         Task { await importViewModel.confirmManualAcquisition() }
                     }
@@ -47,7 +48,11 @@ struct PlaylistBuilderView: View {
                     }
                 }
             case .failed(let message):
-                ImportFailureView(message: message, palette: palette) {
+                ImportFailureView(
+                    message: message,
+                    architectErrorDetail: importViewModel.architectErrorDetail,
+                    palette: palette
+                ) {
                     importViewModel.reset()
                 }
             case .idle:
@@ -163,22 +168,22 @@ private struct PlaylistBuilderFormView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if ResonanceFeatureFlags.keyboardDebugEnabled {
-                DebugInputSection()
-            }
-            BuilderHelpSection(palette: palette)
-            ValidationSection(errors: validationErrors, palette: palette)
-            BridgeMessageSection(message: bridgeFallbackMessage, palette: palette)
-            EssentialFieldsSection(
-                draftName: $draftName,
-                draftSeedArtist: $draftSeedArtist,
-                draftSeedTrack: $draftSeedTrack,
-                draftKeywords: $draftKeywords,
-                draftTrackCount: $draftTrackCount
-            )
+        VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    if ResonanceFeatureFlags.keyboardDebugEnabled {
+                        DebugInputSection()
+                    }
+                    BuilderHelpSection(palette: palette)
+                    ValidationSection(errors: validationErrors, palette: palette)
+                    BridgeMessageSection(message: bridgeFallbackMessage, palette: palette)
+                    EssentialFieldsSection(
+                        draftName: $draftName,
+                        draftSeedArtist: $draftSeedArtist,
+                        draftSeedTrack: $draftSeedTrack,
+                        draftKeywords: $draftKeywords,
+                        draftTrackCount: $draftTrackCount
+                    )
                     AdvancedOptionsSection(
                         viewModel: viewModel,
                         palette: palette,
@@ -192,17 +197,23 @@ private struct PlaylistBuilderFormView: View {
                         isExpanded: $showExclusions,
                         onPushDraft: onPushDraft
                     )
-                    GenerateSection(
-                        viewModel: viewModel,
-                        palette: palette,
-                        canGenerateFromDrafts: draftsLookComplete,
-                        onPushDraft: onPushDraft,
-                        onCommitDraft: onCommitDraft
-                    )
                 }
+                .padding(24)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            Divider()
+            GenerateFooterSection(
+                viewModel: viewModel,
+                palette: palette,
+                canGenerateFromDrafts: draftsLookComplete,
+                onPushDraft: onPushDraft,
+                onCommitDraft: onCommitDraft
+            )
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .background(palette.backgroundPrimary)
         }
-        .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onChange(of: viewModel.energyProfile) { _, _ in
             onPushDraft()
@@ -386,7 +397,7 @@ private struct ExclusionsList: View {
     }
 }
 
-private struct GenerateSection: View {
+private struct GenerateFooterSection: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
     let palette: ThemePalette
     let canGenerateFromDrafts: Bool
@@ -394,12 +405,17 @@ private struct GenerateSection: View {
     let onCommitDraft: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if !canGenerateFromDrafts {
-                Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
-                    .font(.caption)
-                    .foregroundStyle(palette.textTertiary)
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Génération")
+                    .font(.headline)
+                if !canGenerateFromDrafts {
+                    Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textTertiary)
+                }
             }
+            Spacer()
             GenerateButton(
                 viewModel: viewModel,
                 canGenerateFromDrafts: canGenerateFromDrafts,
@@ -463,6 +479,7 @@ private struct NativeFormTextField: View {
 
 private struct ImportFailureView: View {
     let message: String
+    let architectErrorDetail: String?
     let palette: ThemePalette
     let onReset: () -> Void
 
@@ -473,6 +490,12 @@ private struct ImportFailureView: View {
                 .foregroundStyle(palette.statusWarning)
             Text(message)
                 .foregroundStyle(palette.textSecondary)
+            if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
+                Text(architectErrorDetail)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(palette.textTertiary)
+                    .textSelection(.enabled)
+            }
             Button("Revenir à l'aperçu", action: onReset)
                 .buttonStyle(.borderedProminent)
                 .tint(palette.accentPrimary)

@@ -1,5 +1,8 @@
 import Foundation
+import os
 import ResonanceCore
+
+private let bridgeServiceLogger = Logger(subsystem: "com.resonance.mac", category: "BridgeService")
 
 public enum ResonancePaths {
     public static func repoRoot(
@@ -199,13 +202,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                 ],
                 onEvent: onEvent,
                 onDiagnostic: { line in
-                    onEvent(
-                        BridgeEventMessage(
-                            id: "import-bridge",
-                            event: .diagnostic,
-                            payload: ["message": .string(line)]
-                        )
-                    )
+                    bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
                 }
             )
             if let importState = try? BridgePayloadBuilder.importResult(from: response.result),

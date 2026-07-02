@@ -6,6 +6,14 @@ final class PlaylistBuilderFormGuardTests: XCTestCase {
         let appKitFieldSource = try loadAppKitTextFieldSource()
 
         XCTAssertTrue(
+            source.contains("GenerateFooterSection"),
+            "Generate button must live in a sticky footer outside the scroll view"
+        )
+        XCTAssertTrue(
+            source.contains(".frame(maxWidth: .infinity, maxHeight: .infinity"),
+            "Scroll view must receive a bounded height so macOS scrolling works"
+        )
+        XCTAssertTrue(
             source.contains("AppKitTextField"),
             "Playlist builder must use AppKit-backed text fields for macOS keyboard input"
         )

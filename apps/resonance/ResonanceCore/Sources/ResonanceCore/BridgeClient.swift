@@ -153,7 +153,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
         return try Self.parseConversation(requestID: requestID, lines: lines)
     }
 
-    static func dispatchStreamingLine(
+    public static func dispatchStreamingLine(
         line: String,
         requestID: String,
         onEvent: (@Sendable (BridgeEventMessage) -> Void)?,
@@ -187,22 +187,41 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
         dispatchStreamingLine(line: line, requestID: "", onEvent: onEvent, onDiagnostic: nil)
     }
 
-    static func parseConversation(
+    public static func parseConversation(
         requestID: String,
         lines: [String]
     ) throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
         var events: [BridgeEventMessage] = []
         var response: BridgeResponseMessage?
+        var skippedNonJSONLines = 0
+
         for line in lines where !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let object = try BridgeResponseParser.parseJSONObject(line)
-            if object["type"]?.stringValue == "event" {
-                events.append(try BridgeResponseParser.parseEventLine(line))
+            guard let object = try? BridgeResponseParser.parseJSONObject(line) else {
+                skippedNonJSONLines += 1
+                bridgeLogger.warning(
+                    "Bridge stdout ignored (non-JSON): \(line, privacy: .public)"
+                )
                 continue
             }
-            if object["type"]?.stringValue == "response", object["id"]?.stringValue == requestID {
-                response = try BridgeResponseParser.parseResponseLine(line)
+
+            if object["type"]?.stringValue == "event",
+               let event = try? BridgeResponseParser.parseEventLine(line) {
+                events.append(event)
+                continue
+            }
+
+            if object["type"]?.stringValue == "response", object["id"]?.stringValue == requestID,
+               let parsed = try? BridgeResponseParser.parseResponseLine(line) {
+                response = parsed
             }
         }
+
+        if skippedNonJSONLines > 0 {
+            bridgeLogger.warning(
+                "Bridge conversation skipped \(skippedNonJSONLines, privacy: .public) non-JSON stdout line(s)"
+            )
+        }
+
         guard let response else {
             throw BridgeClientError.invalidResponse
         }

@@ -166,9 +166,9 @@ final class HistoryViewModel: ObservableObject {
             await refresh()
             await select(session: detail.summary)
         } catch let error as PlaylistImportError {
-            actionFeedback = .failure("Réimport impossible : \(importErrorMessage(error))")
+            actionFeedback = .failure("Réimport impossible : \(ImportErrorHumanizer.message(for: error))")
         } catch {
-            actionFeedback = .failure("Réimport impossible : \(error.localizedDescription)")
+            actionFeedback = .failure("Réimport impossible : \(ImportErrorHumanizer.userMessage(for: error))")
         }
     }
 
@@ -225,16 +225,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     private func importErrorMessage(_ error: PlaylistImportError) -> String {
-        switch error {
-        case .bridgeUnavailable:
-            return "moteur Python indisponible"
-        case .timeout:
-            return "délai dépassé"
-        case .invalidResponse:
-            return "réponse bridge invalide"
-        case .bridge(let payload):
-            return payload.message
-        }
+        ImportErrorHumanizer.message(for: error)
     }
 
     private func message(for error: SessionHistoryServiceError) -> String {

@@ -5,6 +5,7 @@ import SwiftUI
 struct ImportProgressView: View {
     let progress: ImportProgressSnapshot
     let manualPrompt: ManualAcquisitionPrompt?
+    let architectErrorDetail: String?
     let onConfirmManual: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -21,39 +22,89 @@ struct ImportProgressView: View {
             } else {
                 ProgressView(value: progress.progressRatio)
                     .tint(palette.accentPrimary)
-                Text(phaseLabel(progress.phase))
-                    .font(.headline)
-                    .foregroundStyle(palette.textPrimary)
+
+                if !progress.currentStep.isEmpty {
+                    Text(progress.currentStep)
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                } else {
+                    Text(phaseLabel(progress.phase))
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                }
+
                 if !progress.currentTrackLabel.isEmpty {
                     Text(progress.currentTrackLabel)
                         .font(.callout)
                         .foregroundStyle(palette.textSecondary)
                 }
-                Text("\(progress.processedTracks)/\(max(progress.totalTracks, 1)) morceaux")
-                    .font(.caption.monospacedDigit())
+
+                metricsRow(palette: palette)
+
+                Text(progress.cancellationNote)
+                    .font(.caption)
                     .foregroundStyle(palette.textTertiary)
             }
 
             if !progress.diagnostics.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Étapes")
+                    Text("Dernières étapes")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(palette.textSecondary)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(progress.diagnostics.enumerated()), id: \.offset) { _, line in
-                                Text(line)
-                                    .font(.caption)
-                                    .foregroundStyle(palette.textTertiary)
-                                    .textSelection(.enabled)
-                            }
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(progress.diagnostics.enumerated()), id: \.offset) { _, line in
+                            Text(line)
+                                .font(.caption)
+                                .foregroundStyle(palette.textTertiary)
+                                .textSelection(.enabled)
+                                .lineLimit(2)
                         }
                     }
-                    .frame(maxHeight: 220)
                 }
+            }
+
+            if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
+                Text(architectErrorDetail)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(palette.textTertiary)
+                    .textSelection(.enabled)
             }
         }
         .padding(24)
+    }
+
+    @ViewBuilder
+    private func metricsRow(palette: ThemePalette) -> some View {
+        HStack(spacing: 10) {
+            metricChip("Résolus", value: progress.resolvedCount, total: progress.totalTracks, palette: palette)
+            metricChip("Ajoutés", value: progress.addedCount, palette: palette)
+            metricChip("Introuv.", value: progress.notFoundCount, palette: palette)
+            metricChip("Erreurs", value: progress.errorCount, palette: palette)
+        }
+    }
+
+    private func metricChip(
+        _ title: String,
+        value: Int,
+        total: Int? = nil,
+        palette: ThemePalette
+    ) -> some View {
+        VStack(spacing: 2) {
+            if let total {
+                Text("\(value)/\(max(total, 1))")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+            } else {
+                Text("\(value)")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+            }
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(palette.backgroundSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     @ViewBuilder
