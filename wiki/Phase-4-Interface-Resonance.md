@@ -28,7 +28,11 @@ Construire **Resonance** : une interface provider-neutral au-dessus du moteur Py
 | **4.5** | Formulaire Nouvelle Playlist + preview | ✅ |
 | **4.6** | Import UX + bridge runtime Python | ✅ |
 | **4.7** | Laboratoire diagnostics | ✅ |
-| **4.7b** | Historique sessions | 📋 |
+| **4.7a** | Swift engineering excellence | ✅ |
+| **4.7b** | Reproductibilité environnement dev | ✅ |
+| **4.8** | Historique sessions | ✅ |
+| **4.8A** | Stabilisation UX macOS (clavier, import, perf, icône) | ✅ |
+| **5.0** | Édition playlist + polish produit | 📋 |
 | **4.9** | Shell iOS / iPadOS | 📋 |
 
 ## Premiers écrans (visuels textuels)
@@ -236,11 +240,28 @@ Voir [phase-4-diagnostics-lab.md](../docs/product/phase-4-diagnostics-lab.md).
 
 Voir [phase-4-session-history.md](../docs/product/phase-4-session-history.md).
 
+## Phase 4.8A — Stabilisation macOS (clôture)
+
+Corrections majeures après validation utilisateur :
+
+1. **Clavier** — champs AppKit, saisie native macOS validée
+2. **Formulaire** — scroll `safeAreaInset`, bouton Générer toujours visible
+3. **Import** — parsing bridge robuste (stdout non-JSON ignoré), messages français
+4. **Delivery Apple Music** — pacing, retry, confirmation playlist, timeout osascript
+5. **Acquisition manuelle** — copier artiste/titre/recherche, ouvrir Music.app
+6. **Historique** — actions documentées, guards busy, confirmation vider
+7. **Icône** — `ResonanceMac.app` + icône playlist/onde audio
+8. **Performances** — `mutateProgress` (1 publish/événement), stderr hors UI
+
+→ Rapport complet : [Phase 4.8A — Clôture](Phase-4-8A-Cloture)  
+→ Suite proposée : [Phase 5 — Vision](Phase-5-Vision)
+
 ## Lancer les tests
 
 ```bash
 python3 -m pytest -q
 cd apps/resonance && ./scripts/build.sh   # macOS
+./scripts/package-mac-app.sh && open dist/ResonanceMac.app   # icône Finder
 ```
 
 ## Documentation technique (repo)

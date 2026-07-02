@@ -13,13 +13,38 @@ def apple_escape(value: str) -> str:
     )
 
 
-def run_applescript(script: str) -> str:
-    result = subprocess.run(
-        ["osascript", "-e", script],
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+def format_applescript_error(stderr: str) -> str:
+    """Return an actionable French message for common Music.app automation failures."""
+    lowered = stderr.lower()
+    if (
+        "not authorized" in lowered
+        or "automation" in lowered
+        or "-1743" in stderr
+        or "autorisation" in lowered
+        or "assistive access" in lowered
+    ):
+            return (
+            "Autorise Resonance ou Terminal à contrôler Music dans "
+            "Réglages Système > Confidentialité et sécurité > Automatisation."
+        )
+    if "music got an error" in lowered and "not running" in lowered:
+        return "Music.app n'est pas lancé. Ouvre Music.app puis relance l'import."
+    return stderr.strip() or "Échec AppleScript vers Music.app."
+
+
+def run_applescript(script: str, *, timeout_seconds: float | None = 120.0) -> str:
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "Music.app n'a pas répondu à temps pendant une commande AppleScript."
+        ) from exc
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+        raise RuntimeError(format_applescript_error(result.stderr.strip() or result.stdout.strip()))
     return result.stdout.strip()

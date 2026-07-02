@@ -38,12 +38,17 @@ public struct ThemePalette {
   public let backgroundPrimary: Color
   public let backgroundSecondary: Color
   public let backgroundElevated: Color
+  public let surface: Color
   public let textPrimary: Color
   public let textSecondary: Color
   public let textTertiary: Color
   public let accentPrimary: Color
   public let accentSecondary: Color
   public let borderSubtle: Color
+  public let inputBackground: Color
+  public let inputText: Color
+  public let sidebarBackground: Color
+  public let sidebarText: Color
   public let statusSuccess: Color
   public let statusWarning: Color
   public let statusError: Color
@@ -55,12 +60,42 @@ public struct ThemePalette {
     backgroundPrimary = Self.color(for: "color.background.primary", in: colors)
     backgroundSecondary = Self.color(for: "color.background.secondary", in: colors)
     backgroundElevated = Self.color(for: "color.background.elevated", in: colors)
+    surface = Self.color(
+      for: "color.surface",
+      in: colors,
+      fallbackKey: "color.background.secondary",
+      fallbackColors: colors
+    )
     textPrimary = Self.color(for: "color.text.primary", in: colors)
     textSecondary = Self.color(for: "color.text.secondary", in: colors)
     textTertiary = Self.color(for: "color.text.tertiary", in: colors)
     accentPrimary = Self.color(for: "color.accent.primary", in: colors)
     accentSecondary = Self.color(for: "color.accent.secondary", in: colors)
     borderSubtle = Self.color(for: "color.border.subtle", in: colors)
+    inputBackground = Self.color(
+      for: "color.input.background",
+      in: colors,
+      fallbackKey: "color.background.elevated",
+      fallbackColors: colors
+    )
+    inputText = Self.color(
+      for: "color.input.text",
+      in: colors,
+      fallbackKey: "color.text.primary",
+      fallbackColors: colors
+    )
+    sidebarBackground = Self.color(
+      for: "color.sidebar.background",
+      in: colors,
+      fallbackKey: "color.background.secondary",
+      fallbackColors: colors
+    )
+    sidebarText = Self.color(
+      for: "color.sidebar.text",
+      in: colors,
+      fallbackKey: "color.text.primary",
+      fallbackColors: colors
+    )
     statusSuccess = Self.color(for: "color.status.success", in: colors)
     statusWarning = Self.color(for: "color.status.warning", in: colors)
     statusError = Self.color(for: "color.status.error", in: colors)
@@ -73,6 +108,18 @@ public struct ThemePalette {
       return .clear
     }
     return parsed
+  }
+
+  private static func color(
+    for key: String,
+    in colors: [String: String],
+    fallbackKey: String,
+    fallbackColors: [String: String]
+  ) -> Color {
+    if let hex = colors[key], let parsed = Color(hex: hex) {
+      return parsed
+    }
+    return color(for: fallbackKey, in: fallbackColors)
   }
 }
 
@@ -102,7 +149,7 @@ public struct ThemedScreen<Content: View>: View {
     content
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
       .background(palette.backgroundPrimary)
-      .foregroundStyle(palette.textPrimary)
+      .tint(palette.accentPrimary)
       .animation(.easeOut(duration: 0.3), value: themeManager.active.id)
   }
 }

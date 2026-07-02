@@ -17,6 +17,12 @@ from playlist_builder.app.bridge_runtime.mapping import track_add_results_to_imp
 from playlist_builder.ui.shared.dto.enums import ImportPhase
 
 
+def _import_log(message: str) -> None:
+    import sys
+
+    print(f"resonance-import: {message}", file=sys.stderr, flush=True)
+
+
 def stream_import_playlist(
     context: AppContext,
     playlist: PlaylistDefinition,
@@ -44,6 +50,8 @@ def stream_import_playlist(
 
     import_service = apple_gateway.import_service
     resolver = import_service.resolver
+    applescript = resolver._applescript  # noqa: SLF001
+
     if context.settings.wait_for_manual_catalog_add:
         from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionGate
 
@@ -62,6 +70,31 @@ def stream_import_playlist(
     canonical = canonical_playlist_from_legacy(playlist)
     rows = _flatten_rows(canonical)
     total = len(rows)
+
+    yield diagnostic_event(
+        request_id,
+        phase="import_start",
+        message=f"Commande import_playlist reçue — {total} morceau(x) à traiter",
+    )
+    _import_log(f"playlist={playlist.name!r} tracks={total} history_session pending")
+    yield diagnostic_event(
+        request_id,
+        phase="music_app",
+        message="Connexion à Music.app via AppleScript…",
+    )
+    _import_log("Music.app ensure_running")
+    try:
+        applescript.ensure_running()
+    except RuntimeError as exc:
+        _import_log(f"Music.app ensure_running failed: {exc}")
+        raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
+    _import_log("Music.app ensure_running OK")
+    yield diagnostic_event(
+        request_id,
+        phase="music_app",
+        message="Music.app accessible",
+    )
+
     yield progress_event(
         request_id,
         phase=ImportPhase.RESOLVING.value,
@@ -86,6 +119,12 @@ def stream_import_playlist(
             current_track_label=label,
             import_session_id=session_id,
         )
+        yield diagnostic_event(
+            request_id,
+            phase="resolve",
+            message=f"Résolution du morceau : {label}",
+        )
+        _import_log(f"resolve {index + 1}/{total}: {label}")
         try:
             outcome = resolver.resolve(track, section=section_name)
         except ManualAcquisitionInterrupted as pause:
@@ -162,13 +201,36 @@ def stream_import_playlist(
         import_session_id=session_id,
     )
 
+    yield diagnostic_event(
+        request_id,
+        phase="delivering",
+        message=f"Création/synchronisation de la playlist « {playlist.name} » dans Music.app…",
+    )
+    _import_log(f"ensure_playlist name={playlist.name!r}")
+
     try:
         import_service.delivery.ensure_playlist(playlist.name)
+        _import_log("sync_playlist starting")
         report = import_service.delivery.sync_playlist(canonical, [item[0] for item in outcomes])
+        _import_log("sync_playlist finished")
     except RuntimeError as exc:
+        _import_log(f"delivery failed: {exc}")
         raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
 
+    yield diagnostic_event(
+        request_id,
+        phase="delivering",
+        message="Playlist synchronisée dans Music.app",
+    )
+
     aligned = track_results_aligned_with_playlist(playlist.tracks, report)
+    added_count = sum(1 for item in aligned if item.status == TrackAddStatus.ADDED)
+    if added_count > 0:
+        yield diagnostic_event(
+            request_id,
+            phase="delivering",
+            message=f"Confirmation Music.app : {added_count} morceau(x) visible(s) dans la playlist",
+        )
     if write_json_diagnostics:
         from pathlib import Path
 

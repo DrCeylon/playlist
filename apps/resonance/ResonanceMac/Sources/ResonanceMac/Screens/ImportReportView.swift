@@ -25,6 +25,10 @@ struct ImportReportView: View {
 
                 metricsRow(palette: palette)
 
+                if report.phase == .partialSuccess {
+                    partialSuccessSection(palette: palette)
+                }
+
                 if !report.outcomes.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Détail")
@@ -59,12 +63,53 @@ struct ImportReportView: View {
         }
     }
 
+    private var nonAddedCount: Int {
+        report.outcomes.filter { $0.status != .added }.count
+    }
+
+    @ViewBuilder
+    private func partialSuccessSection(palette: ThemePalette) -> some View {
+        let groups = Dictionary(grouping: report.outcomes.filter { $0.status != .added }) { $0.status }
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Pourquoi certains morceaux n'ont pas été importés")
+                .font(.headline)
+                .foregroundStyle(palette.statusWarning)
+            if let skipped = groups[.skipped], !skipped.isEmpty {
+                outcomeGroup(title: "Déjà présents / ignorés", outcomes: skipped, palette: palette)
+            }
+            if let notFound = groups[.notFound], !notFound.isEmpty {
+                outcomeGroup(title: "Non trouvés dans Apple Music", outcomes: notFound, palette: palette)
+            }
+            if let errors = groups[.error], !errors.isEmpty {
+                outcomeGroup(title: "Erreurs", outcomes: errors, palette: palette)
+            }
+        }
+    }
+
+    private func outcomeGroup(title: String, outcomes: [ImportTrackOutcome], palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            ForEach(outcomes) { outcome in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(outcome.artist) — \(outcome.title)")
+                        .font(.callout)
+                    if !outcome.message.isEmpty {
+                        Text(outcome.message)
+                            .font(.caption)
+                            .foregroundStyle(palette.textTertiary)
+                    }
+                }
+            }
+        }
+    }
+
     private var laboratorySummary: String {
         switch report.phase {
         case .completed:
             return "Transfert terminé. Le laboratoire confirme une playlist stable."
         case .partialSuccess:
-            return "Transfert partiel. Certains morceaux ont résisté à l'expérience."
+            return "Transfert partiel : \(report.addedCount) ajouté(s), \(nonAddedCount) non importé(s). Voir le détail ci-dessous."
         case .waitingForManualAcquisition:
             return "Pause scientifique : ajout manuel requis dans Music.app."
         case .failed:

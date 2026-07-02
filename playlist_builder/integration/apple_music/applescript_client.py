@@ -31,6 +31,23 @@ end tell
 '''
         )
 
+    def count_playlist_tracks(self, playlist_name: str) -> int:
+        escaped = apple_escape(playlist_name)
+        output = run_applescript(
+            f'''
+tell application "Music"
+    if not (exists user playlist "{escaped}") then
+        return "0"
+    end if
+    return (count of tracks of user playlist "{escaped}") as text
+end tell
+'''
+        )
+        try:
+            return max(0, int(output.strip()))
+        except ValueError:
+            return 0
+
     def clear_playlist_tracks(self, playlist_name: str) -> None:
         escaped = apple_escape(playlist_name)
         run_applescript(

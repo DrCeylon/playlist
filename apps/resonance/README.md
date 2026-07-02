@@ -22,6 +22,19 @@ swift test
 swift run ResonanceMac
 ```
 
+The Dock icon is applied at runtime from bundled assets. For a proper **Finder `.app`** with `.icns` (instead of the terminal executable icon):
+
+```bash
+./scripts/package-mac-app.sh
+open dist/ResonanceMac.app
+```
+
+Regenerate icon sizes after editing the master artwork:
+
+```bash
+python3 scripts/generate-app-icon.py
+```
+
 Or use the helper script:
 
 ```bash

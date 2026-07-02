@@ -22,7 +22,8 @@
 **Évolution**
 - [Phase 2 — Génération](Phase-2-Generation)
 - [**Phase 4 — Resonance**](Phase-4-Interface-Resonance)
-- [Phase 4.8 — Session History](Phase-4-Interface-Resonance#phase-48--session-history)
+- [**Phase 4.8A — Clôture**](Phase-4-8A-Cloture)
+- [Phase 5 — Vision produit](Phase-5-Vision)
 - [MusicKit expérimental](MusicKit-Experimental)
 - [Feuille de route iOS](Feuille-de-route-iOS)
 

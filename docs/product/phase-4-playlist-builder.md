@@ -62,3 +62,9 @@ Import from preview → [phase-4-import-ux.md](phase-4-import-ux.md).
 | 4.6 bridge runtime + import | ✅ Done (see import UX doc) |
 | 4.7 laboratory | ✅ Done (see diagnostics lab doc) |
 | 4.7 history | 📋 Planned |
+
+## macOS usability fixes (4.8a)
+
+- Text fields use `color.input.text` / `color.input.background` tokens for readable typing in dark themes.
+- Form UX: essential fields first, advanced options and exclusions collapsed by default.
+- Help copy: « Remplis au minimum un nom et une graine ou des mots-clés. »

@@ -22,7 +22,7 @@ final class ThemeRegistryTests: XCTestCase {
 
         XCTAssertEqual(child.extends, "apple_music_dark")
         XCTAssertEqual(child.tokens.colors["color.background.primary"], "#232323")
-        XCTAssertEqual(child.tokens.colors["color.text.primary"], parent.tokens.colors["color.text.primary"])
+        XCTAssertEqual(child.tokens.colors["color.text.primary"], "#E8FFE8")
         XCTAssertEqual(child.tokens.colors["color.accent.primary"], "#00FF99")
     }
 

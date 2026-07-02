@@ -1,15 +1,58 @@
 import Foundation
+import os
 import ResonanceCore
+
+private let bridgeServiceLogger = Logger(subsystem: "com.resonance.mac", category: "BridgeService")
 
 public enum ResonancePaths {
     public static func repoRoot(
         fileManager: FileManager = .default,
-        startingAt: URL? = nil
+        environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> URL? {
-        var url = startingAt ?? URL(fileURLWithPath: fileManager.currentDirectoryPath)
-        for _ in 0..<10 {
-            let marker = url.appendingPathComponent("playlist_builder")
-            if fileManager.fileExists(atPath: marker.path) {
+        if let configured = environment["RESONANCE_REPO_ROOT"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !configured.isEmpty {
+            let url = URL(fileURLWithPath: configured)
+            if containsRepoMarker(at: url, fileManager: fileManager) {
+                return url
+            }
+        }
+
+        var candidates: [URL] = [
+            URL(fileURLWithPath: fileManager.currentDirectoryPath),
+        ]
+        if let executable = environment["RESONANCE_EXECUTABLE_PATH"] ?? Bundle.main.executablePath {
+            candidates.append(URL(fileURLWithPath: executable).deletingLastPathComponent())
+        }
+
+        for start in candidates {
+            if let root = walkUpToRepoRoot(from: start, fileManager: fileManager) {
+                return root
+            }
+        }
+        return nil
+    }
+
+    public static func resolvePythonExecutable(
+        repoRoot: URL,
+        fileManager: FileManager = .default
+    ) -> String {
+        let candidates = [
+            repoRoot.appendingPathComponent(".venv/bin/python"),
+            repoRoot.appendingPathComponent(".venv/bin/python3"),
+            URL(fileURLWithPath: "/opt/homebrew/bin/python3.12"),
+            URL(fileURLWithPath: "/usr/local/bin/python3.12"),
+            URL(fileURLWithPath: "/usr/bin/python3"),
+        ]
+        for candidate in candidates where fileManager.isExecutableFile(atPath: candidate.path) {
+            return candidate.path
+        }
+        return "/usr/bin/python3"
+    }
+
+    private static func walkUpToRepoRoot(from start: URL, fileManager: FileManager) -> URL? {
+        var url = start
+        for _ in 0..<12 {
+            if containsRepoMarker(at: url, fileManager: fileManager) {
                 return url
             }
             let parent = url.deletingLastPathComponent()
@@ -19,6 +62,10 @@ public enum ResonancePaths {
             url = parent
         }
         return nil
+    }
+
+    private static func containsRepoMarker(at url: URL, fileManager: FileManager) -> Bool {
+        fileManager.fileExists(atPath: url.appendingPathComponent("playlist_builder").path)
     }
 }
 
@@ -44,26 +91,34 @@ public struct PythonEngineBridgeConfiguration: Sendable {
         fileManager: FileManager = .default,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> PythonEngineBridgeConfiguration? {
-        if let configured = environment["RESONANCE_REPO_ROOT"], !configured.isEmpty {
-            return PythonEngineBridgeConfiguration(workingDirectory: URL(fileURLWithPath: configured))
-        }
-        guard let root = ResonancePaths.repoRoot(fileManager: fileManager) else {
+        guard let root = ResonancePaths.repoRoot(fileManager: fileManager, environment: environment) else {
             return nil
         }
-        return PythonEngineBridgeConfiguration(workingDirectory: root)
+        let python = ResonancePaths.resolvePythonExecutable(repoRoot: root, fileManager: fileManager)
+        return PythonEngineBridgeConfiguration(pythonExecutable: python, workingDirectory: root)
     }
 }
 
 /// Immutable service wrapper around bridge transport and stateless fallback services.
 public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, DiagnosticsServing, SessionHistoryServing, @unchecked Sendable {
     private let transport: BridgeTransport?
+    private let configuration: PythonEngineBridgeConfiguration?
     private let fallbackGeneration: MockPlaylistGenerationService
     private let fallbackImport: MockPlaylistImportService
+
+    public var isBridgeConfigured: Bool {
+        transport != nil
+    }
+
+    public var bridgeWorkingDirectory: String? {
+        configuration?.workingDirectory.path
+    }
 
     public init(
         configuration: PythonEngineBridgeConfiguration? = PythonEngineBridgeConfiguration.automatic(),
         transport: BridgeTransport? = nil
     ) {
+        self.configuration = configuration
         if let transport {
             self.transport = transport
         } else if let configuration, configuration.useBridgeWhenAvailable {
@@ -112,18 +167,44 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             return try await fallbackImport.importPlaylist(result, onEvent: onEvent)
         }
         do {
-            let (response, events) = try await transport.send(
+            let playlistPayload = BridgePayloadBuilder.playlistDictionary(from: result)
+            let sectionCount = result.sections.count
+            onEvent(
+                BridgeEventMessage(
+                    id: "import-local",
+                    event: .diagnostic,
+                    payload: [
+                        "message": .string(
+                            "Import cliqué — playlist «\(result.playlistName)», \(result.trackCount) morceau(x), \(sectionCount) section(s), history_session_id=\(result.historySessionID.isEmpty ? "—" : result.historySessionID)"
+                        ),
+                    ]
+                )
+            )
+            if let workingDirectory = bridgeWorkingDirectory {
+                onEvent(
+                    BridgeEventMessage(
+                        id: "import-local",
+                        event: .diagnostic,
+                        payload: [
+                            "message": .string("Lancement process Python bridge dans \(workingDirectory)"),
+                        ]
+                    )
+                )
+            }
+
+            let (response, _) = try await transport.send(
                 command: .importPlaylist,
                 params: [
-                    "playlist": .object(BridgePayloadBuilder.playlistDictionary(from: result)),
+                    "playlist": .object(playlistPayload),
                     "sync": .bool(true),
                     "write_json_diagnostics": .bool(true),
                     "history_session_id": .string(result.historySessionID),
-                ]
+                ],
+                onEvent: onEvent,
+                onDiagnostic: { line in
+                    bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
+                }
             )
-            for event in events {
-                onEvent(event)
-            }
             if let importState = try? BridgePayloadBuilder.importResult(from: response.result),
                importState.phase == .waitingForManualAcquisition {
                 return importState
@@ -135,12 +216,23 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
     }
 
     public func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+        try await continueManualAcquisition(importSessionID: importSessionID, onEvent: { _ in })
+    }
+
+    public func continueManualAcquisition(
+        importSessionID: String,
+        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+    ) async throws -> ImportResultState {
         guard let transport else {
             throw PlaylistImportError.bridgeUnavailable
         }
         let (response, _) = try await transport.send(
             command: .continueManualAcquisition,
-            params: ["import_session_id": .string(importSessionID)]
+            params: ["import_session_id": .string(importSessionID)],
+            onEvent: onEvent,
+            onDiagnostic: { line in
+                bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
+            }
         )
         guard let importObject = response.result["import"]?.objectValue else {
             throw PlaylistImportError.invalidResponse
@@ -173,9 +265,15 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
     }
 
     public func listHistory() async throws -> [SessionHistorySummary] {
-        guard let transport else { return [] }
-        let (response, _) = try await transport.send(command: .listHistory, params: [:])
-        return BridgePayloadBuilder.historySessions(from: response.result)
+        guard let transport else {
+            throw SessionHistoryServiceError.bridgeUnavailable
+        }
+        do {
+            let (response, _) = try await transport.send(command: .listHistory, params: [:])
+            return BridgePayloadBuilder.historySessions(from: response.result)
+        } catch let error as BridgeClientError {
+            throw mapHistoryError(error)
+        }
     }
 
     public func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? {
@@ -197,7 +295,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
     }
 
     public func clearHistory() async throws -> Bool {
-        guard let transport else { return true }
+        guard let transport else { return false }
         let (response, _) = try await transport.send(command: .clearHistory, params: [:])
         return response.result["cleared"]?.boolValue ?? false
     }
@@ -235,6 +333,19 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         }
     }
 
+    private func mapHistoryError(_ error: BridgeClientError) -> SessionHistoryServiceError {
+        switch error {
+        case .bridge(let payload):
+            return .bridge(payload)
+        case .processUnavailable, .bridgeUnavailable:
+            return .bridgeUnavailable
+        case .timeout:
+            return .timeout
+        case .invalidResponse:
+            return .invalidResponse
+        }
+    }
+
     private func mapError(_ error: BridgeClientError) -> Error {
         switch error {
         case .bridge(let payload):
@@ -249,7 +360,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
     }
 }
 
-public enum PlaylistImportError: Error, Equatable {
+public enum PlaylistImportError: Error, Equatable, Sendable {
     case bridgeUnavailable
     case timeout
     case invalidResponse

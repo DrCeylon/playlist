@@ -46,12 +46,21 @@ public struct ImportTrackOutcome: Identifiable, Hashable, Codable, Sendable {
 }
 
 public struct ImportProgressSnapshot: Equatable, Sendable {
+    public static let maxVisibleDiagnostics = 8
+
     public var phase: ImportPhase
     public var playlistName: String
     public var totalTracks: Int
     public var processedTracks: Int
     public var currentTrackLabel: String
+    public var currentStep: String
+    public var addedCount: Int
+    public var skippedCount: Int
+    public var notFoundCount: Int
+    public var errorCount: Int
     public var diagnostics: [String]
+    public var cancellationNote: String
+    public var lastActivityAt: Date
 
     public init(
         phase: ImportPhase = .idle,
@@ -59,14 +68,32 @@ public struct ImportProgressSnapshot: Equatable, Sendable {
         totalTracks: Int = 0,
         processedTracks: Int = 0,
         currentTrackLabel: String = "",
-        diagnostics: [String] = []
+        currentStep: String = "",
+        addedCount: Int = 0,
+        skippedCount: Int = 0,
+        notFoundCount: Int = 0,
+        errorCount: Int = 0,
+        diagnostics: [String] = [],
+        cancellationNote: String = "Annulation prévue — l'import en cours ne peut pas être interrompu proprement.",
+        lastActivityAt: Date = .now
     ) {
         self.phase = phase
         self.playlistName = playlistName
         self.totalTracks = totalTracks
         self.processedTracks = processedTracks
         self.currentTrackLabel = currentTrackLabel
+        self.currentStep = currentStep
+        self.addedCount = addedCount
+        self.skippedCount = skippedCount
+        self.notFoundCount = notFoundCount
+        self.errorCount = errorCount
         self.diagnostics = diagnostics
+        self.cancellationNote = cancellationNote
+        self.lastActivityAt = lastActivityAt
+    }
+
+    public var resolvedCount: Int {
+        processedTracks
     }
 
     public var progressRatio: Double {
@@ -143,4 +170,14 @@ public protocol PlaylistImportServing: Sendable {
     ) async throws -> ImportResultState
 
     func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState
+}
+
+public extension PlaylistImportServing {
+    func continueManualAcquisition(
+        importSessionID: String,
+        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+    ) async throws -> ImportResultState {
+        _ = onEvent
+        return try await continueManualAcquisition(importSessionID: importSessionID)
+    }
 }

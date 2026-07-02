@@ -11,40 +11,57 @@ struct SettingsView: View {
         ThemedScreen {
             let palette = ThemePalette(theme: themeManager.active)
 
-            Form {
-                Section("Apparence") {
-                    Picker("Thème", selection: $selectedThemeID) {
-                        ForEach(themeManager.themeOptions) { option in
-                            HStack(spacing: 12) {
-                                ThemePreviewSwatch(option: option)
-                                Text(option.displayName)
-                            }
-                            .tag(option.themeID)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Apparence")
+                            .font(.headline)
+                            .foregroundStyle(palette.textPrimary)
+
+                        ThemedThemePicker(
+                            selection: $selectedThemeID,
+                            options: themeManager.themeOptions,
+                            palette: palette
+                        )
+                        .onChange(of: selectedThemeID) { _, newValue in
+                            applyTheme(newValue)
+                        }
+
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(.callout)
+                                .foregroundStyle(palette.statusError)
                         }
                     }
-                    .onChange(of: selectedThemeID) { _, newValue in
-                        applyTheme(newValue)
-                    }
+                    .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
 
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.callout)
-                            .foregroundStyle(palette.statusError)
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("À propos")
+                            .font(.headline)
+                            .foregroundStyle(palette.textPrimary)
+                        infoRow(title: "Version shell", value: "4.8 Preview", palette: palette)
+                        infoRow(title: "Thème actif", value: themeManager.active.displayName, palette: palette)
                     }
+                    .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
                 }
-
-                Section("À propos") {
-                    LabeledContent("Version shell", value: "4.4 MVP")
-                    LabeledContent("Thème actif", value: themeManager.active.displayName)
-                }
+                .padding(24)
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
             .onAppear {
                 selectedThemeID = themeManager.active.id
             }
         }
         .navigationTitle("Paramètres")
+    }
+
+    private func infoRow(title: String, value: String, palette: ThemePalette) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(palette.textSecondary)
+            Spacer()
+            Text(value)
+                .foregroundStyle(palette.textPrimary)
+        }
+        .font(.callout)
     }
 
     private func applyTheme(_ themeID: String) {
@@ -53,21 +70,6 @@ struct SettingsView: View {
             errorMessage = nil
         } catch {
             errorMessage = "Impossible d'appliquer le thème."
-        }
-    }
-}
-
-private struct ThemePreviewSwatch: View {
-    let option: ThemeOption
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(Color(tokenHex: option.previewBackground))
-                .frame(width: 14, height: 14)
-            Circle()
-                .fill(Color(tokenHex: option.previewAccent))
-                .frame(width: 14, height: 14)
         }
     }
 }

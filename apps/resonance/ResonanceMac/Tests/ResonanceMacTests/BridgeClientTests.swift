@@ -6,10 +6,18 @@ final class MockBridgeTransport: BridgeTransport, @unchecked Sendable {
     var lastCommand: BridgeCommand?
     var handler: ((BridgeCommand, BridgeJSONObject) -> (BridgeResponseMessage, [BridgeEventMessage]))?
 
-    func send(command: BridgeCommand, requestID: String, params: BridgeJSONObject) async throws -> (
+    func send(
+        command: BridgeCommand,
+        requestID: String,
+        params: BridgeJSONObject,
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)?,
+        onDiagnostic: (@Sendable (String) -> Void)?
+    ) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
     ) {
+        _ = onEvent
+        _ = onDiagnostic
         lastCommand = command
         if let handler {
             return handler(command, params)
@@ -70,6 +78,16 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertEqual(snapshot.events[0].payload.first?.key, "bridge_status")
     }
 
+    func testDiagnosticsSnapshotToleratesMissingSummary() throws {
+        let payload: BridgeJSONObject = [
+            "engine_version": .string("1.0.0"),
+            "events": .array([]),
+        ]
+        let snapshot = try BridgePayloadBuilder.diagnosticsSnapshot(from: payload)
+        XCTAssertEqual(snapshot.engineVersion, "1.0.0")
+        XCTAssertEqual(snapshot.summary.bridgeStatus, "unknown")
+    }
+
     func testHistorySessionDecoding() {
         let payload: BridgeJSONObject = [
             "sessions": .array([
@@ -105,6 +123,21 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertNotNil(response.result["generation"]?.objectValue)
     }
 
+    func testDispatchStreamingLineParsesProgressEvent() {
+        let line = """
+        {"id":"req-1","type":"event","event":"progress","payload":{"phase":"resolving","total_tracks":3,"processed_tracks":1}}
+        """
+        var received: BridgeEventMessage?
+        BridgeClient.dispatchStreamingLine(
+            line: line,
+            requestID: "req-1",
+            onEvent: { event in received = event },
+            onDiagnostic: nil
+        )
+        XCTAssertEqual(received?.event, .progress)
+        XCTAssertEqual(received?.payload["total_tracks"]?.intValue, 3)
+    }
+
     func testGenerationRequestDictionaryUsesSnakeCase() {
         let request = PlaylistGenerationRequest(
             name: "Pool",
@@ -115,6 +148,76 @@ final class BridgeClientTests: XCTestCase {
         let payload = BridgeContracts.generationRequestDictionary(request)
         XCTAssertEqual(payload["provider_id"]?.stringValue, "apple_music")
         XCTAssertEqual(payload["target_track_count"]?.intValue, 12)
+    }
+
+    func testParseConversationIgnoresNonJSONStdoutLines() throws {
+        let requestID = "req-import-1"
+        let eventLine = """
+        {"id":"\(requestID)","type":"event","event":"progress","payload":{"phase":"resolving","processed_tracks":2,"total_tracks":5}}
+        """
+        let noiseLine = "resonance-import: resolve 3/5: Artist — Title"
+        let responseLine = """
+        {"id":"\(requestID)","type":"response","ok":true,"result":{"import":{"playlist_name":"Demo","phase":"partial_success","outcomes":[]}}}
+        """
+        let parsed = try BridgeClient.parseConversation(
+            requestID: requestID,
+            lines: [eventLine, noiseLine, responseLine]
+        )
+        XCTAssertTrue(parsed.response.ok)
+        XCTAssertEqual(parsed.events.count, 1)
+        XCTAssertEqual(parsed.events.first?.event, .progress)
+    }
+
+    func testParseConversationFailsWhenResponseMissing() {
+        let requestID = "req-import-2"
+        XCTAssertThrowsError(
+            try BridgeClient.parseConversation(
+                requestID: requestID,
+                lines: ["not json at all", "still not json"]
+            )
+        ) { error in
+            XCTAssertEqual(error as? BridgeClientError, .invalidResponse)
+        }
+    }
+
+    func testParseConversationDecodesPartialSuccessImport() throws {
+        let requestID = "req-import-3"
+        let responseLine = """
+        {"id":"\(requestID)","type":"response","ok":true,"result":{"import":{"playlist_name":"Demo","phase":"partial_success","outcomes":[{"artist":"A","title":"B","section":"Main","status":"not_found","message":"Introuvable"}]}}}
+        """
+        let parsed = try BridgeClient.parseConversation(requestID: requestID, lines: [responseLine])
+        let importState = try BridgePayloadBuilder.importResult(from: parsed.response.result)
+        XCTAssertEqual(importState.phase, .partialSuccess)
+        XCTAssertEqual(importState.notFoundCount, 1)
+    }
+
+    func testParseConversationDecodesFailedImportWithBridgeError() {
+        let requestID = "req-import-4"
+        let responseLine = """
+        {"id":"\(requestID)","type":"response","ok":false,"result":{},"error":{"code":"provider_unavailable","message":"Music.app inaccessible"}}
+        """
+        XCTAssertThrowsError(
+            try BridgeClient.parseConversation(requestID: requestID, lines: [responseLine])
+        ) { error in
+            guard case .bridge(let payload) = error as? BridgeClientError else {
+                return XCTFail("Expected bridge error")
+            }
+            XCTAssertEqual(payload.code, .providerUnavailable)
+            XCTAssertTrue(payload.message.contains("Music.app"))
+        }
+    }
+
+    func testDispatchStreamingLineIgnoresNonJSONStdout() {
+        var eventCount = 0
+        var diagnosticCount = 0
+        BridgeClient.dispatchStreamingLine(
+            line: "resonance-bridge: human log on stdout by mistake",
+            requestID: "req-1",
+            onEvent: { _ in eventCount += 1 },
+            onDiagnostic: { _ in diagnosticCount += 1 }
+        )
+        XCTAssertEqual(eventCount, 0)
+        XCTAssertEqual(diagnosticCount, 0)
     }
 
     func testBridgePayloadBuilderImportResult() throws {

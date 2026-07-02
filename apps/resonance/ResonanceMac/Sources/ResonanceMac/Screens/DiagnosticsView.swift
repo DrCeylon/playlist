@@ -14,11 +14,14 @@ struct DiagnosticsView: View {
         ThemedScreen {
             let palette = ThemePalette(theme: themeManager.active)
 
-            VStack(alignment: .leading, spacing: 20) {
-                header(palette: palette)
-                content(palette: palette)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header(palette: palette)
+                    content(palette: palette)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(24)
         }
         .navigationTitle("Laboratoire")
         .task {
@@ -36,12 +39,12 @@ struct DiagnosticsView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)
             Spacer()
-            Picker("Mode", selection: $viewModel.displayMode) {
-                ForEach(DiagnosticsViewModel.DisplayMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
+            ThemedSegmentedPicker(
+                title: "",
+                selection: $viewModel.displayMode,
+                options: DiagnosticsViewModel.DisplayMode.allCases.map { ($0, $0.title) },
+                palette: palette
+            )
             .frame(maxWidth: 260)
         }
     }
@@ -59,6 +62,12 @@ struct DiagnosticsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(palette.statusWarning)
+                if viewModel.displayMode == .architect, let detail = viewModel.architectErrorDetail {
+                    Text(detail)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(palette.textTertiary)
+                        .textSelection(.enabled)
+                }
                 Button("Réessayer") {
                     Task { await viewModel.refresh() }
                 }
@@ -106,9 +115,7 @@ struct DiagnosticsView: View {
                 metric(title: "Pays", value: snapshot.summary.countryCode.uppercased(), palette: palette)
             }
         }
-        .padding(16)
-        .background(palette.backgroundSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
     }
 
     @ViewBuilder
@@ -122,6 +129,7 @@ struct DiagnosticsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(provider.displayName)
                             .font(.body.weight(.medium))
+                            .foregroundStyle(palette.textPrimary)
                         if !provider.unavailableReason.isEmpty {
                             Text(provider.unavailableReason)
                                 .font(.caption)
@@ -153,6 +161,7 @@ struct DiagnosticsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(report.playlistName)
                         .font(.body.weight(.medium))
+                        .foregroundStyle(palette.textPrimary)
                     Text("\(report.generatedAt) · +\(report.added) · introuvables \(report.notFound) · erreurs \(report.errors)")
                         .font(.caption)
                         .foregroundStyle(palette.textSecondary)
@@ -217,9 +226,7 @@ struct DiagnosticsView: View {
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
         }
-        .padding(16)
-        .background(palette.backgroundSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
     }
 
     private func metric(title: String, value: String, palette: ThemePalette) -> some View {

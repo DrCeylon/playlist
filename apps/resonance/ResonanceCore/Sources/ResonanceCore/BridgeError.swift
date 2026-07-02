@@ -20,7 +20,7 @@ public struct BridgeErrorPayload: Equatable, Sendable {
     }
 }
 
-public enum BridgeClientError: Error, Equatable {
+public enum BridgeClientError: Error, Equatable, Sendable {
     case processUnavailable
     case timeout
     case invalidResponse
@@ -28,7 +28,14 @@ public enum BridgeClientError: Error, Equatable {
     case bridge(BridgeErrorPayload)
 }
 
-public enum DiagnosticsServiceError: Error, Equatable {
+public enum DiagnosticsServiceError: Error, Equatable, Sendable {
+    case bridgeUnavailable
+    case timeout
+    case invalidResponse
+    case bridge(BridgeErrorPayload)
+}
+
+public enum SessionHistoryServiceError: Error, Equatable, Sendable {
     case bridgeUnavailable
     case timeout
     case invalidResponse

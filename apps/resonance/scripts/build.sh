@@ -33,4 +33,11 @@ swift build
 echo "==> swift test"
 swift test
 
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  echo ""
+  echo "Tip: build a proper .app with icon for Finder/Dock:"
+  echo "  ./scripts/package-mac-app.sh"
+  echo "  open dist/ResonanceMac.app"
+fi
+
 echo "==> Resonance package OK"
