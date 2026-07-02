@@ -82,13 +82,27 @@ git pull
 playlist/
 ├── check_catalog.py          # Point d'entrée — vérification catalogue
 ├── create_playlist.py        # Point d'entrée — création playlist
+├── apps/resonance/           # App macOS Resonance (SwiftUI)
+│   ├── scripts/build.sh
+│   └── scripts/package-mac-app.sh
 ├── playlists/                # Tes définitions JSON
 │   └── orlando_pool_party_2026.json
 ├── reports/                  # Rapports générés (gitignored)
 ├── cache/                    # Cache API catalogue (gitignored)
 ├── playlist_builder/         # Code source du package
+├── wiki/                     # Documentation wiki (publiée sur GitHub Wiki)
 └── docs/                     # Documentation technique du repo
 ```
+
+## App macOS Resonance
+
+```bash
+cd apps/resonance
+./scripts/package-mac-app.sh
+open dist/ResonanceMac.app
+```
+
+→ [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance) · [Phase 4.8A — Clôture](Phase-4-8A-Cloture)
 
 ## Prochaine étape
 

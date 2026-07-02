@@ -16,7 +16,7 @@
 |------|--------|-------------|
 | **CLI manuel** | ✅ Disponible | JSON → `create_playlist.py` |
 | **CLI assisté** | ✅ Disponible | Seeds + mots-clés → `generate_playlist.py` |
-| **App macOS Resonance** | ✅ MVP | SwiftUI — génération, import, thèmes |
+| **App macOS Resonance** | ✅ MVP stabilisé | SwiftUI — génération, import, historique, thèmes |
 
 ## Ce que tu peux faire aujourd'hui
 
@@ -27,6 +27,7 @@
 | Créer la playlist dans Apple Music (macOS) | `create_playlist.py` | Gratuit |
 | Prévisualiser sans toucher à Music | `--dry-run` | Gratuit |
 | App macOS Resonance (génération + import) | `apps/resonance` | Gratuit (macOS) |
+| App `.app` avec icône (Finder/Dock) | `./scripts/package-mac-app.sh` | Gratuit (macOS) |
 | MusicKit API (catalogue direct) | `--engine musickit` | **Expérimental** |
 
 ## Workflow CLI (3 étapes)
@@ -63,7 +64,9 @@ Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive
 
 **Évolution**
 - [Phase 2 — Génération intelligente](Phase-2-Generation)
-- [**Phase 4 — Interface Resonance**](Phase-4-Interface-Resonance) ← **nouveau**
+- [**Phase 4 — Interface Resonance**](Phase-4-Interface-Resonance)
+- [**Phase 4.8A — Clôture**](Phase-4-8A-Cloture) ← **état actuel**
+- [Phase 5 — Vision produit](Phase-5-Vision)
 - [MusicKit (expérimental)](MusicKit-Experimental)
 - [Feuille de route iOS](Feuille-de-route-iOS)
 

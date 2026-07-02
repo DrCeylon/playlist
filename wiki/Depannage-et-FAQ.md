@@ -30,10 +30,17 @@ Sur macOS avec Xcode / Swift installé :
 ```bash
 cd apps/resonance
 ./scripts/build.sh
+./scripts/package-mac-app.sh
+open dist/ResonanceMac.app
+```
+
+Pour le développement rapide (icône Dock mais pas Finder) :
+
+```bash
 swift run ResonanceMac
 ```
 
-L'app propose : navigation sidebar, Accueil, Paramètres (thèmes), formulaire **Nouvelle Playlist** avec génération moteur Python, et **import Apple Music** (Phase 4.6, macOS + Music.app).
+L'app propose : navigation sidebar, Accueil, **Nouvelle Playlist** (saisie clavier AppKit), génération moteur Python, **import Apple Music** avec progression et acquisition manuelle, **Historique**, **Laboratoire**.
 
 Variable utile si le repo n'est pas détecté automatiquement :
 
@@ -178,14 +185,36 @@ User token invalide ou permissions insuffisantes.
 
 ---
 
+## Problèmes Resonance macOS (Phase 4.8A)
+
+### L'import affiche une erreur JSON / « data couldn't be read »
+
+Corrigé en 4.8A : le bridge ignore les lignes stdout non-JSON. Si le message persiste :
+1. Vérifie `RESONANCE_REPO_ROOT`
+2. Relance avec `RESONANCE_ARCHITECT_MODE=1` pour le détail technique
+3. Consulte [Phase 4.8A — Clôture](Phase-4-8A-Cloture)
+
+### Music.app se fige en fin d'import
+
+La livraison utilise désormais pacing + retry + confirmation. Laisse l'import terminer ; vérifie le rapport partiel si certains morceaux manquent.
+
+### Autorisation Automatisation manquante
+
+Réglages Système → Confidentialité et sécurité → **Automatisation** → autorise Resonance ou Python à contrôler **Musique**.
+
+### Acquisition manuelle — comment chercher le morceau ?
+
+Dans l'écran d'import : boutons **Copier recherche** / **Artiste** / **Morceau**, puis colle dans la recherche Music.app.
+
+---
+
 ## Tests et debug
 
 ### Lancer les tests
 
 ```bash
-python --version  # doit être >= 3.12
-pip install -e ".[dev]"
 python3 -m pytest -q
+cd apps/resonance && ./scripts/build.sh   # macOS uniquement
 ```
 
 ### Dry-run (zéro risque)

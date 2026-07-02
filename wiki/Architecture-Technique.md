@@ -91,6 +91,8 @@
 
 ```bash
 cd apps/resonance && ./scripts/build.sh && swift run ResonanceMac
+# ou avec icône Finder/Dock :
+./scripts/package-mac-app.sh && open dist/ResonanceMac.app
 ```
 
 ## Moteur Apple Music (intégration)
@@ -101,7 +103,9 @@ Le workflow CLI macOS utilise `integration/apple_music/` :
 - Livraison playlist via AppleScript (moteur principal)
 - MusicKit expérimental en option
 
-L'**UI Resonance** n'embarque pas AppleScript — elle passera par le **Engine Bridge**.
+L'**UI Resonance** n'embarque pas AppleScript — elle passe par le **Engine Bridge** (JSON-lines, streaming stderr séparé).
+
+**Delivery (4.8A)** : pacing inter-batches, retry `not_found`, confirmation compteur playlist, timeout osascript 120s (`delivery_pacing.py`).
 
 ## Phase 2 — Planning & Generation
 

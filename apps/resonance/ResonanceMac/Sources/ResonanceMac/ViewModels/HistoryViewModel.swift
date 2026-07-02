@@ -158,7 +158,7 @@ final class HistoryViewModel: ObservableObject {
         } catch let error as SessionHistoryServiceError {
             actionFeedback = .failure("Relance impossible : \(message(for: error))")
         } catch {
-            actionFeedback = .failure("Relance impossible : \(error.localizedDescription)")
+            actionFeedback = .failure("Relance impossible : erreur inattendue.")
         }
     }
 
@@ -224,7 +224,7 @@ final class HistoryViewModel: ObservableObject {
         } catch let error as SessionHistoryServiceError {
             actionFeedback = .failure("Export impossible : \(message(for: error))")
         } catch {
-            actionFeedback = .failure("Export impossible : \(error.localizedDescription)")
+            actionFeedback = .failure("Export impossible : fichier introuvable ou erreur inattendue.")
         }
     }
 
@@ -261,10 +261,6 @@ final class HistoryViewModel: ObservableObject {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         NSWorkspace.shared.activateFileViewerSelecting([url])
         return url
-    }
-
-    private func importErrorMessage(_ error: PlaylistImportError) -> String {
-        ImportErrorHumanizer.message(for: error)
     }
 
     private func message(for error: SessionHistoryServiceError) -> String {
