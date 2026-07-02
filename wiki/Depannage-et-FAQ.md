@@ -183,6 +183,7 @@ User token invalide ou permissions insuffisantes.
 ### Lancer les tests
 
 ```bash
+python --version  # doit être >= 3.12
 pip install -e ".[dev]"
 python3 -m pytest -q
 ```
