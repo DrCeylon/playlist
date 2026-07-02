@@ -115,6 +115,27 @@ private final class ProcessStreamCollector: @unchecked Sendable {
     }
 }
 
+private final class BridgeProcessRunState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var finished = false
+
+    func finish(
+        _ continuation: CheckedContinuation<[String], Error>,
+        with result: Result<[String], Error>
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !finished else { return }
+        finished = true
+        switch result {
+        case .success(let lines):
+            continuation.resume(returning: lines)
+        case .failure(let error):
+            continuation.resume(throwing: error)
+        }
+    }
+}
+
 /// Process wrapper guarded by an internal lock; safe to share as bridge transport.
 public final class BridgeClient: BridgeTransport, @unchecked Sendable {
     private let configuration: BridgeClientConfiguration
@@ -178,13 +199,6 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
            let message = errorObject["message"]?.stringValue {
             onDiagnostic?("[bridge error] \(message)")
         }
-    }
-
-    static func dispatchStreamingEvent(
-        line: String,
-        onEvent: (@Sendable (BridgeEventMessage) -> Void)?
-    ) {
-        dispatchStreamingLine(line: line, requestID: "", onEvent: onEvent, onDiagnostic: nil)
     }
 
     public static func parseConversation(
@@ -278,21 +292,22 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
                 onStdoutLine: onStdoutLine,
                 onStderrLine: onStderrLine
             )
+            let runState = BridgeProcessRunState()
             let deadline = Date().addingTimeInterval(configuration.timeoutSeconds)
 
-            outputPipe.fileHandleForReading.readabilityHandler = { handle in
+            outputPipe.fileHandleForReading.readabilityHandler = { @Sendable handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
                 streamCollector.consumeStdoutChunk(String(decoding: data, as: UTF8.self))
             }
 
-            errorPipe.fileHandleForReading.readabilityHandler = { handle in
+            errorPipe.fileHandleForReading.readabilityHandler = { @Sendable handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
                 streamCollector.consumeStderrChunk(String(decoding: data, as: UTF8.self))
             }
 
-            DispatchQueue.global(qos: .userInitiated).async {
+            DispatchQueue.global(qos: .userInitiated).async { @Sendable in
                 while process.isRunning && Date() < deadline {
                     Thread.sleep(forTimeInterval: 0.05)
                 }
@@ -314,7 +329,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
 
                 if process.isRunning {
                     process.terminate()
-                    continuation.resume(throwing: BridgeClientError.timeout)
+                    runState.finish(continuation, with: .failure(BridgeClientError.timeout))
                     return
                 }
 
@@ -322,18 +337,21 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
                 let lines = streamCollector.lines
                 bridgeLogger.info("Bridge process finished exit=\(exitCode) lines=\(lines.count)")
                 if exitCode != 0, lines.isEmpty {
-                    continuation.resume(
-                        throwing: BridgeClientError.bridge(
-                            BridgeErrorPayload(
-                                code: .engineError,
-                                message: "Le processus Python s'est terminé avec le code \(exitCode)."
+                    runState.finish(
+                        continuation,
+                        with: .failure(
+                            BridgeClientError.bridge(
+                                BridgeErrorPayload(
+                                    code: .engineError,
+                                    message: "Le processus Python s'est terminé avec le code \(exitCode)."
+                                )
                             )
                         )
                     )
                     return
                 }
 
-                continuation.resume(returning: lines)
+                runState.finish(continuation, with: .success(lines))
             }
         }
     }

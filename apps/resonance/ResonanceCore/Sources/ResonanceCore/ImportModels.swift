@@ -60,6 +60,7 @@ public struct ImportProgressSnapshot: Equatable, Sendable {
     public var errorCount: Int
     public var diagnostics: [String]
     public var cancellationNote: String
+    public var lastActivityAt: Date
 
     public init(
         phase: ImportPhase = .idle,
@@ -73,7 +74,8 @@ public struct ImportProgressSnapshot: Equatable, Sendable {
         notFoundCount: Int = 0,
         errorCount: Int = 0,
         diagnostics: [String] = [],
-        cancellationNote: String = "Annulation prévue — l'import en cours ne peut pas être interrompu proprement."
+        cancellationNote: String = "Annulation prévue — l'import en cours ne peut pas être interrompu proprement.",
+        lastActivityAt: Date = .now
     ) {
         self.phase = phase
         self.playlistName = playlistName
@@ -87,6 +89,7 @@ public struct ImportProgressSnapshot: Equatable, Sendable {
         self.errorCount = errorCount
         self.diagnostics = diagnostics
         self.cancellationNote = cancellationNote
+        self.lastActivityAt = lastActivityAt
     }
 
     public var resolvedCount: Int {
@@ -167,4 +170,14 @@ public protocol PlaylistImportServing: Sendable {
     ) async throws -> ImportResultState
 
     func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState
+}
+
+public extension PlaylistImportServing {
+    func continueManualAcquisition(
+        importSessionID: String,
+        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+    ) async throws -> ImportResultState {
+        _ = onEvent
+        return try await continueManualAcquisition(importSessionID: importSessionID)
+    }
 }

@@ -32,13 +32,19 @@ def format_applescript_error(stderr: str) -> str:
     return stderr.strip() or "Échec AppleScript vers Music.app."
 
 
-def run_applescript(script: str) -> str:
-    result = subprocess.run(
-        ["osascript", "-e", script],
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+def run_applescript(script: str, *, timeout_seconds: float | None = 120.0) -> str:
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "Music.app n'a pas répondu à temps pendant une commande AppleScript."
+        ) from exc
     if result.returncode != 0:
         raise RuntimeError(format_applescript_error(result.stderr.strip() or result.stdout.strip()))
     return result.stdout.strip()

@@ -45,12 +45,29 @@ def _resolved_outcome() -> AppleMusicResolutionOutcome:
 def test_delivery_adds_resolved_track():
     applescript = MagicMock()
     applescript.add_tracks_by_persistent_id_batch.return_value = ["added\x1ePID123"]
+    applescript.count_playlist_tracks.return_value = 1
     delivery = AppleMusicDelivery(applescript)
 
     report = delivery.sync_playlist(_playlist(), [_resolved_outcome()])
 
     assert report.results[0].status == ImportStatus.ADDED
     applescript.clear_playlist_tracks.assert_called_once_with("E2E Test")
+    applescript.count_playlist_tracks.assert_called()
+
+
+def test_delivery_retries_not_found_batch_status():
+    applescript = MagicMock()
+    applescript.add_tracks_by_persistent_id_batch.side_effect = [
+        ["not_found\x1ePID123"],
+        ["added\x1ePID123"],
+    ]
+    applescript.count_playlist_tracks.return_value = 1
+    delivery = AppleMusicDelivery(applescript)
+
+    report = delivery.sync_playlist(_playlist(), [_resolved_outcome()])
+
+    assert report.results[0].status == ImportStatus.ADDED
+    assert applescript.add_tracks_by_persistent_id_batch.call_count == 2
 
 
 def test_delivery_marks_unresolved_track_as_not_found():
@@ -100,6 +117,7 @@ def test_import_service_uses_cache_on_second_run(tmp_path: Path):
         ]
     ]
     applescript.add_tracks_by_persistent_id_batch.return_value = ["added\x1ePID123"]
+    applescript.count_playlist_tracks.return_value = 1
     identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
     service = AppleMusicImportService(applescript, identity_cache)
     playlist = _playlist()
@@ -115,6 +133,7 @@ def test_import_service_uses_cache_on_second_run(tmp_path: Path):
 def test_import_service_preserves_section_order():
     applescript = MagicMock()
     applescript.add_tracks_by_persistent_id_batch.return_value = ["added\x1e1", "added\x1e2"]
+    applescript.count_playlist_tracks.return_value = 2
     service = AppleMusicImportService(applescript, IdentityCache(MagicMock()))
     playlist = CanonicalPlaylist(
         name="Sections",

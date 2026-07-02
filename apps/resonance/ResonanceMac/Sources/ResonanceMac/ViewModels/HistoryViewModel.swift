@@ -35,6 +35,23 @@ final class HistoryViewModel: ObservableObject {
         self.importService = importService
     }
 
+    var isBusy: Bool {
+        if case .inProgress = actionFeedback { return true }
+        return screenState == .loading
+    }
+
+    var replayActionDescription: String {
+        "Relance la génération Python avec la requête enregistrée pour cette session."
+    }
+
+    var reimportActionDescription: String {
+        "Recrée la playlist dans Apple Music à partir de la preview enregistrée (mêmes morceaux/sections)."
+    }
+
+    var exportActionDescription: String {
+        "Ouvre le rapport JSON ou texte de la session dans le Finder, s'il existe sur disque."
+    }
+
     var canReplaySelectedSession: Bool {
         guard let detail = selectedDetail else { return false }
         return !detail.generationRequest.isEmpty
@@ -58,6 +75,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func refresh() async {
+        guard !isBusy else { return }
         screenState = .loading
         architectErrorDetail = nil
         do {
@@ -105,6 +123,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func clearAll() async {
+        guard !isBusy else { return }
         do {
             let cleared = try await service.clearHistory()
             if cleared {
@@ -120,6 +139,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func replayGeneration() async {
+        guard !isBusy else { return }
         guard let sessionID = selectedDetail?.summary.sessionID else {
             actionFeedback = .failure("Sélectionne une session avant de relancer.")
             return
@@ -143,6 +163,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func reimportSelected() async {
+        guard !isBusy else { return }
         guard let detail = selectedDetail else {
             actionFeedback = .failure("Sélectionne une session avant de réimporter.")
             return
@@ -160,6 +181,12 @@ final class HistoryViewModel: ObservableObject {
                     self?.handleImportEvent(event)
                 }
             }
+            if importResult.phase == .waitingForManualAcquisition {
+                actionFeedback = .failure(
+                    "Réimport interrompu : ajout manuel requis dans Music.app. Utilise Nouvelle Playlist pour terminer l'import interactif."
+                )
+                return
+            }
             actionFeedback = .success(
                 "Réimport terminé — ajoutés \(importResult.addedCount), ignorés \(importResult.skippedCount), introuvables \(importResult.notFoundCount), erreurs \(importResult.errorCount)."
             )
@@ -173,6 +200,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func exportSelection() async {
+        guard !isBusy else { return }
         guard let sessionID = selectedDetail?.summary.sessionID else {
             actionFeedback = .failure("Sélectionne une session avant d'exporter.")
             return
@@ -201,8 +229,19 @@ final class HistoryViewModel: ObservableObject {
     }
 
     private func handleImportEvent(_ event: BridgeEventMessage) {
-        if event.event == .diagnostic, let message = event.payload["message"]?.stringValue {
-            actionFeedback = .inProgress(message)
+        switch event.event {
+        case .diagnostic:
+            if let message = event.payload["message"]?.stringValue {
+                actionFeedback = .inProgress(message)
+            }
+        case .progress:
+            if let processed = event.payload["processed_tracks"]?.intValue,
+               let total = event.payload["total_tracks"]?.intValue,
+               total > 0 {
+                actionFeedback = .inProgress("Réimport Apple Music — \(processed)/\(total) morceaux")
+            }
+        default:
+            break
         }
     }
 

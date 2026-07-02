@@ -224,6 +224,13 @@ def stream_import_playlist(
     )
 
     aligned = track_results_aligned_with_playlist(playlist.tracks, report)
+    added_count = sum(1 for item in aligned if item.status == TrackAddStatus.ADDED)
+    if added_count > 0:
+        yield diagnostic_event(
+            request_id,
+            phase="delivering",
+            message=f"Confirmation Music.app : {added_count} morceau(x) visible(s) dans la playlist",
+        )
     if write_json_diagnostics:
         from pathlib import Path
 

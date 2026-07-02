@@ -27,6 +27,7 @@ def test_mocked_e2e_kygo_firestone_is_added(tmp_path: Path):
         [AppleMusicTrack(persistent_id="PID123", artist="Kygo", title="Firestone", query="Kygo Firestone")]
     ]
     applescript.add_tracks_by_persistent_id_batch.return_value = ["added\x1ePID123"]
+    applescript.count_playlist_tracks.return_value = 1
 
     from playlist_builder.catalog.cache import JsonCache
     from playlist_builder.infrastructure.cache.identity_cache import IdentityCache

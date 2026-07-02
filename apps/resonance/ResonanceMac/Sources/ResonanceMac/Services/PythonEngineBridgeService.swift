@@ -216,12 +216,23 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
     }
 
     public func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+        try await continueManualAcquisition(importSessionID: importSessionID, onEvent: { _ in })
+    }
+
+    public func continueManualAcquisition(
+        importSessionID: String,
+        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+    ) async throws -> ImportResultState {
         guard let transport else {
             throw PlaylistImportError.bridgeUnavailable
         }
         let (response, _) = try await transport.send(
             command: .continueManualAcquisition,
-            params: ["import_session_id": .string(importSessionID)]
+            params: ["import_session_id": .string(importSessionID)],
+            onEvent: onEvent,
+            onDiagnostic: { line in
+                bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
+            }
         )
         guard let importObject = response.result["import"]?.objectValue else {
             throw PlaylistImportError.invalidResponse
@@ -349,7 +360,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
     }
 }
 
-public enum PlaylistImportError: Error, Equatable {
+public enum PlaylistImportError: Error, Equatable, Sendable {
     case bridgeUnavailable
     case timeout
     case invalidResponse

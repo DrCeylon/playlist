@@ -5,6 +5,7 @@ import SwiftUI
 struct HistoryView: View {
     @StateObject private var viewModel: HistoryViewModel
     @EnvironmentObject private var themeManager: ThemeManager
+    @State private var showClearConfirmation = false
 
     init(service: any SessionHistoryServing = PythonEngineBridgeService()) {
         _viewModel = StateObject(wrappedValue: HistoryViewModel(service: service))
@@ -24,6 +25,18 @@ struct HistoryView: View {
         .task {
             await viewModel.refresh()
         }
+        .confirmationDialog(
+            "Vider tout l'historique ?",
+            isPresented: $showClearConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Vider l'historique", role: .destructive) {
+                Task { await viewModel.clearAll() }
+            }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Cette action supprime toutes les sessions locales enregistrées par Resonance.")
+        }
     }
 
     private func header(palette: ThemePalette) -> some View {
@@ -32,11 +45,13 @@ struct HistoryView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)
             Spacer()
-            Button("Vider") { Task { await viewModel.clearAll() } }
+            Button("Vider") { showClearConfirmation = true }
                 .buttonStyle(.bordered)
+                .disabled(viewModel.isBusy)
             Button("Rafraîchir") { Task { await viewModel.refresh() } }
                 .buttonStyle(.borderedProminent)
                 .tint(palette.accentPrimary)
+                .disabled(viewModel.isBusy)
         }
     }
 
@@ -108,6 +123,10 @@ struct HistoryView: View {
                         detail: viewModel.selectedDetail,
                         canReplay: viewModel.canReplaySelectedSession,
                         canReimport: viewModel.canReimportSelectedSession,
+                        isBusy: viewModel.isBusy,
+                        replayDescription: viewModel.replayActionDescription,
+                        reimportDescription: viewModel.reimportActionDescription,
+                        exportDescription: viewModel.exportActionDescription,
                         replayDisabledReason: viewModel.replayDisabledReason,
                         reimportDisabledReason: viewModel.reimportDisabledReason,
                         onReplay: { Task { await viewModel.replayGeneration() } },

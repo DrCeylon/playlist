@@ -6,6 +6,10 @@ final class PlaylistBuilderFormGuardTests: XCTestCase {
         let appKitFieldSource = try loadAppKitTextFieldSource()
 
         XCTAssertTrue(
+            source.contains("safeAreaInset(edge: .bottom"),
+            "Generate footer must use native safeAreaInset for reliable macOS scrolling"
+        )
+        XCTAssertTrue(
             source.contains("GenerateFooterSection"),
             "Generate button must live in a sticky footer outside the scroll view"
         )

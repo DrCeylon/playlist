@@ -12,65 +12,93 @@ struct ImportProgressView: View {
     var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
 
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Import Apple Music")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
+        BoundedScrollScreen {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Import Apple Music")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary)
 
-            if let manualPrompt {
-                manualAcquisitionCard(prompt: manualPrompt, palette: palette)
-            } else {
-                ProgressView(value: progress.progressRatio)
-                    .tint(palette.accentPrimary)
+                progressHeader(palette: palette)
 
-                if !progress.currentStep.isEmpty {
-                    Text(progress.currentStep)
-                        .font(.headline)
-                        .foregroundStyle(palette.textPrimary)
-                } else {
-                    Text(phaseLabel(progress.phase))
-                        .font(.headline)
-                        .foregroundStyle(palette.textPrimary)
+                if let manualPrompt {
+                    ManualAcquisitionCard(
+                        prompt: manualPrompt,
+                        trackPositionLabel: trackPositionLabel,
+                        palette: palette,
+                        onConfirmManual: onConfirmManual
+                    )
                 }
 
-                if !progress.currentTrackLabel.isEmpty {
-                    Text(progress.currentTrackLabel)
-                        .font(.callout)
-                        .foregroundStyle(palette.textSecondary)
+                if !progress.diagnostics.isEmpty {
+                    diagnosticsSection(palette: palette)
                 }
 
-                metricsRow(palette: palette)
+                if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
+                    Text(architectErrorDetail)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(palette.textTertiary)
+                        .textSelection(.enabled)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+    }
 
-                Text(progress.cancellationNote)
+    @ViewBuilder
+    private func progressHeader(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ProgressView(value: progress.progressRatio)
+                .tint(palette.accentPrimary)
+                .animation(.easeInOut(duration: 0.25), value: progress.progressRatio)
+
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(activityLabel)
                     .font(.caption)
                     .foregroundStyle(palette.textTertiary)
             }
 
-            if !progress.diagnostics.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Dernières étapes")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.textSecondary)
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(Array(progress.diagnostics.enumerated()), id: \.offset) { _, line in
-                            Text(line)
-                                .font(.caption)
-                                .foregroundStyle(palette.textTertiary)
-                                .textSelection(.enabled)
-                                .lineLimit(2)
-                        }
-                    }
-                }
+            if !progress.currentStep.isEmpty {
+                Text(progress.currentStep)
+                    .font(.headline)
+                    .foregroundStyle(palette.textPrimary)
+            } else {
+                Text(phaseLabel(progress.phase))
+                    .font(.headline)
+                    .foregroundStyle(palette.textPrimary)
             }
 
-            if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
-                Text(architectErrorDetail)
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(palette.textTertiary)
+            if !progress.currentTrackLabel.isEmpty {
+                Text(progress.currentTrackLabel)
+                    .font(.callout)
+                    .foregroundStyle(palette.textSecondary)
                     .textSelection(.enabled)
             }
+
+            metricsRow(palette: palette)
+
+            if manualPrompt == nil {
+                Text(progress.cancellationNote)
+                    .font(.caption)
+                    .foregroundStyle(palette.textTertiary)
+            }
         }
-        .padding(24)
+    }
+
+    private var trackPositionLabel: String? {
+        guard progress.totalTracks > 0 else { return nil }
+        let index = min(progress.processedTracks + 1, progress.totalTracks)
+        return "Morceau \(index) sur \(progress.totalTracks)"
+    }
+
+    private var activityLabel: String {
+        let seconds = max(0, Int(Date().timeIntervalSince(progress.lastActivityAt)))
+        if seconds <= 1 {
+            return "Activité en cours…"
+        }
+        return "Dernière activité il y a \(seconds) s"
     }
 
     @ViewBuilder
@@ -108,28 +136,21 @@ struct ImportProgressView: View {
     }
 
     @ViewBuilder
-    private func manualAcquisitionCard(prompt: ManualAcquisitionPrompt, palette: ThemePalette) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Acquisition manuelle requise", systemImage: "music.note.list")
-                .font(.headline)
-                .foregroundStyle(palette.statusWarning)
-            Text("\(prompt.artist) — \(prompt.title)")
-                .font(.body.weight(.medium))
-            if !prompt.catalogLabel.isEmpty {
-                Text("Catalogue : \(prompt.catalogLabel)")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
-            }
-            Text(prompt.instructions)
-                .font(.callout)
+    private func diagnosticsSection(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Dernières étapes")
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(palette.textSecondary)
-            Button("J'ai ajouté le morceau, continuer", action: onConfirmManual)
-                .buttonStyle(.borderedProminent)
-                .tint(palette.accentPrimary)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(progress.diagnostics, id: \.self) { line in
+                    Text(line)
+                        .font(.caption)
+                        .foregroundStyle(palette.textTertiary)
+                        .textSelection(.enabled)
+                        .lineLimit(2)
+                }
+            }
         }
-        .padding(16)
-        .background(palette.backgroundSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func phaseLabel(_ phase: ImportPhase) -> String {

@@ -168,53 +168,55 @@ private struct PlaylistBuilderFormView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if ResonanceFeatureFlags.keyboardDebugEnabled {
-                        DebugInputSection()
-                    }
-                    BuilderHelpSection(palette: palette)
-                    ValidationSection(errors: validationErrors, palette: palette)
-                    BridgeMessageSection(message: bridgeFallbackMessage, palette: palette)
-                    EssentialFieldsSection(
-                        draftName: $draftName,
-                        draftSeedArtist: $draftSeedArtist,
-                        draftSeedTrack: $draftSeedTrack,
-                        draftKeywords: $draftKeywords,
-                        draftTrackCount: $draftTrackCount
-                    )
-                    AdvancedOptionsSection(
-                        viewModel: viewModel,
-                        palette: palette,
-                        draftDescription: $draftDescription,
-                        draftDuration: $draftDuration,
-                        isExpanded: $showAdvancedOptions
-                    )
-                    ExclusionsSection(
-                        viewModel: viewModel,
-                        palette: palette,
-                        isExpanded: $showExclusions,
-                        onPushDraft: onPushDraft
-                    )
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if ResonanceFeatureFlags.keyboardDebugEnabled {
+                    DebugInputSection()
                 }
-                .padding(24)
+                BuilderHelpSection(palette: palette)
+                ValidationSection(errors: validationErrors, palette: palette)
+                BridgeMessageSection(message: bridgeFallbackMessage, palette: palette)
+                EssentialFieldsSection(
+                    draftName: $draftName,
+                    draftSeedArtist: $draftSeedArtist,
+                    draftSeedTrack: $draftSeedTrack,
+                    draftKeywords: $draftKeywords,
+                    draftTrackCount: $draftTrackCount
+                )
+                AdvancedOptionsSection(
+                    viewModel: viewModel,
+                    palette: palette,
+                    draftDescription: $draftDescription,
+                    draftDuration: $draftDuration,
+                    isExpanded: $showAdvancedOptions
+                )
+                ExclusionsSection(
+                    viewModel: viewModel,
+                    palette: palette,
+                    isExpanded: $showExclusions,
+                    onPushDraft: onPushDraft
+                )
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-            Divider()
-            GenerateFooterSection(
-                viewModel: viewModel,
-                palette: palette,
-                canGenerateFromDrafts: draftsLookComplete,
-                onPushDraft: onPushDraft,
-                onCommitDraft: onCommitDraft
-            )
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .background(palette.backgroundPrimary)
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .scrollIndicators(.visible)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                Divider()
+                GenerateFooterSection(
+                    viewModel: viewModel,
+                    palette: palette,
+                    canGenerateFromDrafts: draftsLookComplete,
+                    onPushDraft: onPushDraft,
+                    onCommitDraft: onCommitDraft
+                )
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+                .background(palette.backgroundPrimary)
+            }
+        }
         .onChange(of: viewModel.energyProfile) { _, _ in
             onPushDraft()
             viewModel.validateForm()

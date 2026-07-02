@@ -6,6 +6,10 @@ struct SessionDetailView: View {
     let detail: SessionHistoryDetail?
     let canReplay: Bool
     let canReimport: Bool
+    let isBusy: Bool
+    let replayDescription: String
+    let reimportDescription: String
+    let exportDescription: String
     let replayDisabledReason: String?
     let reimportDisabledReason: String?
     let onReplay: () -> Void
@@ -15,61 +19,119 @@ struct SessionDetailView: View {
 
     var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Détail session")
-                .font(.headline)
-                .foregroundStyle(palette.textPrimary)
-
-            if let detail {
-                Text(detail.summary.playlistName)
-                    .font(.title3.weight(.semibold))
+        BoundedScrollScreen {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Détail session")
+                    .font(.headline)
                     .foregroundStyle(palette.textPrimary)
-                Text("Statut : \(detail.summary.status.rawValue)")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
 
-                importMetrics(for: detail, palette: palette)
-                importOutcomeList(for: detail, palette: palette)
+                if let detail {
+                    Text(detail.summary.playlistName)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(palette.textPrimary)
+                    Text("Statut : \(statusLabel(detail.summary.status))")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
 
-                Group {
-                    Text("Requête : \(detail.generationRequest.isEmpty ? "—" : "disponible")")
-                    Text("Preview : \(detail.generationResult.isEmpty ? "—" : "disponible")")
-                    Text("Import : \(detail.importResult.isEmpty ? "—" : "disponible")")
-                    Text("Rapport texte : \(detail.summary.textReportPath.isEmpty ? "—" : detail.summary.textReportPath)")
-                    Text("Rapport JSON : \(detail.summary.jsonReportPath.isEmpty ? "—" : detail.summary.jsonReportPath)")
+                    importMetrics(for: detail, palette: palette)
+                    importOutcomeList(for: detail, palette: palette)
+
+                    availabilitySection(for: detail, palette: palette)
+                    actionsSection(palette: palette)
+                } else {
+                    Text("Sélectionne une session pour afficher les détails.")
+                        .foregroundStyle(palette.textSecondary)
                 }
-                .font(.caption)
-                .foregroundStyle(palette.textSecondary)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Button("Relancer génération", action: onReplay)
-                            .buttonStyle(.borderedProminent)
-                            .tint(palette.accentPrimary)
-                            .disabled(!canReplay)
-                        Button("Réimporter", action: onReimport)
-                            .buttonStyle(.bordered)
-                            .disabled(!canReimport)
-                        Button("Exporter", action: onExport)
-                            .buttonStyle(.bordered)
-                    }
-                    if let replayDisabledReason, !canReplay {
-                        Text(replayDisabledReason)
-                            .font(.caption2)
-                            .foregroundStyle(palette.statusWarning)
-                    }
-                    if let reimportDisabledReason, !canReimport {
-                        Text(reimportDisabledReason)
-                            .font(.caption2)
-                            .foregroundStyle(palette.statusWarning)
-                    }
-                }
-            } else {
-                Text("Sélectionne une session pour afficher les détails.")
-                    .foregroundStyle(palette.textSecondary)
             }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
+    }
+
+    @ViewBuilder
+    private func availabilitySection(for detail: SessionHistoryDetail, palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Données disponibles")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+            Text("Requête : \(detail.generationRequest.isEmpty ? "indisponible" : "enregistrée")")
+            Text("Preview : \(detail.generationResult.isEmpty ? "indisponible" : "enregistrée")")
+            Text("Import : \(detail.importResult.isEmpty ? "non exécuté" : "rapport enregistré")")
+            if !detail.summary.jsonReportPath.isEmpty {
+                Text("Rapport JSON : \(detail.summary.jsonReportPath)")
+            } else if !detail.summary.textReportPath.isEmpty {
+                Text("Rapport texte : \(detail.summary.textReportPath)")
+            } else {
+                Text("Rapport fichier : non généré sur disque")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(palette.textTertiary)
+        .textSelection(.enabled)
+    }
+
+    @ViewBuilder
+    private func actionsSection(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Actions")
+                .font(.subheadline.weight(.semibold))
+
+            actionRow(
+                title: "Relancer génération",
+                description: replayDescription,
+                disabledReason: replayDisabledReason,
+                isEnabled: canReplay && !isBusy,
+                palette: palette,
+                action: onReplay,
+                isPrimary: true
+            )
+
+            actionRow(
+                title: "Réimporter dans Apple Music",
+                description: reimportDescription,
+                disabledReason: reimportDisabledReason,
+                isEnabled: canReimport && !isBusy,
+                palette: palette,
+                action: onReimport,
+                isPrimary: false
+            )
+
+            actionRow(
+                title: "Exporter le rapport",
+                description: exportDescription,
+                disabledReason: detail == nil ? "Sélectionne une session." : nil,
+                isEnabled: detail != nil && !isBusy,
+                palette: palette,
+                action: onExport,
+                isPrimary: false
+            )
+        }
+    }
+
+    private func actionRow(
+        title: String,
+        description: String,
+        disabledReason: String?,
+        isEnabled: Bool,
+        palette: ThemePalette,
+        action: @escaping () -> Void,
+        isPrimary: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button(title, action: action)
+                .buttonStyle(isPrimary ? .borderedProminent : .bordered)
+                .tint(isPrimary ? palette.accentPrimary : nil)
+                .disabled(!isEnabled)
+            Text(description)
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
+            if let disabledReason, !isEnabled {
+                Text(disabledReason)
+                    .font(.caption2)
+                    .foregroundStyle(palette.statusWarning)
+            }
+        }
     }
 
     @ViewBuilder
@@ -108,12 +170,23 @@ struct SessionDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(outcome.artist) — \(outcome.title)")
                             .font(.caption)
+                            .textSelection(.enabled)
                         Text(outcomeLabel(outcome))
                             .font(.caption2)
                             .foregroundStyle(palette.textTertiary)
                     }
                 }
             }
+        }
+    }
+
+    private func statusLabel(_ status: SessionHistoryStatus) -> String {
+        switch status {
+        case .generated: return "Générée"
+        case .imported: return "Importée"
+        case .partialSuccess: return "Import partiel"
+        case .failed: return "Échouée"
+        case .waitingForManualAcquisition: return "Ajout manuel requis"
         }
     }
 

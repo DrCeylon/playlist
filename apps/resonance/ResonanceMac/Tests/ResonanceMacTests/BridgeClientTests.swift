@@ -123,14 +123,17 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertNotNil(response.result["generation"]?.objectValue)
     }
 
-    func testDispatchStreamingEventParsesProgressEvent() {
+    func testDispatchStreamingLineParsesProgressEvent() {
         let line = """
         {"id":"req-1","type":"event","event":"progress","payload":{"phase":"resolving","total_tracks":3,"processed_tracks":1}}
         """
         var received: BridgeEventMessage?
-        BridgeClient.dispatchStreamingEvent(line: line) { event in
-            received = event
-        }
+        BridgeClient.dispatchStreamingLine(
+            line: line,
+            requestID: "req-1",
+            onEvent: { event in received = event },
+            onDiagnostic: nil
+        )
         XCTAssertEqual(received?.event, .progress)
         XCTAssertEqual(received?.payload["total_tracks"]?.intValue, 3)
     }
