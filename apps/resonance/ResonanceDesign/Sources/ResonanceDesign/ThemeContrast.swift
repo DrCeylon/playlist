@@ -1,8 +1,8 @@
 import Foundation
 
 public enum ThemeContrast {
-    /// Minimum relative luminance difference for readable text (WCAG-inspired heuristic).
-    public static let minimumLuminanceDelta = 0.35
+    /// WCAG 2.x contrast ratio for normal text (AA).
+    public static let minimumContrastRatio: Double = 4.5
 
     public static func relativeLuminance(hex: String) -> Double? {
         guard let rgba = parseRGBA(hex: hex) else { return nil }
@@ -32,7 +32,17 @@ public enum ThemeContrast {
         guard let ratio = contrastRatio(foregroundHex: foregroundHex, backgroundHex: backgroundHex) else {
             return false
         }
-        return ratio >= 4.5
+        return ratio >= minimumContrastRatio
+    }
+
+    /// WCAG 2.x relative luminance for sRGB hex colors (`#RRGGBB` or `#RRGGBBAA`).
+    public static func wcagRelativeLuminance(hex: String) -> Double? {
+        relativeLuminance(hex: hex)
+    }
+
+    /// WCAG 2.x contrast ratio (1:1 … 21:1) between two sRGB hex colors.
+    public static func wcagContrastRatio(foregroundHex: String, backgroundHex: String) -> Double? {
+        contrastRatio(foregroundHex: foregroundHex, backgroundHex: backgroundHex)
     }
 
     private struct RGBA {

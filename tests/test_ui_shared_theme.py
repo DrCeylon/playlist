@@ -18,6 +18,11 @@ from playlist_builder.ui.shared.theme import (
     validate_theme,
 )
 from playlist_builder.ui.shared.theme.loader import load_theme_file, resolve_definitions
+from playlist_builder.ui.shared.theme.contrast import (
+    MINIMUM_CONTRAST_RATIO,
+    contrast_ratio,
+    has_readable_contrast,
+)
 from playlist_builder.ui.shared.theme.tokens import DesignTokens as TokensClass
 from playlist_builder.ui.shared.theme.validation import is_valid_color
 
@@ -72,6 +77,30 @@ def test_inheritance_merges_parent_and_child_tokens():
     assert child.tokens.colors["color.text.primary"] == "#E8FFE8"
     assert child.tokens.colors["color.accent.primary"] == "#00FF99"
     assert child.tokens.spacing["space.md"] == parent.tokens.spacing["space.md"]
+
+
+@pytest.mark.parametrize("theme_id", BUNDLED_THEME_IDS)
+def test_bundled_themes_have_readable_contrast(theme_id: str):
+    registry = ThemeRegistry.load_bundled()
+    theme = registry.get(theme_id)
+    colors = theme.tokens.colors
+    background = colors["color.background.primary"]
+    surface = colors.get("color.surface", colors["color.background.secondary"])
+    text_primary = colors["color.text.primary"]
+    input_background = colors.get("color.input.background", colors["color.background.elevated"])
+    input_text = colors.get("color.input.text", colors["color.text.primary"])
+    warning = colors["color.status.warning"]
+    error = colors["color.status.error"]
+
+    assert has_readable_contrast(text_primary, background), f"{theme_id}: textPrimary vs background"
+    assert has_readable_contrast(text_primary, surface), f"{theme_id}: textPrimary vs surface"
+    assert has_readable_contrast(input_text, input_background), f"{theme_id}: inputText vs inputBackground"
+    assert has_readable_contrast(warning, background), (
+        f"{theme_id}: warning vs background ({contrast_ratio(warning, background):.3f} < {MINIMUM_CONTRAST_RATIO})"
+    )
+    assert has_readable_contrast(error, background), (
+        f"{theme_id}: error vs background ({contrast_ratio(error, background):.3f} < {MINIMUM_CONTRAST_RATIO})"
+    )
 
 
 def test_theme_manager_notifies_subscribers_on_apply():
