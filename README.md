@@ -22,7 +22,7 @@ MusicKit reste présent dans le code, mais il est considéré comme **expérimen
 
 - macOS pour `create_playlist.py`
 - App **Music / Musique** ouverte ou installée
-- Python 3.10+
+- Python 3.12+
 - Synchronisation de la bibliothèque Apple Music activée
 
 `check_catalog.py` peut aussi être exécuté hors macOS pour préparer les rapports catalogue.
@@ -32,6 +32,32 @@ MusicKit reste présent dans le code, mais il est considéré comme **expérimen
 ```bash
 pip install -e ".[dev]"
 ```
+
+## Configuration développeur macOS (reproductible)
+
+```bash
+cd ~/Music/Playlist/playlist
+brew install python@3.12
+python3.12 -m venv .venv
+source .venv/bin/activate
+python --version            # doit afficher Python 3.12.x
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+python -m pip install -r requirements-dev.txt
+python scripts/check_environment.py
+python -m pytest -q
+cd apps/resonance && ./scripts/build.sh
+swift run ResonanceMac
+```
+
+Alternative guidée :
+
+```bash
+./scripts/setup_dev.sh
+./scripts/check_all.sh
+```
+
+Si `python -m pytest -q` affiche une erreur de version Python, le repo est lancé avec un Python < 3.12 : réactive le venv créé avec `python3.12`.
 
 Commandes disponibles après installation :
 

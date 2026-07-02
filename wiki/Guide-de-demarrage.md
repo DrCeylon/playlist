@@ -8,7 +8,7 @@
 |---------|------------------|--------|
 | **macOS** | `create_playlist.py` | AppleScript pilote l'app Musique |
 | **App Musique** | Création playlist | Installée et synchronisée iCloud |
-| **Python 3.10+** | Tout | Stdlib uniquement, pas de pip obligatoire |
+| **Python 3.12+** | Tout | StrEnum + dataclass(slots=True), pas de downgrade supporté |
 | **Linux/Windows** | `check_catalog.py` seulement | Préparation des rapports catalogue |
 
 ## Installation
