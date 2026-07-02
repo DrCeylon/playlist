@@ -41,7 +41,7 @@ def test_format_applescript_error_surfaces_automation_permission():
         'execution error: Not authorized to send Apple events to Music. (-1743)'
     )
     assert "Automatisation" in message
-    assert "Music" in message
+    assert "Réglages Système" in message
 
 
 def test_load_playlist_valid(tmp_path):

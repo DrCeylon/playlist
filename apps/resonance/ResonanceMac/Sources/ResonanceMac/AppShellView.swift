@@ -10,6 +10,7 @@ struct AppShellView: View {
             SidebarView(selection: $selection)
         } detail: {
             detailView
+                .focusSection()
         }
         .navigationSplitViewStyle(.balanced)
     }

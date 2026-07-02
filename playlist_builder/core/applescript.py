@@ -23,9 +23,9 @@ def format_applescript_error(stderr: str) -> str:
         or "autorisation" in lowered
         or "assistive access" in lowered
     ):
-        return (
+            return (
             "Autorise Resonance ou Terminal à contrôler Music dans "
-            "Réglages > Confidentialité > Automatisation."
+            "Réglages Système > Confidentialité et sécurité > Automatisation."
         )
     if "music got an error" in lowered and "not running" in lowered:
         return "Music.app n'est pas lancé. Ouvre Music.app puis relance l'import."

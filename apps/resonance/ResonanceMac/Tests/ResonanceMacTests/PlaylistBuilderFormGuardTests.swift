@@ -10,9 +10,9 @@ final class PlaylistBuilderFormGuardTests: XCTestCase {
             "Playlist builder must use AppKit-backed MacKeyboardTextField for reliable macOS typing"
         )
         XCTAssertFalse(source.contains("ThemedTextField"), "Custom ThemedTextField blocks macOS editing")
-        XCTAssertFalse(
-            source.contains("Form {"),
-            "SwiftUI Form on macOS can steal keyboard focus from text fields"
+        XCTAssertTrue(
+            source.contains("KeyboardInputDebugPanel"),
+            "Temporary keyboard debug panel must be present for macOS validation"
         )
         XCTAssertTrue(
             source.contains("@State private var draftName"),

@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let bridgeLogger = Logger(subsystem: "com.resonance.mac", category: "Bridge")
 
 public struct BridgeClientConfiguration: Sendable {
     public var pythonExecutable: String
@@ -28,7 +31,8 @@ public protocol BridgeTransport: Sendable {
         command: BridgeCommand,
         requestID: String,
         params: BridgeJSONObject,
-        onEvent: (@Sendable (BridgeEventMessage) -> Void)?
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)?,
+        onDiagnostic: (@Sendable (String) -> Void)? = nil
     ) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
@@ -41,9 +45,16 @@ public extension BridgeTransport {
         command: BridgeCommand,
         requestID: String = UUID().uuidString,
         params: BridgeJSONObject = [:],
-        onEvent: (@Sendable (BridgeEventMessage) -> Void)? = nil
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)? = nil,
+        onDiagnostic: (@Sendable (String) -> Void)? = nil
     ) async throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
-        try await send(command: command, requestID: requestID, params: params, onEvent: onEvent)
+        try await send(
+            command: command,
+            requestID: requestID,
+            params: params,
+            onEvent: onEvent,
+            onDiagnostic: onDiagnostic
+        )
     }
 }
 
@@ -60,7 +71,8 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
         command: BridgeCommand,
         requestID: String = UUID().uuidString,
         params: BridgeJSONObject = [:],
-        onEvent: (@Sendable (BridgeEventMessage) -> Void)? = nil
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)? = nil,
+        onDiagnostic: (@Sendable (String) -> Void)? = nil
     ) async throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
         let payload: BridgeJSONObject = [
             "id": .string(requestID),
@@ -68,25 +80,54 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             "params": .object(params),
         ]
         let requestLine = try Self.encodeJSONObject(payload)
-        let lines = try await runProcess(requestLine: requestLine, onLine: { line in
-            Self.dispatchStreamingEvent(line: line, onEvent: onEvent)
-        })
+        bridgeLogger.info("Bridge send \(command.rawValue, privacy: .public) id=\(requestID, privacy: .public)")
+        let lines = try await runProcess(requestLine: requestLine) { line in
+            Self.dispatchStreamingLine(
+                line: line,
+                requestID: requestID,
+                onEvent: onEvent,
+                onDiagnostic: onDiagnostic
+            )
+        } onStderrLine: { line in
+            let message = "[stderr] \(line)"
+            bridgeLogger.warning("\(message, privacy: .public)")
+            onDiagnostic?(message)
+        }
         return try Self.parseConversation(requestID: requestID, lines: lines)
+    }
+
+    static func dispatchStreamingLine(
+        line: String,
+        requestID: String,
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)?,
+        onDiagnostic: (@Sendable (String) -> Void)?
+    ) {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        bridgeLogger.debug("Bridge stdout: \(trimmed, privacy: .public)")
+
+        if let object = try? BridgeResponseParser.parseJSONObject(trimmed),
+           object["type"]?.stringValue == "event",
+           let event = try? BridgeResponseParser.parseEventLine(trimmed) {
+            onEvent?(event)
+            return
+        }
+
+        if let object = try? BridgeResponseParser.parseJSONObject(trimmed),
+           object["type"]?.stringValue == "response",
+           object["id"]?.stringValue == requestID,
+           object["ok"]?.boolValue == false,
+           let errorObject = object["error"]?.objectValue,
+           let message = errorObject["message"]?.stringValue {
+            onDiagnostic?("[bridge error] \(message)")
+        }
     }
 
     static func dispatchStreamingEvent(
         line: String,
         onEvent: (@Sendable (BridgeEventMessage) -> Void)?
     ) {
-        guard let onEvent else { return }
-        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        guard let object = try? BridgeResponseParser.parseJSONObject(trimmed),
-              object["type"]?.stringValue == "event",
-              let event = try? BridgeResponseParser.parseEventLine(trimmed) else {
-            return
-        }
-        onEvent(event)
+        dispatchStreamingLine(line: line, requestID: "", onEvent: onEvent, onDiagnostic: nil)
     }
 
     static func parseConversation(
@@ -116,7 +157,8 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
 
     private func runProcess(
         requestLine: String,
-        onLine: (@Sendable (String) -> Void)? = nil
+        onStdoutLine: (@Sendable (String) -> Void)? = nil,
+        onStderrLine: (@Sendable (String) -> Void)? = nil
     ) async throws -> [String] {
         try await withCheckedThrowingContinuation { continuation in
             lock.lock()
@@ -124,10 +166,12 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
 
             let process = Process()
             process.executableURL = URL(fileURLWithPath: configuration.pythonExecutable)
-            process.arguments = ["-m", configuration.moduleName]
+            process.arguments = ["-u", "-m", configuration.moduleName]
             process.currentDirectoryURL = configuration.workingDirectory
 
             var environment = ProcessInfo.processInfo.environment
+            environment["PYTHONUNBUFFERED"] = "1"
+            environment["PYTHONIOENCODING"] = "utf-8"
             for (key, value) in configuration.environment {
                 environment[key] = value
             }
@@ -147,45 +191,74 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
                 return
             }
 
+            bridgeLogger.info("Bridge process started pid=\(process.processIdentifier)")
+
             if let data = (requestLine + "\n").data(using: .utf8) {
                 inputPipe.fileHandleForWriting.write(data)
             }
             inputPipe.fileHandleForWriting.closeFile()
 
-            var buffer = ""
+            var stdoutBuffer = ""
+            var stderrBuffer = ""
             var lines: [String] = []
             let deadline = Date().addingTimeInterval(configuration.timeoutSeconds)
 
-            func consumeChunk(_ chunk: String) {
-                buffer += chunk
-                while let newlineIndex = buffer.firstIndex(of: "\n") {
-                    let line = String(buffer[..<newlineIndex])
-                    buffer = String(buffer[buffer.index(after: newlineIndex)...])
+            func consumeStdoutChunk(_ chunk: String) {
+                stdoutBuffer += chunk
+                while let newlineIndex = stdoutBuffer.firstIndex(of: "\n") {
+                    let line = String(stdoutBuffer[..<newlineIndex])
+                    stdoutBuffer = String(stdoutBuffer[stdoutBuffer.index(after: newlineIndex)...])
                     lines.append(line)
-                    onLine?(line)
+                    onStdoutLine?(line)
+                }
+            }
+
+            func consumeStderrChunk(_ chunk: String) {
+                stderrBuffer += chunk
+                while let newlineIndex = stderrBuffer.firstIndex(of: "\n") {
+                    let line = String(stderrBuffer[..<newlineIndex])
+                    stderrBuffer = String(stderrBuffer[stderrBuffer.index(after: newlineIndex)...])
+                    onStderrLine?(line)
                 }
             }
 
             outputPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
-                consumeChunk(String(decoding: data, as: UTF8.self))
+                consumeStdoutChunk(String(decoding: data, as: UTF8.self))
             }
 
-            DispatchQueue.global().async {
+            errorPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+                consumeStderrChunk(String(decoding: data, as: UTF8.self))
+            }
+
+            DispatchQueue.global(qos: .userInitiated).async {
                 while process.isRunning && Date() < deadline {
                     Thread.sleep(forTimeInterval: 0.05)
                 }
 
                 outputPipe.fileHandleForReading.readabilityHandler = nil
+                errorPipe.fileHandleForReading.readabilityHandler = nil
+
                 let trailingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
                 if !trailingOutput.isEmpty {
-                    consumeChunk(String(decoding: trailingOutput, as: UTF8.self))
+                    consumeStdoutChunk(String(decoding: trailingOutput, as: UTF8.self))
                 }
-                if !buffer.isEmpty {
-                    lines.append(buffer)
-                    onLine?(buffer)
-                    buffer = ""
+                if !stdoutBuffer.isEmpty {
+                    lines.append(stdoutBuffer)
+                    onStdoutLine?(stdoutBuffer)
+                    stdoutBuffer = ""
+                }
+
+                let trailingError = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                if !trailingError.isEmpty {
+                    consumeStderrChunk(String(decoding: trailingError, as: UTF8.self))
+                }
+                if !stderrBuffer.isEmpty {
+                    onStderrLine?(stderrBuffer)
+                    stderrBuffer = ""
                 }
 
                 if process.isRunning {
@@ -195,22 +268,17 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
                 }
 
                 let exitCode = process.terminationStatus
-                if exitCode != 0 {
-                    let stderr = String(
-                        decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(),
-                        as: UTF8.self
-                    ).trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !stderr.isEmpty, lines.isEmpty {
-                        continuation.resume(
-                            throwing: BridgeClientError.bridge(
-                                BridgeErrorPayload(
-                                    code: .engineError,
-                                    message: stderr
-                                )
+                bridgeLogger.info("Bridge process finished exit=\(exitCode) lines=\(lines.count)")
+                if exitCode != 0, lines.isEmpty {
+                    continuation.resume(
+                        throwing: BridgeClientError.bridge(
+                            BridgeErrorPayload(
+                                code: .engineError,
+                                message: "Le processus Python s'est terminé avec le code \(exitCode)."
                             )
                         )
-                        return
-                    }
+                    )
+                    return
                 }
 
                 continuation.resume(returning: lines)

@@ -39,11 +39,17 @@ struct ImportProgressView: View {
                     Text("Étapes")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(palette.textSecondary)
-                    ForEach(Array(progress.diagnostics.enumerated()), id: \.offset) { _, line in
-                        Text(line)
-                            .font(.caption)
-                            .foregroundStyle(palette.textTertiary)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(Array(progress.diagnostics.enumerated()), id: \.offset) { _, line in
+                                Text(line)
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textTertiary)
+                                    .textSelection(.enabled)
+                            }
+                        }
                     }
+                    .frame(maxHeight: 220)
                 }
             }
         }

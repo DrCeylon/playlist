@@ -1,39 +1,39 @@
 import AppKit
 import SwiftUI
 
-/// AppKit-backed text field for reliable macOS keyboard focus and typing.
+/// AppKit text field hosted in a focusable container for reliable macOS keyboard input.
 struct MacKeyboardTextField: NSViewRepresentable {
     let placeholder: String
     @Binding var text: String
     var isMultiline: Bool = false
     var onCommit: (() -> Void)?
 
-    func makeNSView(context: Context) -> NSTextField {
-        let field: NSTextField
-        if isMultiline {
-            let wrapped = NSTextField(wrappingLabelWithString: "")
-            wrapped.maximumNumberOfLines = 0
-            field = wrapped
-        } else {
-            field = NSTextField(string: "")
+    func makeNSView(context: Context) -> FocusableTextFieldContainer {
+        let container = FocusableTextFieldContainer(isMultiline: isMultiline)
+        container.textField.placeholderString = placeholder
+        container.textField.stringValue = text
+        container.textField.delegate = context.coordinator
+        container.textField.target = context.coordinator
+        container.textField.action = #selector(Coordinator.commitEditing)
+        container.onTextChange = { newValue in
+            context.coordinator.updateText(newValue)
         }
-        field.placeholderString = placeholder
-        field.isBordered = true
-        field.isBezeled = true
-        field.bezelStyle = .roundedBezel
-        field.focusRingType = .default
-        field.delegate = context.coordinator
-        field.target = context.coordinator
-        field.action = #selector(Coordinator.commitEditing)
-        field.stringValue = text
-        return field
+        container.onCommit = onCommit
+        return container
     }
 
-    func updateNSView(_ nsView: NSTextField, context: Context) {
-        if nsView.stringValue != text {
-            nsView.stringValue = text
-        }
+    func updateNSView(_ container: FocusableTextFieldContainer, context: Context) {
         context.coordinator.parent = self
+        container.textField.placeholderString = placeholder
+        container.onCommit = onCommit
+
+        let isEditing = container.textField.currentEditor() != nil
+            || container.window?.firstResponder === container.textField
+        guard !isEditing else { return }
+
+        if container.textField.stringValue != text {
+            container.textField.stringValue = text
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -47,13 +47,85 @@ struct MacKeyboardTextField: NSViewRepresentable {
             self.parent = parent
         }
 
+        func updateText(_ value: String) {
+            if parent.text != value {
+                parent.text = value
+            }
+        }
+
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSTextField else { return }
-            parent.text = field.stringValue
+            updateText(field.stringValue)
         }
 
         @objc func commitEditing() {
             parent.onCommit?()
         }
+    }
+}
+
+final class FocusableTextFieldContainer: NSView {
+    let textField: NSTextField
+    var onTextChange: ((String) -> Void)?
+    var onCommit: (() -> Void)?
+
+    init(isMultiline: Bool) {
+        if isMultiline {
+            let field = NSTextField()
+            field.maximumNumberOfLines = 0
+            field.cell?.wraps = true
+            field.cell?.isScrollable = false
+            textField = field
+        } else {
+            textField = NSTextField(string: "")
+        }
+        super.init(frame: .zero)
+        configureField()
+        installField()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    private func configureField() {
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.isEditable = true
+        textField.isSelectable = true
+        textField.isEnabled = true
+        textField.isBordered = true
+        textField.isBezeled = true
+        textField.bezelStyle = .roundedBezel
+        textField.focusRingType = .exterior
+        textField.font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+    }
+
+    private func installField() {
+        addSubview(textField)
+        NSLayoutConstraint.activate([
+            textField.leadingAnchor.constraint(equalTo: leadingAnchor),
+            textField.trailingAnchor.constraint(equalTo: trailingAnchor),
+            textField.topAnchor.constraint(equalTo: topAnchor),
+            textField.bottomAnchor.constraint(equalTo: bottomAnchor),
+            textField.heightAnchor.constraint(greaterThanOrEqualToConstant: 24),
+        ])
+    }
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(textField)
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        window?.makeFirstResponder(textField) ?? false
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if window?.firstResponder === textField {
+            return textField.performKeyEquivalent(with: event)
+        }
+        return super.performKeyEquivalent(with: event)
     }
 }

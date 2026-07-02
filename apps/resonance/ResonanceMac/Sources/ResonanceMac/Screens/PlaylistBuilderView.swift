@@ -16,6 +16,8 @@ struct PlaylistBuilderView: View {
     @State private var draftDuration = ""
     @State private var showAdvancedOptions = false
     @State private var showExclusions = false
+    @State private var keyboardDebugSwiftUIText = ""
+    @State private var keyboardDebugAppKitText = ""
 
     init(
         generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
@@ -99,6 +101,8 @@ struct PlaylistBuilderView: View {
                 draftDuration: $draftDuration,
                 showAdvancedOptions: $showAdvancedOptions,
                 showExclusions: $showExclusions,
+                keyboardDebugSwiftUIText: $keyboardDebugSwiftUIText,
+                keyboardDebugAppKitText: $keyboardDebugAppKitText,
                 onCommitDraft: commitDraftAndValidate,
                 onPushDraft: pushDraftToViewModel
             )
@@ -146,6 +150,8 @@ private struct PlaylistBuilderFormView: View {
     @Binding var draftDuration: String
     @Binding var showAdvancedOptions: Bool
     @Binding var showExclusions: Bool
+    @Binding var keyboardDebugSwiftUIText: String
+    @Binding var keyboardDebugAppKitText: String
 
     let onCommitDraft: () -> Void
     let onPushDraft: () -> Void
@@ -159,45 +165,51 @@ private struct PlaylistBuilderFormView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                BuilderHelpSection(palette: palette)
-                ValidationSection(errors: viewModel.validationErrors, palette: palette)
-                BridgeMessageSection(message: viewModel.bridgeFallbackMessage, palette: palette)
-                EssentialFieldsSection(
-                    palette: palette,
-                    draftName: $draftName,
-                    draftSeedArtist: $draftSeedArtist,
-                    draftSeedTrack: $draftSeedTrack,
-                    draftKeywords: $draftKeywords,
-                    draftTrackCount: $draftTrackCount,
-                    onCommitDraft: onCommitDraft
-                )
-                AdvancedOptionsSection(
-                    viewModel: viewModel,
-                    palette: palette,
-                    draftDescription: $draftDescription,
-                    draftDuration: $draftDuration,
-                    isExpanded: $showAdvancedOptions,
-                    onCommitDraft: onCommitDraft
-                )
-                ExclusionsSection(
-                    viewModel: viewModel,
-                    palette: palette,
-                    isExpanded: $showExclusions,
-                    onPushDraft: onPushDraft
-                )
-                GenerateSection(
-                    viewModel: viewModel,
-                    palette: palette,
-                    canGenerateFromDrafts: draftsLookComplete,
-                    onPushDraft: onPushDraft,
-                    onCommitDraft: onCommitDraft
-                )
+        VStack(alignment: .leading, spacing: 20) {
+            KeyboardInputDebugPanel(
+                swiftUIText: $keyboardDebugSwiftUIText,
+                appKitText: $keyboardDebugAppKitText
+            )
+            BuilderHelpSection(palette: palette)
+            ValidationSection(errors: viewModel.validationErrors, palette: palette)
+            BridgeMessageSection(message: viewModel.bridgeFallbackMessage, palette: palette)
+            EssentialFieldsSection(
+                palette: palette,
+                draftName: $draftName,
+                draftSeedArtist: $draftSeedArtist,
+                draftSeedTrack: $draftSeedTrack,
+                draftKeywords: $draftKeywords,
+                draftTrackCount: $draftTrackCount,
+                onCommitDraft: onCommitDraft
+            )
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    AdvancedOptionsSection(
+                        viewModel: viewModel,
+                        palette: palette,
+                        draftDescription: $draftDescription,
+                        draftDuration: $draftDuration,
+                        isExpanded: $showAdvancedOptions,
+                        onCommitDraft: onCommitDraft
+                    )
+                    ExclusionsSection(
+                        viewModel: viewModel,
+                        palette: palette,
+                        isExpanded: $showExclusions,
+                        onPushDraft: onPushDraft
+                    )
+                    GenerateSection(
+                        viewModel: viewModel,
+                        palette: palette,
+                        canGenerateFromDrafts: draftsLookComplete,
+                        onPushDraft: onPushDraft,
+                        onCommitDraft: onCommitDraft
+                    )
+                }
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onChange(of: viewModel.energyProfile) { _, _ in
             onPushDraft()
             viewModel.validateForm()
@@ -461,7 +473,7 @@ private struct NativeFormTextField: View {
                 isMultiline: isMultiline,
                 onCommit: onCommit
             )
-            .foregroundStyle(palette.inputText)
+            .frame(maxWidth: .infinity, minHeight: isMultiline ? 64 : 26, alignment: .leading)
         }
     }
 }
@@ -507,7 +519,7 @@ private struct ExclusionEditorRow: View {
                 .buttonStyle(.borderless)
             }
             MacKeyboardTextField(placeholder: "Valeur", text: $rule.value)
-                .foregroundStyle(palette.inputText)
+                .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
         }
     }
 }

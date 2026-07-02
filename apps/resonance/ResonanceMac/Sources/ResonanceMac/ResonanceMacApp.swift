@@ -1,3 +1,4 @@
+import AppKit
 import ResonanceCore
 import ResonanceDesign
 import SwiftUI
@@ -20,6 +21,10 @@ struct ResonanceMacApp: App {
         WindowGroup {
             AppShellView()
                 .environmentObject(themeManager)
+                .onAppear {
+                    NSApp.setActivationPolicy(.regular)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
         }
         .defaultSize(width: 1100, height: 720)
     }

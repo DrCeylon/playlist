@@ -10,12 +10,14 @@ final class MockBridgeTransport: BridgeTransport, @unchecked Sendable {
         command: BridgeCommand,
         requestID: String,
         params: BridgeJSONObject,
-        onEvent: (@Sendable (BridgeEventMessage) -> Void)?
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)?,
+        onDiagnostic: (@Sendable (String) -> Void)? = nil
     ) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
     ) {
         _ = onEvent
+        _ = onDiagnostic
         lastCommand = command
         if let handler {
             return handler(command, params)

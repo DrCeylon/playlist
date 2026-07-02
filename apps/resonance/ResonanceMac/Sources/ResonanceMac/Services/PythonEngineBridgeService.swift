@@ -164,15 +164,49 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             return try await fallbackImport.importPlaylist(result, onEvent: onEvent)
         }
         do {
+            let playlistPayload = BridgePayloadBuilder.playlistDictionary(from: result)
+            let sectionCount = result.sections.count
+            onEvent(
+                BridgeEventMessage(
+                    id: "import-local",
+                    event: .diagnostic,
+                    payload: [
+                        "message": .string(
+                            "Import cliqué — playlist «\(result.playlistName)», \(result.trackCount) morceau(x), \(sectionCount) section(s), history_session_id=\(result.historySessionID.isEmpty ? "—" : result.historySessionID)"
+                        ),
+                    ]
+                )
+            )
+            if let workingDirectory = bridgeWorkingDirectory {
+                onEvent(
+                    BridgeEventMessage(
+                        id: "import-local",
+                        event: .diagnostic,
+                        payload: [
+                            "message": .string("Lancement process Python bridge dans \(workingDirectory)"),
+                        ]
+                    )
+                )
+            }
+
             let (response, _) = try await transport.send(
                 command: .importPlaylist,
                 params: [
-                    "playlist": .object(BridgePayloadBuilder.playlistDictionary(from: result)),
+                    "playlist": .object(playlistPayload),
                     "sync": .bool(true),
                     "write_json_diagnostics": .bool(true),
                     "history_session_id": .string(result.historySessionID),
                 ],
-                onEvent: onEvent
+                onEvent: onEvent,
+                onDiagnostic: { line in
+                    onEvent(
+                        BridgeEventMessage(
+                            id: "import-bridge",
+                            event: .diagnostic,
+                            payload: ["message": .string(line)]
+                        )
+                    )
+                }
             )
             if let importState = try? BridgePayloadBuilder.importResult(from: response.result),
                importState.phase == .waitingForManualAcquisition {

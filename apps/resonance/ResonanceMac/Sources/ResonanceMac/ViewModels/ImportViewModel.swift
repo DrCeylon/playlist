@@ -50,7 +50,7 @@ final class ImportViewModel: ObservableObject {
         } catch let error as PlaylistImportError {
             screenState = .failed(message(for: error))
         } catch {
-            screenState = .failed("L'import a échoué.")
+            screenState = .failed("L'import a échoué : \(error.localizedDescription)")
         }
     }
 
@@ -104,11 +104,16 @@ final class ImportViewModel: ObservableObject {
             }
         case .diagnostic:
             if let message = event.payload["message"]?.stringValue {
-                appendDiagnostic(message)
+                let isBridgeLine = message.hasPrefix("[stderr]")
+                    || message.hasPrefix("[bridge error]")
+                    || message.contains("resonance-bridge:")
+                    || message.contains("resonance-import:")
+                appendDiagnostic(message, force: isBridgeLine)
             }
         case .error:
             if let message = event.payload["message"]?.stringValue, !message.isEmpty {
-                screenState = .failed(message)
+                appendDiagnostic(message, force: true)
+                screenState = .failed(humanizeBridgeMessage(message))
             }
         case .manualAcquisitionRequired:
             importSessionID = event.payload["import_session_id"]?.stringValue
@@ -125,9 +130,9 @@ final class ImportViewModel: ObservableObject {
         }
     }
 
-    private func appendDiagnostic(_ message: String) {
+    private func appendDiagnostic(_ message: String, force: Bool = false) {
         guard !message.isEmpty else { return }
-        if progress.diagnostics.last != message {
+        if force || progress.diagnostics.last != message {
             progress.diagnostics.append(message)
         }
     }
@@ -147,7 +152,7 @@ final class ImportViewModel: ObservableObject {
         case .bridgeUnavailable:
             return "Le moteur Python est indisponible. Vérifie l'installation du projet."
         case .timeout:
-            return "Le moteur Python n'a pas répondu à temps. Vérifie que Music.app est ouvert et que Resonance est autorisé dans Réglages > Confidentialité > Automatisation."
+            return "Le moteur Python n'a pas répondu à temps. Vérifie que Music.app est ouvert et que Terminal/Resonance/Python est autorisé dans Réglages Système > Confidentialité et sécurité > Automatisation."
         case .invalidResponse:
             return "Réponse bridge invalide."
         case .bridge(let payload):
@@ -161,7 +166,7 @@ final class ImportViewModel: ObservableObject {
             || lowered.contains("automation")
             || lowered.contains("-1743")
             || lowered.contains("autorisation") {
-            return "Autorise Resonance ou Terminal à contrôler Music dans Réglages > Confidentialité > Automatisation."
+            return "Autorise Terminal, Resonance ou Python à contrôler Music dans Réglages Système > Confidentialité et sécurité > Automatisation."
         }
         return message
     }
