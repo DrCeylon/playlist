@@ -32,7 +32,7 @@ public protocol BridgeTransport: Sendable {
         requestID: String,
         params: BridgeJSONObject,
         onEvent: (@Sendable (BridgeEventMessage) -> Void)?,
-        onDiagnostic: (@Sendable (String) -> Void)? = nil
+        onDiagnostic: (@Sendable (String) -> Void)?
     ) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
@@ -58,6 +58,63 @@ public extension BridgeTransport {
     }
 }
 
+private final class ProcessStreamCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stdoutBuffer = ""
+    private var stderrBuffer = ""
+    private(set) var lines: [String] = []
+    private let onStdoutLine: (@Sendable (String) -> Void)?
+    private let onStderrLine: (@Sendable (String) -> Void)?
+
+    init(
+        onStdoutLine: (@Sendable (String) -> Void)?,
+        onStderrLine: (@Sendable (String) -> Void)?
+    ) {
+        self.onStdoutLine = onStdoutLine
+        self.onStderrLine = onStderrLine
+    }
+
+    func consumeStdoutChunk(_ chunk: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        stdoutBuffer += chunk
+        while let newlineIndex = stdoutBuffer.firstIndex(of: "\n") {
+            let line = String(stdoutBuffer[..<newlineIndex])
+            stdoutBuffer = String(stdoutBuffer[stdoutBuffer.index(after: newlineIndex)...])
+            lines.append(line)
+            onStdoutLine?(line)
+        }
+    }
+
+    func consumeStderrChunk(_ chunk: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        stderrBuffer += chunk
+        while let newlineIndex = stderrBuffer.firstIndex(of: "\n") {
+            let line = String(stderrBuffer[..<newlineIndex])
+            stderrBuffer = String(stderrBuffer[stderrBuffer.index(after: newlineIndex)...])
+            onStderrLine?(line)
+        }
+    }
+
+    func flushRemainingStdout() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !stdoutBuffer.isEmpty else { return }
+        lines.append(stdoutBuffer)
+        onStdoutLine?(stdoutBuffer)
+        stdoutBuffer = ""
+    }
+
+    func flushRemainingStderr() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !stderrBuffer.isEmpty else { return }
+        onStderrLine?(stderrBuffer)
+        stderrBuffer = ""
+    }
+}
+
 /// Process wrapper guarded by an internal lock; safe to share as bridge transport.
 public final class BridgeClient: BridgeTransport, @unchecked Sendable {
     private let configuration: BridgeClientConfiguration
@@ -69,10 +126,10 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
 
     public func send(
         command: BridgeCommand,
-        requestID: String = UUID().uuidString,
-        params: BridgeJSONObject = [:],
-        onEvent: (@Sendable (BridgeEventMessage) -> Void)? = nil,
-        onDiagnostic: (@Sendable (String) -> Void)? = nil
+        requestID: String,
+        params: BridgeJSONObject,
+        onEvent: (@Sendable (BridgeEventMessage) -> Void)?,
+        onDiagnostic: (@Sendable (String) -> Void)?
     ) async throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
         let payload: BridgeJSONObject = [
             "id": .string(requestID),
@@ -198,40 +255,22 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             }
             inputPipe.fileHandleForWriting.closeFile()
 
-            var stdoutBuffer = ""
-            var stderrBuffer = ""
-            var lines: [String] = []
+            let streamCollector = ProcessStreamCollector(
+                onStdoutLine: onStdoutLine,
+                onStderrLine: onStderrLine
+            )
             let deadline = Date().addingTimeInterval(configuration.timeoutSeconds)
-
-            func consumeStdoutChunk(_ chunk: String) {
-                stdoutBuffer += chunk
-                while let newlineIndex = stdoutBuffer.firstIndex(of: "\n") {
-                    let line = String(stdoutBuffer[..<newlineIndex])
-                    stdoutBuffer = String(stdoutBuffer[stdoutBuffer.index(after: newlineIndex)...])
-                    lines.append(line)
-                    onStdoutLine?(line)
-                }
-            }
-
-            func consumeStderrChunk(_ chunk: String) {
-                stderrBuffer += chunk
-                while let newlineIndex = stderrBuffer.firstIndex(of: "\n") {
-                    let line = String(stderrBuffer[..<newlineIndex])
-                    stderrBuffer = String(stderrBuffer[stderrBuffer.index(after: newlineIndex)...])
-                    onStderrLine?(line)
-                }
-            }
 
             outputPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
-                consumeStdoutChunk(String(decoding: data, as: UTF8.self))
+                streamCollector.consumeStdoutChunk(String(decoding: data, as: UTF8.self))
             }
 
             errorPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 guard !data.isEmpty else { return }
-                consumeStderrChunk(String(decoding: data, as: UTF8.self))
+                streamCollector.consumeStderrChunk(String(decoding: data, as: UTF8.self))
             }
 
             DispatchQueue.global(qos: .userInitiated).async {
@@ -244,22 +283,15 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
 
                 let trailingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
                 if !trailingOutput.isEmpty {
-                    consumeStdoutChunk(String(decoding: trailingOutput, as: UTF8.self))
+                    streamCollector.consumeStdoutChunk(String(decoding: trailingOutput, as: UTF8.self))
                 }
-                if !stdoutBuffer.isEmpty {
-                    lines.append(stdoutBuffer)
-                    onStdoutLine?(stdoutBuffer)
-                    stdoutBuffer = ""
-                }
+                streamCollector.flushRemainingStdout()
 
                 let trailingError = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 if !trailingError.isEmpty {
-                    consumeStderrChunk(String(decoding: trailingError, as: UTF8.self))
+                    streamCollector.consumeStderrChunk(String(decoding: trailingError, as: UTF8.self))
                 }
-                if !stderrBuffer.isEmpty {
-                    onStderrLine?(stderrBuffer)
-                    stderrBuffer = ""
-                }
+                streamCollector.flushRemainingStderr()
 
                 if process.isRunning {
                     process.terminate()
@@ -268,6 +300,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
                 }
 
                 let exitCode = process.terminationStatus
+                let lines = streamCollector.lines
                 bridgeLogger.info("Bridge process finished exit=\(exitCode) lines=\(lines.count)")
                 if exitCode != 0, lines.isEmpty {
                     continuation.resume(

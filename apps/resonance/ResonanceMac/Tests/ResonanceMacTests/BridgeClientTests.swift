@@ -11,7 +11,7 @@ final class MockBridgeTransport: BridgeTransport, @unchecked Sendable {
         requestID: String,
         params: BridgeJSONObject,
         onEvent: (@Sendable (BridgeEventMessage) -> Void)?,
-        onDiagnostic: (@Sendable (String) -> Void)? = nil
+        onDiagnostic: (@Sendable (String) -> Void)?
     ) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
