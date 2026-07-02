@@ -71,3 +71,8 @@ Retention policy can be added later (count/date based) without storage migration
 - No cross-device sync
 - No destructive provider actions (never deletes Apple Music playlist/library)
 
+## macOS usability fixes (4.8a)
+
+- Empty history shows « Aucune session pour le moment » (ready state, not error).
+- Bridge misconfiguration surfaces: « Moteur Python introuvable » with `RESONANCE_REPO_ROOT` hint.
+- Repo root discovery walks cwd and executable path; Python prefers `.venv/bin/python`.

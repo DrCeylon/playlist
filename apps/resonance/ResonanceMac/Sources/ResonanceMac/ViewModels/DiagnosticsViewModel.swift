@@ -29,6 +29,7 @@ final class DiagnosticsViewModel: ObservableObject {
     @Published var displayMode: DisplayMode = .simple
     @Published var snapshot: DiagnosticsSnapshot?
     @Published var providers: [ProviderOption] = []
+    @Published var architectErrorDetail: String?
 
     private let service: any DiagnosticsServing
 
@@ -46,6 +47,7 @@ final class DiagnosticsViewModel: ObservableObject {
 
     func refresh() async {
         screenState = .running
+        architectErrorDetail = nil
         do {
             async let diagnosticsTask = service.fetchDiagnostics()
             async let providersTask = service.listProviders()
@@ -56,8 +58,10 @@ final class DiagnosticsViewModel: ObservableObject {
             screenState = diagnostics.summary.bridgeStatus == "connected" ? .completed : .connected
         } catch let error as DiagnosticsServiceError {
             screenState = .failed(message(for: error))
+            architectErrorDetail = architectDetail(for: error)
         } catch {
             screenState = .failed("Impossible de charger les diagnostics.")
+            architectErrorDetail = String(describing: error)
         }
     }
 
@@ -72,13 +76,34 @@ final class DiagnosticsViewModel: ObservableObject {
     private func message(for error: DiagnosticsServiceError) -> String {
         switch error {
         case .bridgeUnavailable:
-            return "Le moteur Python est indisponible. Vérifie l'installation du projet."
+            return """
+            Moteur Python introuvable. Lance l'app depuis apps/resonance ou définis RESONANCE_REPO_ROOT.
+            """
         case .timeout:
             return "Le moteur Python n'a pas répondu à temps."
         case .invalidResponse:
-            return "Réponse bridge invalide."
+            return "Réponse bridge incomplète. Passe en mode Architecte pour les détails."
         case .bridge(let payload):
             return payload.message
+        }
+    }
+
+    private func architectDetail(for error: DiagnosticsServiceError) -> String? {
+        switch error {
+        case .invalidResponse:
+            return "Le payload diagnostics ne contient pas de section summary exploitable."
+        case .bridge(let payload):
+            return "\(payload.code.rawValue): \(payload.message)"
+        case .bridgeUnavailable:
+            if let bridge = service as? PythonEngineBridgeService {
+                if bridge.isBridgeConfigured {
+                    return "Bridge configuré (cwd: \(bridge.bridgeWorkingDirectory ?? "inconnu")) mais processus Python injoignable."
+                }
+                return "Aucune racine repo détectée (playlist_builder/). cwd=\(FileManager.default.currentDirectoryPath)"
+            }
+            return "Transport bridge non initialisé."
+        case .timeout:
+            return nil
         }
     }
 }

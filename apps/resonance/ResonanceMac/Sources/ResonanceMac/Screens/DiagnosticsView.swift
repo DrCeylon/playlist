@@ -59,6 +59,12 @@ struct DiagnosticsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(palette.statusWarning)
+                if viewModel.displayMode == .architect, let detail = viewModel.architectErrorDetail {
+                    Text(detail)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(palette.textTertiary)
+                        .textSelection(.enabled)
+                }
                 Button("Réessayer") {
                     Task { await viewModel.refresh() }
                 }

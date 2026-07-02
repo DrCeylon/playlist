@@ -101,3 +101,9 @@ cd apps/resonance && ./scripts/build.sh
 - **4.8** — Historique sessions + persistance locale
 - Relier le Laboratoire aux événements live du bridge pendant import
 - Export diagnostics depuis l’UI
+
+## macOS usability fixes (4.8a)
+
+- Diagnostics parsing tolerates minimal bridge payloads (missing `summary` defaults).
+- User-facing errors distinguish bridge unavailable vs invalid response; architect mode shows technical detail.
+- `ResonancePaths` resolves repo root from executable path when cwd is `.build/`.

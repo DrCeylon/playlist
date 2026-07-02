@@ -34,3 +34,10 @@ public enum DiagnosticsServiceError: Error, Equatable {
     case invalidResponse
     case bridge(BridgeErrorPayload)
 }
+
+public enum SessionHistoryServiceError: Error, Equatable {
+    case bridgeUnavailable
+    case timeout
+    case invalidResponse
+    case bridge(BridgeErrorPayload)
+}

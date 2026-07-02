@@ -14,6 +14,7 @@ final class HistoryViewModel: ObservableObject {
     @Published var sessions: [SessionHistorySummary] = []
     @Published var selectedDetail: SessionHistoryDetail?
     @Published var actionMessage = ""
+    @Published var architectErrorDetail: String?
 
     private let service: any SessionHistoryServing
 
@@ -23,11 +24,20 @@ final class HistoryViewModel: ObservableObject {
 
     func refresh() async {
         screenState = .loading
+        architectErrorDetail = nil
         do {
             sessions = try await service.listHistory()
             screenState = .ready
+        } catch let error as SessionHistoryServiceError {
+            screenState = .failed(message(for: error))
+            if case .invalidResponse = error {
+                architectErrorDetail = "Réponse bridge sans liste sessions valide."
+            } else if case .bridge(let payload) = error {
+                architectErrorDetail = "\(payload.code.rawValue): \(payload.message)"
+            }
         } catch {
             screenState = .failed("Impossible de charger l'historique.")
+            architectErrorDetail = String(describing: error)
         }
     }
 
@@ -91,5 +101,19 @@ final class HistoryViewModel: ObservableObject {
             actionMessage = "Export impossible."
         }
     }
-}
 
+    private func message(for error: SessionHistoryServiceError) -> String {
+        switch error {
+        case .bridgeUnavailable:
+            return """
+            Moteur Python introuvable. Lance l'app depuis apps/resonance ou définis RESONANCE_REPO_ROOT.
+            """
+        case .timeout:
+            return "Le moteur Python n'a pas répondu à temps."
+        case .invalidResponse:
+            return "Réponse bridge invalide pour l'historique."
+        case .bridge(let payload):
+            return payload.message
+        }
+    }
+}

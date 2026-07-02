@@ -6,6 +6,8 @@ struct PlaylistBuilderView: View {
     @StateObject private var viewModel: PlaylistBuilderViewModel
     @StateObject private var importViewModel: ImportViewModel
     @EnvironmentObject private var themeManager: ThemeManager
+    @State private var showAdvancedOptions = false
+    @State private var showExclusions = false
 
     init(
         generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
@@ -90,7 +92,9 @@ struct PlaylistBuilderView: View {
         let palette = ThemePalette(theme: themeManager.active)
 
         return ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 16) {
+                helpBanner(palette: palette)
+
                 if !viewModel.validationErrors.isEmpty {
                     ValidationBanner(errors: viewModel.validationErrors, palette: palette)
                 }
@@ -101,90 +105,110 @@ struct PlaylistBuilderView: View {
                         .foregroundStyle(palette.textTertiary)
                 }
 
-                formSection(title: "Identité", palette: palette) {
-                    BuilderTextField(title: "Nom", text: $viewModel.name, palette: palette)
-                    BuilderTextField(
-                        title: "Description",
-                        text: $viewModel.descriptionText,
-                        palette: palette,
-                        axis: .vertical
-                    )
-                }
-
-                formSection(title: "Provider", palette: palette) {
-                    if let provider = viewModel.selectedProvider {
-                        HStack {
-                            Label(provider.displayName, systemImage: "music.note")
-                            Spacer()
-                            Text("Sélectionné")
-                                .font(.caption)
-                                .foregroundStyle(palette.textSecondary)
-                        }
-                        .padding(12)
-                        .background(palette.backgroundElevated.opacity(0.65))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(palette.borderSubtle, lineWidth: 1)
-                        )
-                        .opacity(0.72)
-                    }
-                }
-
-                formSection(title: "Graines", palette: palette) {
+                formSection(title: "Essentiel", palette: palette) {
+                    BuilderTextField(title: "Nom de la playlist", text: $viewModel.name, palette: palette)
                     BuilderTextField(title: "Artiste seed", text: $viewModel.seedArtist, palette: palette)
                     BuilderTextField(title: "Morceau seed", text: $viewModel.seedTrack, palette: palette)
-                }
-
-                formSection(title: "Ambiance & taille", palette: palette) {
                     BuilderTextField(
                         title: "Mots-clés (séparés par des virgules)",
                         text: $viewModel.keywordsText,
                         palette: palette
                     )
-                    HStack(spacing: 16) {
+                    BuilderTextField(
+                        title: "Nombre de morceaux",
+                        text: $viewModel.targetTrackCountText,
+                        palette: palette
+                    )
+                }
+
+                DisclosureGroup(isExpanded: $showAdvancedOptions) {
+                    VStack(alignment: .leading, spacing: 12) {
                         BuilderTextField(
-                            title: "Nombre de morceaux",
-                            text: $viewModel.targetTrackCountText,
-                            palette: palette
+                            title: "Description",
+                            text: $viewModel.descriptionText,
+                            palette: palette,
+                            axis: .vertical
                         )
                         BuilderTextField(
                             title: "Durée cible (min)",
                             text: $viewModel.targetDurationText,
                             palette: palette
                         )
-                    }
-                    Picker("Courbe d'énergie", selection: $viewModel.energyProfile) {
-                        ForEach(EnergyCurveProfile.allCases) { profile in
-                            Text(profile.displayName).tag(profile)
+                        Picker("Courbe d'énergie", selection: $viewModel.energyProfile) {
+                            ForEach(EnergyCurveProfile.allCases) { profile in
+                                Text(profile.displayName).tag(profile)
+                            }
                         }
-                    }
-                    .pickerStyle(.menu)
-                }
+                        .pickerStyle(.menu)
+                        .foregroundStyle(palette.textPrimary)
 
-                formSection(title: "Exclusions", palette: palette) {
-                    if viewModel.exclusions.isEmpty {
-                        Text("Aucune exclusion pour le moment.")
-                            .font(.callout)
-                            .foregroundStyle(palette.textSecondary)
-                    } else {
-                        ForEach(viewModel.exclusions) { rule in
-                            ExclusionEditorRow(
-                                rule: binding(for: rule),
-                                palette: palette,
-                                onRemove: { viewModel.removeExclusion(rule) }
-                            )
+                        if let provider = viewModel.selectedProvider {
+                            HStack {
+                                Label(provider.displayName, systemImage: "music.note")
+                                    .foregroundStyle(palette.textSecondary)
+                                Spacer()
+                                Text("Provider par défaut")
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textTertiary)
+                            }
                         }
                     }
-                    Button("Ajouter une exclusion") {
-                        viewModel.addExclusion()
-                        viewModel.validateForm()
-                    }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(palette.accentPrimary)
+                    .padding(.top, 8)
+                } label: {
+                    Text("Options avancées")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
                 }
+                .padding(16)
+                .background(palette.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(palette.borderSubtle, lineWidth: 1)
+                )
+
+                DisclosureGroup(isExpanded: $showExclusions) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if viewModel.exclusions.isEmpty {
+                            Text("Aucune exclusion pour le moment.")
+                                .font(.callout)
+                                .foregroundStyle(palette.textSecondary)
+                        } else {
+                            ForEach(viewModel.exclusions) { rule in
+                                ExclusionEditorRow(
+                                    rule: binding(for: rule),
+                                    palette: palette,
+                                    onRemove: { viewModel.removeExclusion(rule) }
+                                )
+                            }
+                        }
+                        Button("Ajouter une exclusion") {
+                            viewModel.addExclusion()
+                            viewModel.validateForm()
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(palette.accentPrimary)
+                    }
+                    .padding(.top, 8)
+                } label: {
+                    Text("Exclusions")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                }
+                .padding(16)
+                .background(palette.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(palette.borderSubtle, lineWidth: 1)
+                )
 
                 HStack {
+                    if !viewModel.canGenerate {
+                        Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
+                            .font(.caption)
+                            .foregroundStyle(palette.textTertiary)
+                    }
                     Spacer()
                     Button {
                         Task { await viewModel.generate() }
@@ -204,6 +228,25 @@ struct PlaylistBuilderView: View {
             }
             .padding(24)
         }
+    }
+
+    private func helpBanner(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Crée une playlist en quelques champs")
+                .font(.headline)
+                .foregroundStyle(palette.textPrimary)
+            Text("Remplis au minimum un nom et une graine ou des mots-clés.")
+                .font(.callout)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(palette.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(palette.borderSubtle, lineWidth: 1)
+        )
     }
 
     private func binding(for rule: ExclusionRule) -> Binding<ExclusionRule> {
@@ -234,7 +277,7 @@ struct PlaylistBuilderView: View {
             content()
         }
         .padding(16)
-        .background(palette.backgroundSecondary)
+        .background(palette.surface)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -248,6 +291,7 @@ private struct BuilderTextField: View {
     @Binding var text: String
     let palette: ThemePalette
     var axis: Axis = .horizontal
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -256,12 +300,15 @@ private struct BuilderTextField: View {
                 .foregroundStyle(palette.textSecondary)
             TextField(title, text: $text, axis: axis)
                 .textFieldStyle(.plain)
+                .foregroundStyle(palette.inputText)
+                .tint(palette.accentPrimary)
+                .focused($isFocused)
                 .padding(10)
-                .background(palette.backgroundElevated)
+                .background(palette.inputBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(palette.borderSubtle, lineWidth: 1)
+                        .stroke(isFocused ? palette.accentPrimary.opacity(0.6) : palette.borderSubtle, lineWidth: 1)
                 )
         }
     }
@@ -271,6 +318,7 @@ private struct ExclusionEditorRow: View {
     @Binding var rule: ExclusionRule
     let palette: ThemePalette
     let onRemove: () -> Void
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -281,6 +329,7 @@ private struct ExclusionEditorRow: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .foregroundStyle(palette.textPrimary)
                 Spacer()
                 Button(role: .cancel, action: onRemove) {
                     Image(systemName: "minus.circle")
@@ -290,9 +339,16 @@ private struct ExclusionEditorRow: View {
             }
             TextField("Valeur", text: $rule.value)
                 .textFieldStyle(.plain)
+                .foregroundStyle(palette.inputText)
+                .tint(palette.accentPrimary)
+                .focused($isFocused)
                 .padding(10)
-                .background(palette.backgroundElevated)
+                .background(palette.inputBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(isFocused ? palette.accentPrimary.opacity(0.6) : palette.borderSubtle, lineWidth: 1)
+                )
         }
     }
 }
@@ -309,7 +365,7 @@ private struct ValidationBanner: View {
             ForEach(errors, id: \.self) { error in
                 Text("\(error.field): \(error.message)")
                     .font(.callout)
-                    .foregroundStyle(palette.textSecondary)
+                    .foregroundStyle(palette.textPrimary)
             }
         }
         .padding(12)

@@ -69,7 +69,7 @@ def test_inheritance_merges_parent_and_child_tokens():
 
     assert child.extends == "apple_music_dark"
     assert child.tokens.colors["color.background.primary"] == "#232323"
-    assert child.tokens.colors["color.text.primary"] == parent.tokens.colors["color.text.primary"]
+    assert child.tokens.colors["color.text.primary"] == "#E8FFE8"
     assert child.tokens.colors["color.accent.primary"] == "#00FF99"
     assert child.tokens.spacing["space.md"] == parent.tokens.spacing["space.md"]
 

@@ -15,15 +15,13 @@ struct HomeView: View {
                         Text("Bonjour")
                             .font(.largeTitle.weight(.semibold))
                             .foregroundStyle(palette.textPrimary)
-                        Text("Resonance — playlists intelligentes, moteur Python provider-neutral.")
+                        Text("Génère, importe et retrouve tes playlists depuis une interface macOS.")
                             .font(.body)
                             .foregroundStyle(palette.textSecondary)
                     }
 
-                    card(title: "Provider", palette: palette) {
-                        Label("Provider-neutral", systemImage: "puzzlepiece.extension")
-                            .foregroundStyle(palette.textPrimary)
-                        Text("Aucune logique provider-specific dans l'interface macOS.")
+                    card(title: "Par où commencer", palette: palette) {
+                        Text("Ouvre Nouvelle Playlist, saisis un nom et une graine musicale, puis génère et importe dans Apple Music.")
                             .font(.callout)
                             .foregroundStyle(palette.textSecondary)
                     }
@@ -37,7 +35,10 @@ struct HomeView: View {
                     }
 
                     card(title: "État", palette: palette) {
-                        Text("Shell macOS Phase 4.4 — moteur Python inchangé, bridge optionnel.")
+                        Text("Resonance — Preview produit Phase 4.8")
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(palette.textPrimary)
+                        Text("Moteur Python provider-neutral, bridge runtime et historique local.")
                             .font(.callout)
                             .foregroundStyle(palette.textSecondary)
                     }
@@ -61,7 +62,7 @@ struct HomeView: View {
             content()
         }
         .padding(16)
-        .background(palette.backgroundSecondary)
+        .background(palette.surface)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)

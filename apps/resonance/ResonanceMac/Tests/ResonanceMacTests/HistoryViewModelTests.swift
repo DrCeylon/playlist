@@ -22,6 +22,23 @@ final class HistoryViewModelTests: XCTestCase {
         }
     }
 
+    func testRefreshEmptyHistoryShowsReadyState() async {
+        let viewModel = HistoryViewModel(service: EmptyHistoryService())
+        await viewModel.refresh()
+        XCTAssertEqual(viewModel.screenState, .ready)
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+    }
+
+    func testBridgeUnavailableShowsUsefulMessage() async {
+        let viewModel = HistoryViewModel(service: UnavailableHistoryService())
+        await viewModel.refresh()
+        if case .failed(let message) = viewModel.screenState {
+            XCTAssertTrue(message.contains("Moteur Python introuvable"))
+        } else {
+            XCTFail("Expected bridge unavailable failure")
+        }
+    }
+
     func testSessionDetailMappingAndReplayAction() async {
         let service = StubHistoryService()
         let viewModel = HistoryViewModel(service: service)
@@ -106,6 +123,26 @@ private struct FailingHistoryService: SessionHistoryServing {
     func deleteHistorySession(sessionID: String) async throws -> Bool { false }
     func clearHistory() async throws -> Bool { false }
     func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult { throw NSError(domain: "test", code: 2) }
+    func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
+}
+
+private struct EmptyHistoryService: SessionHistoryServing {
+    func listHistory() async throws -> [SessionHistorySummary] { [] }
+    func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? { nil }
+    func deleteHistorySession(sessionID: String) async throws -> Bool { false }
+    func clearHistory() async throws -> Bool { false }
+    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult { throw NSError(domain: "test", code: 2) }
+    func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
+}
+
+private struct UnavailableHistoryService: SessionHistoryServing {
+    func listHistory() async throws -> [SessionHistorySummary] {
+        throw SessionHistoryServiceError.bridgeUnavailable
+    }
+    func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? { nil }
+    func deleteHistorySession(sessionID: String) async throws -> Bool { false }
+    func clearHistory() async throws -> Bool { false }
+    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult { throw SessionHistoryServiceError.bridgeUnavailable }
     func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
 }
 

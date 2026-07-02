@@ -70,6 +70,16 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertEqual(snapshot.events[0].payload.first?.key, "bridge_status")
     }
 
+    func testDiagnosticsSnapshotToleratesMissingSummary() throws {
+        let payload: BridgeJSONObject = [
+            "engine_version": .string("1.0.0"),
+            "events": .array([]),
+        ]
+        let snapshot = try BridgePayloadBuilder.diagnosticsSnapshot(from: payload)
+        XCTAssertEqual(snapshot.engineVersion, "1.0.0")
+        XCTAssertEqual(snapshot.summary.bridgeStatus, "unknown")
+    }
+
     func testHistorySessionDecoding() {
         let payload: BridgeJSONObject = [
             "sessions": .array([

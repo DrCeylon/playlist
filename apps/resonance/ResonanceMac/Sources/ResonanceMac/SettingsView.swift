@@ -34,7 +34,7 @@ struct SettingsView: View {
                 }
 
                 Section("À propos") {
-                    LabeledContent("Version shell", value: "4.4 MVP")
+                    LabeledContent("Version shell", value: "4.8 Preview")
                     LabeledContent("Thème actif", value: themeManager.active.displayName)
                 }
             }

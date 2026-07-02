@@ -48,7 +48,7 @@ final class DiagnosticsViewModelTests: XCTestCase {
         let viewModel = DiagnosticsViewModel(service: FailingDiagnosticsService())
         await viewModel.refresh()
         if case .failed(let message) = viewModel.screenState {
-            XCTAssertTrue(message.contains("indisponible"))
+            XCTAssertTrue(message.contains("introuvable"))
         } else {
             XCTFail("Expected failed state")
         }

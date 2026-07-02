@@ -236,10 +236,8 @@ public enum BridgePayloadBuilder {
 
     public static func diagnosticsSnapshot(from payload: BridgeJSONObject) throws -> DiagnosticsSnapshot {
         let engineVersion = payload["engine_version"]?.stringValue ?? ""
-        guard let summaryObject = payload["summary"]?.objectValue else {
-            throw BridgeClientError.invalidResponse
-        }
-        let summary = try diagnosticsSummary(from: summaryObject)
+        let summaryObject = payload["summary"]?.objectValue ?? [:]
+        let summary = diagnosticsSummary(from: summaryObject)
         let eventsRaw = payload["events"]?.arrayValue ?? []
         let events = eventsRaw.compactMap(\.objectValue).map(diagnosticEvent)
         return DiagnosticsSnapshot(engineVersion: engineVersion, summary: summary, events: events)
@@ -250,7 +248,7 @@ public enum BridgePayloadBuilder {
         return providersRaw.compactMap(\.objectValue).map(providerOption)
     }
 
-    private static func diagnosticsSummary(from object: BridgeJSONObject) throws -> DiagnosticsSummary {
+    private static func diagnosticsSummary(from object: BridgeJSONObject) -> DiagnosticsSummary {
         let providersRaw = object["active_providers"]?.arrayValue ?? []
         let reportsRaw = object["recent_reports"]?.arrayValue ?? []
         return DiagnosticsSummary(

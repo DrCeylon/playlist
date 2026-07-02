@@ -19,6 +19,7 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("Resonance")
-        .background(palette.backgroundSecondary)
+        .foregroundStyle(palette.sidebarText)
+        .background(palette.sidebarBackground)
     }
 }
