@@ -343,10 +343,12 @@ private struct ExclusionsList: View {
             Text("Aucune exclusion pour le moment.")
                 .foregroundStyle(palette.textSecondary)
         } else {
-            ForEach($viewModel.exclusions) { $rule in
-                ExclusionEditorRow(rule: $rule, palette: palette) {
-                    viewModel.removeExclusion(rule.wrappedValue)
-                }
+            ForEach(viewModel.exclusions) { rule in
+                ExclusionEditorRow(
+                    rule: binding(for: rule),
+                    palette: palette,
+                    onRemove: { viewModel.removeExclusion(rule) }
+                )
             }
         }
         Button("Ajouter une exclusion") {
@@ -354,6 +356,20 @@ private struct ExclusionsList: View {
             onPushDraft()
             viewModel.validateForm()
         }
+    }
+
+    private func binding(for rule: ExclusionRule) -> Binding<ExclusionRule> {
+        Binding(
+            get: {
+                viewModel.exclusions.first(where: { $0.id == rule.id }) ?? rule
+            },
+            set: { updated in
+                guard let index = viewModel.exclusions.firstIndex(where: { $0.id == rule.id }) else {
+                    return
+                }
+                viewModel.exclusions[index] = updated
+            }
+        )
     }
 }
 
