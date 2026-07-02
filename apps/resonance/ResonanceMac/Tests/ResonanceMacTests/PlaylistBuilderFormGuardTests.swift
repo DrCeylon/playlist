@@ -1,19 +1,20 @@
 import XCTest
 
 final class PlaylistBuilderFormGuardTests: XCTestCase {
-    func testPlaylistBuilderUsesNativeEditableTextFields() throws {
+    func testPlaylistBuilderUsesAppKitBackedTextFields() throws {
         let source = try loadPlaylistBuilderSource()
-        let keyboardFieldSource = try loadMacKeyboardTextFieldSource()
+        let appKitFieldSource = try loadAppKitTextFieldSource()
 
         XCTAssertTrue(
-            source.contains("MacKeyboardTextField"),
-            "Playlist builder must use AppKit-backed MacKeyboardTextField for reliable macOS typing"
+            source.contains("AppKitTextField"),
+            "Playlist builder must use AppKit-backed text fields for macOS keyboard input"
+        )
+        XCTAssertTrue(
+            source.contains("DebugInputSection") || source.contains("ResonanceFeatureFlags.keyboardDebugEnabled"),
+            "Keyboard debug probe must be available behind dev flag"
         )
         XCTAssertFalse(source.contains("ThemedTextField"), "Custom ThemedTextField blocks macOS editing")
-        XCTAssertTrue(
-            source.contains("KeyboardInputDebugPanel"),
-            "Temporary keyboard debug panel must be present for macOS validation"
-        )
+        XCTAssertFalse(source.contains("Form {"), "SwiftUI Form can steal macOS keyboard focus")
         XCTAssertTrue(
             source.contains("@State private var draftName"),
             "Form draft fields must use local @State for macOS TextField bindings"
@@ -23,8 +24,8 @@ final class PlaylistBuilderFormGuardTests: XCTestCase {
             "Draft state must sync into the view model"
         )
         XCTAssertTrue(
-            keyboardFieldSource.contains("NSTextField"),
-            "Mac keyboard field must wrap NSTextField"
+            appKitFieldSource.contains("KeyableNSTextField"),
+            "AppKit text field must use a keyable NSTextField subclass"
         )
     }
 
@@ -37,12 +38,12 @@ final class PlaylistBuilderFormGuardTests: XCTestCase {
         return try String(contentsOf: root, encoding: .utf8)
     }
 
-    private func loadMacKeyboardTextFieldSource() throws -> String {
+    private func loadAppKitTextFieldSource() throws -> String {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("Sources/ResonanceMac/Components/MacKeyboardTextField.swift")
+            .appendingPathComponent("Sources/ResonanceMac/Components/AppKitTextField.swift")
         return try String(contentsOf: root, encoding: .utf8)
     }
 }

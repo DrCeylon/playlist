@@ -15,12 +15,8 @@ struct HistoryView: View {
             let palette = ThemePalette(theme: themeManager.active)
             VStack(alignment: .leading, spacing: 16) {
                 header(palette: palette)
+                actionFeedbackBanner(palette: palette)
                 content(palette: palette)
-                if !viewModel.actionMessage.isEmpty {
-                    Text(viewModel.actionMessage)
-                        .font(.caption)
-                        .foregroundStyle(palette.textSecondary)
-                }
             }
             .padding(24)
         }
@@ -41,6 +37,41 @@ struct HistoryView: View {
             Button("Rafraîchir") { Task { await viewModel.refresh() } }
                 .buttonStyle(.borderedProminent)
                 .tint(palette.accentPrimary)
+        }
+    }
+
+    @ViewBuilder
+    private func actionFeedbackBanner(palette: ThemePalette) -> some View {
+        switch viewModel.actionFeedback {
+        case .none:
+            EmptyView()
+        case .inProgress(let message):
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(message)
+            }
+            .font(.callout)
+            .foregroundStyle(palette.textSecondary)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(palette.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        case .success(let message):
+            Label(message, systemImage: "checkmark.circle")
+                .font(.callout)
+                .foregroundStyle(palette.statusSuccess)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(palette.backgroundSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        case .failure(let message):
+            Label(message, systemImage: "exclamationmark.triangle")
+                .font(.callout)
+                .foregroundStyle(palette.statusWarning)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(palette.backgroundSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
 
@@ -71,11 +102,16 @@ struct HistoryView: View {
                     .scrollContentBackground(.hidden)
                     .background(palette.backgroundPrimary)
                     .frame(minWidth: 360)
+                    .focusEffectDisabled()
 
                     SessionDetailView(
                         detail: viewModel.selectedDetail,
-                        onReplay: { Task { _ = await viewModel.replayGeneration() } },
-                        onReimport: { viewModel.actionMessage = "Réimport prévu en extension 4.8b." },
+                        canReplay: viewModel.canReplaySelectedSession,
+                        canReimport: viewModel.canReimportSelectedSession,
+                        replayDisabledReason: viewModel.replayDisabledReason,
+                        reimportDisabledReason: viewModel.reimportDisabledReason,
+                        onReplay: { Task { await viewModel.replayGeneration() } },
+                        onReimport: { Task { await viewModel.reimportSelected() } },
                         onExport: { Task { await viewModel.exportSelection() } }
                     )
                 }
@@ -94,6 +130,9 @@ struct HistoryView: View {
             Text(badgeLabel(for: session))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(badgeColor(for: session, palette: palette))
+            Text("+\(session.addedCount) · skip \(session.skippedCount) · nf \(session.notFoundCount) · err \(session.errorCount)")
+                .font(.caption2.monospaced())
+                .foregroundStyle(palette.textTertiary)
         }
         .contentShape(Rectangle())
     }

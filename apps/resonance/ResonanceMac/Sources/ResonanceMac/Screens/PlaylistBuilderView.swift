@@ -16,8 +16,6 @@ struct PlaylistBuilderView: View {
     @State private var draftDuration = ""
     @State private var showAdvancedOptions = false
     @State private var showExclusions = false
-    @State private var keyboardDebugSwiftUIText = ""
-    @State private var keyboardDebugAppKitText = ""
 
     init(
         generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
@@ -101,8 +99,8 @@ struct PlaylistBuilderView: View {
                 draftDuration: $draftDuration,
                 showAdvancedOptions: $showAdvancedOptions,
                 showExclusions: $showExclusions,
-                keyboardDebugSwiftUIText: $keyboardDebugSwiftUIText,
-                keyboardDebugAppKitText: $keyboardDebugAppKitText,
+                validationErrors: viewModel.validationErrors,
+                bridgeFallbackMessage: viewModel.bridgeFallbackMessage,
                 onCommitDraft: commitDraftAndValidate,
                 onPushDraft: pushDraftToViewModel
             )
@@ -150,8 +148,8 @@ private struct PlaylistBuilderFormView: View {
     @Binding var draftDuration: String
     @Binding var showAdvancedOptions: Bool
     @Binding var showExclusions: Bool
-    @Binding var keyboardDebugSwiftUIText: String
-    @Binding var keyboardDebugAppKitText: String
+    let validationErrors: [ValidationError]
+    let bridgeFallbackMessage: String?
 
     let onCommitDraft: () -> Void
     let onPushDraft: () -> Void
@@ -166,21 +164,18 @@ private struct PlaylistBuilderFormView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            KeyboardInputDebugPanel(
-                swiftUIText: $keyboardDebugSwiftUIText,
-                appKitText: $keyboardDebugAppKitText
-            )
+            if ResonanceFeatureFlags.keyboardDebugEnabled {
+                DebugInputSection()
+            }
             BuilderHelpSection(palette: palette)
-            ValidationSection(errors: viewModel.validationErrors, palette: palette)
-            BridgeMessageSection(message: viewModel.bridgeFallbackMessage, palette: palette)
+            ValidationSection(errors: validationErrors, palette: palette)
+            BridgeMessageSection(message: bridgeFallbackMessage, palette: palette)
             EssentialFieldsSection(
-                palette: palette,
                 draftName: $draftName,
                 draftSeedArtist: $draftSeedArtist,
                 draftSeedTrack: $draftSeedTrack,
                 draftKeywords: $draftKeywords,
-                draftTrackCount: $draftTrackCount,
-                onCommitDraft: onCommitDraft
+                draftTrackCount: $draftTrackCount
             )
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -189,8 +184,7 @@ private struct PlaylistBuilderFormView: View {
                         palette: palette,
                         draftDescription: $draftDescription,
                         draftDuration: $draftDuration,
-                        isExpanded: $showAdvancedOptions,
-                        onCommitDraft: onCommitDraft
+                        isExpanded: $showAdvancedOptions
                     )
                     ExclusionsSection(
                         viewModel: viewModel,
@@ -274,29 +268,24 @@ private struct BridgeMessageSection: View {
 }
 
 private struct EssentialFieldsSection: View {
-    let palette: ThemePalette
     @Binding var draftName: String
     @Binding var draftSeedArtist: String
     @Binding var draftSeedTrack: String
     @Binding var draftKeywords: String
     @Binding var draftTrackCount: String
-    let onCommitDraft: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Essentiel")
                 .font(.headline)
-                .foregroundStyle(palette.textPrimary)
-            NativeFormTextField(title: "Nom de la playlist", text: $draftName, palette: palette, onCommit: onCommitDraft)
-            NativeFormTextField(title: "Artiste seed", text: $draftSeedArtist, palette: palette, onCommit: onCommitDraft)
-            NativeFormTextField(title: "Morceau seed", text: $draftSeedTrack, palette: palette, onCommit: onCommitDraft)
+            NativeFormTextField(title: "Nom de la playlist", text: $draftName)
+            NativeFormTextField(title: "Artiste seed", text: $draftSeedArtist)
+            NativeFormTextField(title: "Morceau seed", text: $draftSeedTrack)
             NativeFormTextField(
                 title: "Mots-clés (séparés par des virgules)",
-                text: $draftKeywords,
-                palette: palette,
-                onCommit: onCommitDraft
+                text: $draftKeywords
             )
-            NativeFormTextField(title: "Nombre de morceaux", text: $draftTrackCount, palette: palette, onCommit: onCommitDraft)
+            NativeFormTextField(title: "Nombre de morceaux", text: $draftTrackCount)
         }
     }
 }
@@ -307,7 +296,6 @@ private struct AdvancedOptionsSection: View {
     @Binding var draftDescription: String
     @Binding var draftDuration: String
     @Binding var isExpanded: Bool
-    let onCommitDraft: () -> Void
 
     var body: some View {
         DisclosureGroup("Options avancées", isExpanded: $isExpanded) {
@@ -315,11 +303,9 @@ private struct AdvancedOptionsSection: View {
                 NativeFormTextField(
                     title: "Description",
                     text: $draftDescription,
-                    palette: palette,
-                    isMultiline: true,
-                    onCommit: onCommitDraft
+                    isMultiline: true
                 )
-                NativeFormTextField(title: "Durée cible (min)", text: $draftDuration, palette: palette, onCommit: onCommitDraft)
+                NativeFormTextField(title: "Durée cible (min)", text: $draftDuration)
                 EnergyProfilePicker(selection: $viewModel.energyProfile)
                 if let provider = viewModel.selectedProvider {
                     LabeledContent("Provider", value: provider.displayName)
@@ -458,22 +444,19 @@ private struct GenerateButtonLabel: View {
 private struct NativeFormTextField: View {
     let title: String
     @Binding var text: String
-    let palette: ThemePalette
     var isMultiline: Bool = false
-    var onCommit: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(palette.textSecondary)
-            MacKeyboardTextField(
+                .foregroundStyle(.secondary)
+            AppKitTextField(
                 placeholder: title,
                 text: $text,
-                isMultiline: isMultiline,
-                onCommit: onCommit
+                isMultiline: isMultiline
             )
-            .frame(maxWidth: .infinity, minHeight: isMultiline ? 64 : 26, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: isMultiline ? 64 : 28, alignment: .leading)
         }
     }
 }
@@ -518,8 +501,8 @@ private struct ExclusionEditorRow: View {
                 }
                 .buttonStyle(.borderless)
             }
-            MacKeyboardTextField(placeholder: "Valeur", text: $rule.value)
-                .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
+            AppKitTextField(placeholder: "Valeur", text: $rule.value)
+                .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
         }
     }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ResonanceCore
 
@@ -10,16 +11,50 @@ final class HistoryViewModel: ObservableObject {
         case failed(String)
     }
 
+    enum ActionFeedback: Equatable {
+        case none
+        case inProgress(String)
+        case success(String)
+        case failure(String)
+    }
+
     @Published var screenState: ScreenState = .idle
     @Published var sessions: [SessionHistorySummary] = []
     @Published var selectedDetail: SessionHistoryDetail?
-    @Published var actionMessage = ""
+    @Published var actionFeedback: ActionFeedback = .none
     @Published var architectErrorDetail: String?
 
     private let service: any SessionHistoryServing
+    private let importService: any PlaylistImportServing
 
-    init(service: any SessionHistoryServing = PythonEngineBridgeService()) {
+    init(
+        service: any SessionHistoryServing = PythonEngineBridgeService(),
+        importService: any PlaylistImportServing = PythonEngineBridgeService()
+    ) {
         self.service = service
+        self.importService = importService
+    }
+
+    var canReplaySelectedSession: Bool {
+        guard let detail = selectedDetail else { return false }
+        return !detail.generationRequest.isEmpty
+    }
+
+    var canReimportSelectedSession: Bool {
+        guard let detail = selectedDetail else { return false }
+        return !detail.generationResult.isEmpty
+    }
+
+    var replayDisabledReason: String? {
+        guard selectedDetail != nil else { return "Sélectionne une session." }
+        if canReplaySelectedSession { return nil }
+        return "Requête indisponible pour cette session."
+    }
+
+    var reimportDisabledReason: String? {
+        guard selectedDetail != nil else { return "Sélectionne une session." }
+        if canReimportSelectedSession { return nil }
+        return "Preview indisponible — réimport impossible pour cette session."
     }
 
     func refresh() async {
@@ -42,11 +77,13 @@ final class HistoryViewModel: ObservableObject {
     }
 
     func select(session: SessionHistorySummary) async {
+        actionFeedback = .none
         do {
             selectedDetail = try await service.getHistorySession(sessionID: session.sessionID)
-            actionMessage = ""
+        } catch let error as SessionHistoryServiceError {
+            actionFeedback = .failure("Détail indisponible : \(message(for: error))")
         } catch {
-            actionMessage = "Détail indisponible."
+            actionFeedback = .failure("Détail indisponible.")
         }
     }
 
@@ -58,9 +95,12 @@ final class HistoryViewModel: ObservableObject {
                 if selectedDetail?.summary.sessionID == session.sessionID {
                     selectedDetail = nil
                 }
+                actionFeedback = .success("Session supprimée.")
+            } else {
+                actionFeedback = .failure("Suppression locale impossible.")
             }
         } catch {
-            actionMessage = "Suppression locale impossible."
+            actionFeedback = .failure("Suppression locale impossible.")
         }
     }
 
@@ -70,44 +110,137 @@ final class HistoryViewModel: ObservableObject {
             if cleared {
                 sessions = []
                 selectedDetail = nil
+                actionFeedback = .success("Historique vidé.")
+            } else {
+                actionFeedback = .failure("Nettoyage impossible.")
             }
         } catch {
-            actionMessage = "Nettoyage impossible."
+            actionFeedback = .failure("Nettoyage impossible.")
         }
     }
 
-    func replayGeneration() async -> PlaylistGenerationResult? {
-        guard let sessionID = selectedDetail?.summary.sessionID else { return nil }
+    func replayGeneration() async {
+        guard let sessionID = selectedDetail?.summary.sessionID else {
+            actionFeedback = .failure("Sélectionne une session avant de relancer.")
+            return
+        }
+        guard canReplaySelectedSession else {
+            actionFeedback = .failure(replayDisabledReason ?? "Requête indisponible pour cette session.")
+            return
+        }
+
+        actionFeedback = .inProgress("Relance de la génération en cours…")
         do {
             let result = try await service.replayGeneration(sessionID: sessionID)
-            actionMessage = "Relance effectuée."
-            return result
+            actionFeedback = .success(
+                "Relance OK — «\(result.playlistName)» (\(result.trackCount) morceau(x), score moyen \(String(format: "%.2f", result.averageScore)))."
+            )
+        } catch let error as SessionHistoryServiceError {
+            actionFeedback = .failure("Relance impossible : \(message(for: error))")
         } catch {
-            actionMessage = "Relance impossible."
-            return nil
+            actionFeedback = .failure("Relance impossible : \(error.localizedDescription)")
+        }
+    }
+
+    func reimportSelected() async {
+        guard let detail = selectedDetail else {
+            actionFeedback = .failure("Sélectionne une session avant de réimporter.")
+            return
+        }
+        guard canReimportSelectedSession else {
+            actionFeedback = .failure(reimportDisabledReason ?? "Données insuffisantes pour réimporter.")
+            return
+        }
+
+        actionFeedback = .inProgress("Réimport Apple Music en cours…")
+        do {
+            let generation = try HistoryPayloadMapper.generationResult(from: detail.generationResult)
+            let importResult = try await importService.importPlaylist(generation) { [weak self] event in
+                Task { @MainActor in
+                    self?.handleImportEvent(event)
+                }
+            }
+            actionFeedback = .success(
+                "Réimport terminé — ajoutés \(importResult.addedCount), ignorés \(importResult.skippedCount), introuvables \(importResult.notFoundCount), erreurs \(importResult.errorCount)."
+            )
+            await refresh()
+            await select(session: detail.summary)
+        } catch let error as PlaylistImportError {
+            actionFeedback = .failure("Réimport impossible : \(importErrorMessage(error))")
+        } catch {
+            actionFeedback = .failure("Réimport impossible : \(error.localizedDescription)")
         }
     }
 
     func exportSelection() async {
-        guard let sessionID = selectedDetail?.summary.sessionID else { return }
+        guard let sessionID = selectedDetail?.summary.sessionID else {
+            actionFeedback = .failure("Sélectionne une session avant d'exporter.")
+            return
+        }
+
+        actionFeedback = .inProgress("Export de la session…")
         do {
-            let export = try await service.exportHistorySession(sessionID: sessionID)
-            if let export {
-                actionMessage = "Export prêt: \(export.playlistName)"
-            } else {
-                actionMessage = "Export indisponible."
+            guard let export = try await service.exportHistorySession(sessionID: sessionID) else {
+                actionFeedback = .failure("Export indisponible pour cette session.")
+                return
             }
+
+            if let opened = openExportedFile(export.jsonReportPath) ?? openExportedFile(export.textReportPath) {
+                actionFeedback = .success("Export ouvert : \(opened.path)")
+                return
+            }
+
+            actionFeedback = .success(
+                "Export JSON prêt (session \(export.sessionID), statut \(export.status.rawValue)). Aucun fichier rapport sur disque — données disponibles via le bridge."
+            )
+        } catch let error as SessionHistoryServiceError {
+            actionFeedback = .failure("Export impossible : \(message(for: error))")
         } catch {
-            actionMessage = "Export impossible."
+            actionFeedback = .failure("Export impossible : \(error.localizedDescription)")
+        }
+    }
+
+    private func handleImportEvent(_ event: BridgeEventMessage) {
+        if event.event == .diagnostic, let message = event.payload["message"]?.stringValue {
+            actionFeedback = .inProgress(message)
+        }
+    }
+
+    private func openExportedFile(_ path: String) -> URL? {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let url: URL
+        if trimmed.hasPrefix("/") {
+            url = URL(fileURLWithPath: trimmed)
+        } else if let repo = ResonancePaths.repoRoot() {
+            url = repo.appendingPathComponent(trimmed)
+        } else {
+            url = URL(fileURLWithPath: trimmed)
+        }
+
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+        return url
+    }
+
+    private func importErrorMessage(_ error: PlaylistImportError) -> String {
+        switch error {
+        case .bridgeUnavailable:
+            return "moteur Python indisponible"
+        case .timeout:
+            return "délai dépassé"
+        case .invalidResponse:
+            return "réponse bridge invalide"
+        case .bridge(let payload):
+            return payload.message
         }
     }
 
     private func message(for error: SessionHistoryServiceError) -> String {
         switch error {
         case .bridgeUnavailable:
-            return """
-            Moteur Python introuvable. Lance l'app depuis apps/resonance ou définis RESONANCE_REPO_ROOT.
-            """
+            return "Moteur Python introuvable. Lance l'app depuis apps/resonance ou définis RESONANCE_REPO_ROOT."
         case .timeout:
             return "Le moteur Python n'a pas répondu à temps."
         case .invalidResponse:
