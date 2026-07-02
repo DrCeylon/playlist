@@ -1,11 +1,12 @@
 import Foundation
+import ResonanceCore
 
 public enum ResonancePaths {
     public static func repoRoot(
         fileManager: FileManager = .default,
-        startingAt: URL = URL(fileURLWithPath: fileManager.currentDirectoryPath)
+        startingAt: URL? = nil
     ) -> URL? {
-        var url = startingAt
+        var url = startingAt ?? URL(fileURLWithPath: fileManager.currentDirectoryPath)
         for _ in 0..<10 {
             let marker = url.appendingPathComponent("playlist_builder")
             if fileManager.fileExists(atPath: marker.path) {
