@@ -30,6 +30,7 @@ public protocol BridgeTransport: Sendable {
 }
 
 public extension BridgeTransport {
+    /// Convenience helper used by ResonanceMac call sites; removable if callers pass full arguments.
     func send(
         command: BridgeCommand,
         requestID: String = UUID().uuidString,
