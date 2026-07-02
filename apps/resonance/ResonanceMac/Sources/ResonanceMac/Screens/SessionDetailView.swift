@@ -19,6 +19,7 @@ struct SessionDetailView: View {
             if let detail {
                 Text(detail.summary.playlistName)
                     .font(.title3.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary)
                 Text("Statut : \(detail.summary.status.rawValue)")
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
@@ -47,9 +48,6 @@ struct SessionDetailView: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .padding(16)
-        .background(palette.backgroundSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
     }
 }
-

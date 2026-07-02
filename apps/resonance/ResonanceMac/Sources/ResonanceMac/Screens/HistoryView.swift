@@ -49,6 +49,7 @@ struct HistoryView: View {
         switch viewModel.screenState {
         case .idle, .loading:
             ProgressView("Chargement de l'historique…")
+                .foregroundStyle(palette.textSecondary)
         case .failed(let message):
             Text(message).foregroundStyle(palette.statusWarning)
         case .ready:
@@ -58,21 +59,17 @@ struct HistoryView: View {
             } else {
                 HStack(alignment: .top, spacing: 16) {
                     List(viewModel.sessions) { session in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(session.playlistName).font(.headline)
-                            Text("\(session.startedAtISO) · \(session.providerID.rawValue)")
-                                .font(.caption)
-                                .foregroundStyle(palette.textTertiary)
-                            Text(badgeLabel(for: session))
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(badgeColor(for: session, palette: palette))
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture { Task { await viewModel.select(session: session) } }
-                        .contextMenu {
-                            Button("Supprimer") { Task { await viewModel.delete(session: session) } }
-                        }
+                        sessionRow(session: session, palette: palette)
+                            .listRowBackground(palette.surface)
+                            .listRowSeparatorTint(palette.borderSubtle)
+                            .onTapGesture { Task { await viewModel.select(session: session) } }
+                            .contextMenu {
+                                Button("Supprimer") { Task { await viewModel.delete(session: session) } }
+                            }
                     }
+                    .listStyle(.inset(alternatesRowBackgrounds: false))
+                    .scrollContentBackground(.hidden)
+                    .background(palette.backgroundPrimary)
                     .frame(minWidth: 360)
 
                     SessionDetailView(
@@ -84,6 +81,21 @@ struct HistoryView: View {
                 }
             }
         }
+    }
+
+    private func sessionRow(session: SessionHistorySummary, palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(session.playlistName)
+                .font(.headline)
+                .foregroundStyle(palette.textPrimary)
+            Text("\(session.startedAtISO) · \(session.providerID.rawValue)")
+                .font(.caption)
+                .foregroundStyle(palette.textTertiary)
+            Text(badgeLabel(for: session))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(badgeColor(for: session, palette: palette))
+        }
+        .contentShape(Rectangle())
     }
 
     private func badgeLabel(for session: SessionHistorySummary) -> String {
@@ -105,4 +117,3 @@ struct HistoryView: View {
         }
     }
 }
-

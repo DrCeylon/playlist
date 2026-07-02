@@ -6,8 +6,6 @@ struct PlaylistBuilderView: View {
     @StateObject private var viewModel: PlaylistBuilderViewModel
     @StateObject private var importViewModel: ImportViewModel
     @EnvironmentObject private var themeManager: ThemeManager
-    @State private var showAdvancedOptions = false
-    @State private var showExclusions = false
 
     init(
         generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
@@ -42,12 +40,6 @@ struct PlaylistBuilderView: View {
             }
         }
         .navigationTitle("Nouvelle Playlist")
-        .onChange(of: viewModel.name) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.seedArtist) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.seedTrack) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.keywordsText) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.targetTrackCountText) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.targetDurationText) { _, _ in viewModel.validateForm() }
         .onAppear { viewModel.validateForm() }
     }
 
@@ -66,7 +58,7 @@ struct PlaylistBuilderView: View {
                 )
             }
         case .editing, .generating:
-            builderForm
+            PlaylistBuilderForm(viewModel: viewModel)
         }
     }
 
@@ -87,11 +79,18 @@ struct PlaylistBuilderView: View {
         }
         .padding(24)
     }
+}
 
-    private var builderForm: some View {
+private struct PlaylistBuilderForm: View {
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    @EnvironmentObject private var themeManager: ThemeManager
+    @State private var showAdvancedOptions = false
+    @State private var showExclusions = false
+
+    var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
 
-        return ScrollView {
+        ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 helpBanner(palette: palette)
 
@@ -106,15 +105,15 @@ struct PlaylistBuilderView: View {
                 }
 
                 formSection(title: "Essentiel", palette: palette) {
-                    BuilderTextField(title: "Nom de la playlist", text: $viewModel.name, palette: palette)
-                    BuilderTextField(title: "Artiste seed", text: $viewModel.seedArtist, palette: palette)
-                    BuilderTextField(title: "Morceau seed", text: $viewModel.seedTrack, palette: palette)
-                    BuilderTextField(
+                    ThemedTextField(title: "Nom de la playlist", text: $viewModel.name, palette: palette)
+                    ThemedTextField(title: "Artiste seed", text: $viewModel.seedArtist, palette: palette)
+                    ThemedTextField(title: "Morceau seed", text: $viewModel.seedTrack, palette: palette)
+                    ThemedTextField(
                         title: "Mots-clés (séparés par des virgules)",
                         text: $viewModel.keywordsText,
                         palette: palette
                     )
-                    BuilderTextField(
+                    ThemedTextField(
                         title: "Nombre de morceaux",
                         text: $viewModel.targetTrackCountText,
                         palette: palette
@@ -123,24 +122,45 @@ struct PlaylistBuilderView: View {
 
                 DisclosureGroup(isExpanded: $showAdvancedOptions) {
                     VStack(alignment: .leading, spacing: 12) {
-                        BuilderTextField(
+                        ThemedTextField(
                             title: "Description",
                             text: $viewModel.descriptionText,
                             palette: palette,
                             axis: .vertical
                         )
-                        BuilderTextField(
+                        ThemedTextField(
                             title: "Durée cible (min)",
                             text: $viewModel.targetDurationText,
                             palette: palette
                         )
-                        Picker("Courbe d'énergie", selection: $viewModel.energyProfile) {
-                            ForEach(EnergyCurveProfile.allCases) { profile in
-                                Text(profile.displayName).tag(profile)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Courbe d'énergie")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                            Menu {
+                                ForEach(EnergyCurveProfile.allCases) { profile in
+                                    Button(profile.displayName) { viewModel.energyProfile = profile }
+                                }
+                            } label: {
+                                HStack {
+                                    Text(viewModel.energyProfile.displayName)
+                                        .foregroundStyle(palette.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.caption)
+                                        .foregroundStyle(palette.textSecondary)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(palette.inputBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .strokeBorder(palette.borderSubtle, lineWidth: 1)
+                                        .allowsHitTesting(false)
+                                }
                             }
+                            .menuStyle(.borderlessButton)
                         }
-                        .pickerStyle(.menu)
-                        .foregroundStyle(palette.textPrimary)
 
                         if let provider = viewModel.selectedProvider {
                             HStack {
@@ -159,13 +179,7 @@ struct PlaylistBuilderView: View {
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
                 }
-                .padding(16)
-                .background(palette.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(palette.borderSubtle, lineWidth: 1)
-                )
+                .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
 
                 DisclosureGroup(isExpanded: $showExclusions) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -195,13 +209,7 @@ struct PlaylistBuilderView: View {
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
                 }
-                .padding(16)
-                .background(palette.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(palette.borderSubtle, lineWidth: 1)
-                )
+                .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
 
                 HStack {
                     if !viewModel.canGenerate {
@@ -228,6 +236,12 @@ struct PlaylistBuilderView: View {
             }
             .padding(24)
         }
+        .onChange(of: viewModel.name) { _, _ in viewModel.validateForm() }
+        .onChange(of: viewModel.seedArtist) { _, _ in viewModel.validateForm() }
+        .onChange(of: viewModel.seedTrack) { _, _ in viewModel.validateForm() }
+        .onChange(of: viewModel.keywordsText) { _, _ in viewModel.validateForm() }
+        .onChange(of: viewModel.targetTrackCountText) { _, _ in viewModel.validateForm() }
+        .onChange(of: viewModel.targetDurationText) { _, _ in viewModel.validateForm() }
     }
 
     private func helpBanner(palette: ThemePalette) -> some View {
@@ -239,14 +253,8 @@ struct PlaylistBuilderView: View {
                 .font(.callout)
                 .foregroundStyle(palette.textSecondary)
         }
-        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(palette.borderSubtle, lineWidth: 1)
-        )
+        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle, padding: 14)
     }
 
     private func binding(for rule: ExclusionRule) -> Binding<ExclusionRule> {
@@ -276,41 +284,7 @@ struct PlaylistBuilderView: View {
                 .foregroundStyle(palette.textPrimary)
             content()
         }
-        .padding(16)
-        .background(palette.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(palette.borderSubtle, lineWidth: 1)
-        )
-    }
-}
-
-private struct BuilderTextField: View {
-    let title: String
-    @Binding var text: String
-    let palette: ThemePalette
-    var axis: Axis = .horizontal
-    @FocusState private var isFocused: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(palette.textSecondary)
-            TextField(title, text: $text, axis: axis)
-                .textFieldStyle(.plain)
-                .foregroundStyle(palette.inputText)
-                .tint(palette.accentPrimary)
-                .focused($isFocused)
-                .padding(10)
-                .background(palette.inputBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(isFocused ? palette.accentPrimary.opacity(0.6) : palette.borderSubtle, lineWidth: 1)
-                )
-        }
+        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
     }
 }
 
@@ -323,14 +297,26 @@ private struct ExclusionEditorRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Picker("Type", selection: $rule.kind) {
+                Menu {
                     ForEach(ExclusionKind.allCases) { kind in
-                        Text(kind.displayName).tag(kind)
+                        Button(kind.displayName) { rule.kind = kind }
                     }
+                } label: {
+                    HStack {
+                        Text(rule.kind.displayName)
+                            .foregroundStyle(palette.textPrimary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(palette.inputBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
-                .pickerStyle(.menu)
-                .foregroundStyle(palette.textPrimary)
+                .menuStyle(.borderlessButton)
+
                 Spacer()
+
                 Button(role: .cancel, action: onRemove) {
                     Image(systemName: "minus.circle")
                 }
@@ -339,15 +325,15 @@ private struct ExclusionEditorRow: View {
             }
             TextField("Valeur", text: $rule.value)
                 .textFieldStyle(.plain)
+                .labelsHidden()
                 .foregroundStyle(palette.inputText)
                 .tint(palette.accentPrimary)
                 .focused($isFocused)
-                .padding(10)
-                .background(palette.inputBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(isFocused ? palette.accentPrimary.opacity(0.6) : palette.borderSubtle, lineWidth: 1)
+                .themedInputChrome(
+                    fill: palette.inputBackground,
+                    border: palette.borderSubtle,
+                    focusBorder: palette.accentPrimary.opacity(0.65),
+                    isFocused: isFocused
                 )
         }
     }
@@ -369,7 +355,6 @@ private struct ValidationBanner: View {
             }
         }
         .padding(12)
-        .background(palette.statusWarning.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(palette.statusWarning.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }

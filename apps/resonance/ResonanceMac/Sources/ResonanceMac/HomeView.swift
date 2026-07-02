@@ -3,6 +3,7 @@ import ResonanceDesign
 import SwiftUI
 
 struct HomeView: View {
+    @Binding var selection: SidebarItem?
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
@@ -28,9 +29,9 @@ struct HomeView: View {
 
                     card(title: "Raccourcis", palette: palette) {
                         HStack(spacing: 16) {
-                            shortcutButton("Nouvelle Playlist", systemImage: "plus.rectangle.on.rectangle", palette: palette)
-                            shortcutButton("Historique", systemImage: "clock", palette: palette)
-                            shortcutButton("Laboratoire", systemImage: "flask", palette: palette)
+                            ForEach(HomeShortcut.allCases) { shortcut in
+                                shortcutButton(shortcut, palette: palette)
+                            }
                         }
                     }
 
@@ -61,28 +62,27 @@ struct HomeView: View {
                 .foregroundStyle(palette.textPrimary)
             content()
         }
-        .padding(16)
-        .background(palette.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(palette.borderSubtle, lineWidth: 1)
-        )
+        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
     }
 
     @ViewBuilder
-    private func shortcutButton(_ title: String, systemImage: String, palette: ThemePalette) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: systemImage)
-                .font(.title2)
-            Text(title)
-                .font(.caption)
-                .multilineTextAlignment(.center)
+    private func shortcutButton(_ shortcut: HomeShortcut, palette: ThemePalette) -> some View {
+        Button {
+            selection = shortcut.destination
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: shortcut.systemImage)
+                    .font(.title2)
+                Text(shortcut.title)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(palette.backgroundElevated, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .foregroundStyle(palette.accentPrimary)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(palette.backgroundElevated)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .foregroundStyle(palette.accentPrimary)
+        .buttonStyle(.plain)
+        .accessibilityLabel(shortcut.title)
     }
 }

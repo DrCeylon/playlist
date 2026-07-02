@@ -149,7 +149,7 @@ public struct ThemedScreen<Content: View>: View {
     content
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
       .background(palette.backgroundPrimary)
-      .foregroundStyle(palette.textPrimary)
+      .tint(palette.accentPrimary)
       .animation(.easeOut(duration: 0.3), value: themeManager.active.id)
   }
 }
