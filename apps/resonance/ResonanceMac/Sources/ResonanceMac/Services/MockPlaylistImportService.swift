@@ -13,9 +13,9 @@ public struct MockPlaylistImportService: PlaylistImportServing {
                 id: "mock-import",
                 event: .progress,
                 payload: [
-                    "phase": ImportPhase.resolving.rawValue,
-                    "total_tracks": result.trackCount,
-                    "processed_tracks": 0,
+                    "phase": .string(ImportPhase.resolving.rawValue),
+                    "total_tracks": .number(Double(result.trackCount)),
+                    "processed_tracks": .number(0),
                 ]
             )
         )
@@ -35,7 +35,7 @@ public struct MockPlaylistImportService: PlaylistImportServing {
             BridgeEventMessage(
                 id: "mock-import",
                 event: .completed,
-                payload: ["added_count": outcomes.count]
+                payload: ["added_count": .number(Double(outcomes.count))]
             )
         )
         return ImportResultState(
