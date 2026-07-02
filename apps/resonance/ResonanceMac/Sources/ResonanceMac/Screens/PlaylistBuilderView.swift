@@ -7,6 +7,17 @@ struct PlaylistBuilderView: View {
     @StateObject private var importViewModel: ImportViewModel
     @EnvironmentObject private var themeManager: ThemeManager
 
+    // Local draft state — macOS TextField binds reliably to @State, not always to @Published.
+    @State private var draftName = ""
+    @State private var draftSeedArtist = ""
+    @State private var draftSeedTrack = ""
+    @State private var draftKeywords = ""
+    @State private var draftTrackCount = ""
+    @State private var draftDescription = ""
+    @State private var draftDuration = ""
+    @State private var showAdvancedOptions = false
+    @State private var showExclusions = false
+
     init(
         generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
         importService: any PlaylistImportServing = PythonEngineBridgeService()
@@ -16,7 +27,9 @@ struct PlaylistBuilderView: View {
     }
 
     var body: some View {
-        ThemedScreen {
+        let palette = ThemePalette(theme: themeManager.active)
+
+        Group {
             switch importViewModel.screenState {
             case .importing, .waitingForManualAcquisition:
                 ImportProgressView(
@@ -31,40 +44,197 @@ struct PlaylistBuilderView: View {
                     ImportReportView(report: report) {
                         importViewModel.reset()
                         viewModel.backToEditing()
+                        syncDraftFromViewModel()
                     }
                 }
             case .failed(let message):
-                failureView(message: message)
+                failureView(message: message, palette: palette)
             case .idle:
-                builderOrPreview
+                builderOrPreview(palette: palette)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(palette.backgroundPrimary)
         .navigationTitle("Nouvelle Playlist")
-        .onAppear { viewModel.validateForm() }
+        .onAppear {
+            syncDraftFromViewModel()
+            pushDraftToViewModel()
+            viewModel.validateForm()
+        }
+        .onChange(of: viewModel.screenState) { _, newState in
+            if newState == .editing {
+                syncDraftFromViewModel()
+            }
+        }
     }
 
     @ViewBuilder
-    private var builderOrPreview: some View {
+    private func builderOrPreview(palette: ThemePalette) -> some View {
         switch viewModel.screenState {
         case .preview:
             if let result = viewModel.previewResult {
                 PlaylistPreviewView(
                     result: result,
                     previewSourceLabel: viewModel.previewSourceLabel,
-                    onEdit: viewModel.backToEditing,
+                    onEdit: {
+                        viewModel.backToEditing()
+                        syncDraftFromViewModel()
+                    },
                     onImport: {
                         Task { await importViewModel.importPlaylist(result) }
                     }
                 )
             }
         case .editing, .generating:
-            PlaylistBuilderForm(viewModel: viewModel)
+            builderForm(palette: palette)
         }
     }
 
     @ViewBuilder
-    private func failureView(message: String) -> some View {
-        let palette = ThemePalette(theme: themeManager.active)
+    private func builderForm(palette: ThemePalette) -> some View {
+        Form {
+            Section {
+                Text("Remplis au minimum un nom et une graine ou des mots-clés.")
+                    .font(.callout)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            if !viewModel.validationErrors.isEmpty {
+                Section {
+                    ForEach(viewModel.validationErrors, id: \.self) { error in
+                        Text("\(error.field): \(error.message)")
+                            .font(.callout)
+                            .foregroundStyle(palette.statusWarning)
+                    }
+                }
+            }
+
+            if let bridgeMessage = viewModel.bridgeFallbackMessage {
+                Section {
+                    Text(bridgeMessage)
+                        .font(.caption)
+                        .foregroundStyle(palette.textTertiary)
+                }
+            }
+
+            Section("Essentiel") {
+                nativeTextField("Nom de la playlist", text: $draftName, palette: palette)
+                nativeTextField("Artiste seed", text: $draftSeedArtist, palette: palette)
+                nativeTextField("Morceau seed", text: $draftSeedTrack, palette: palette)
+                nativeTextField("Mots-clés (séparés par des virgules)", text: $draftKeywords, palette: palette)
+                nativeTextField("Nombre de morceaux", text: $draftTrackCount, palette: palette)
+            }
+
+            Section {
+                DisclosureGroup("Options avancées", isExpanded: $showAdvancedOptions) {
+                    nativeTextField("Description", text: $draftDescription, palette: palette, axis: .vertical)
+                    nativeTextField("Durée cible (min)", text: $draftDuration, palette: palette)
+                    Picker("Courbe d'énergie", selection: $viewModel.energyProfile) {
+                        ForEach(EnergyCurveProfile.allCases) { profile in
+                            Text(profile.displayName).tag(profile)
+                        }
+                    }
+                    if let provider = viewModel.selectedProvider {
+                        LabeledContent("Provider", value: provider.displayName)
+                    }
+                }
+            }
+
+            Section {
+                DisclosureGroup("Exclusions", isExpanded: $showExclusions) {
+                    if viewModel.exclusions.isEmpty {
+                        Text("Aucune exclusion pour le moment.")
+                            .foregroundStyle(palette.textSecondary)
+                    } else {
+                        ForEach($viewModel.exclusions) { $rule in
+                            ExclusionEditorRow(rule: $rule, palette: palette) {
+                                viewModel.removeExclusion(rule.wrappedValue)
+                            }
+                        }
+                    }
+                    Button("Ajouter une exclusion") {
+                        viewModel.addExclusion()
+                        pushDraftToViewModel()
+                        viewModel.validateForm()
+                    }
+                }
+            }
+
+            Section {
+                if !viewModel.canGenerate {
+                    Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textTertiary)
+                }
+                Button {
+                    pushDraftToViewModel()
+                    Task { await viewModel.generate() }
+                } label: {
+                    if viewModel.screenState == .generating {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Label("Générer", systemImage: "sparkles")
+                    }
+                }
+                .disabled(!viewModel.canGenerate)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .onChange(of: draftName) { _, _ in commitDraftAndValidate() }
+        .onChange(of: draftSeedArtist) { _, _ in commitDraftAndValidate() }
+        .onChange(of: draftSeedTrack) { _, _ in commitDraftAndValidate() }
+        .onChange(of: draftKeywords) { _, _ in commitDraftAndValidate() }
+        .onChange(of: draftTrackCount) { _, _ in commitDraftAndValidate() }
+        .onChange(of: draftDescription) { _, _ in commitDraftAndValidate() }
+        .onChange(of: draftDuration) { _, _ in commitDraftAndValidate() }
+        .onChange(of: viewModel.energyProfile) { _, _ in viewModel.validateForm() }
+        .onChange(of: viewModel.exclusions) { _, _ in
+            pushDraftToViewModel()
+            viewModel.validateForm()
+        }
+    }
+
+    @ViewBuilder
+    private func nativeTextField(
+        _ title: String,
+        text: Binding<String>,
+        palette: ThemePalette,
+        axis: Axis = .horizontal
+    ) -> some View {
+        TextField(title, text: text, axis: axis)
+            .textFieldStyle(.roundedBorder)
+            .foregroundStyle(palette.inputText)
+    }
+
+    private func syncDraftFromViewModel() {
+        draftName = viewModel.name
+        draftSeedArtist = viewModel.seedArtist
+        draftSeedTrack = viewModel.seedTrack
+        draftKeywords = viewModel.keywordsText
+        draftTrackCount = viewModel.targetTrackCountText
+        draftDescription = viewModel.descriptionText
+        draftDuration = viewModel.targetDurationText
+    }
+
+    private func pushDraftToViewModel() {
+        viewModel.name = draftName
+        viewModel.seedArtist = draftSeedArtist
+        viewModel.seedTrack = draftSeedTrack
+        viewModel.keywordsText = draftKeywords
+        viewModel.targetTrackCountText = draftTrackCount
+        viewModel.descriptionText = draftDescription
+        viewModel.targetDurationText = draftDuration
+    }
+
+    private func commitDraftAndValidate() {
+        pushDraftToViewModel()
+        viewModel.validateForm()
+    }
+
+    @ViewBuilder
+    private func failureView(message: String, palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Label("Import impossible", systemImage: "exclamationmark.triangle")
                 .font(.title3.weight(.semibold))
@@ -81,280 +251,29 @@ struct PlaylistBuilderView: View {
     }
 }
 
-private struct PlaylistBuilderForm: View {
-    @ObservedObject var viewModel: PlaylistBuilderViewModel
-    @EnvironmentObject private var themeManager: ThemeManager
-    @State private var showAdvancedOptions = false
-    @State private var showExclusions = false
-
-    var body: some View {
-        let palette = ThemePalette(theme: themeManager.active)
-
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                helpBanner(palette: palette)
-
-                if !viewModel.validationErrors.isEmpty {
-                    ValidationBanner(errors: viewModel.validationErrors, palette: palette)
-                }
-
-                if let bridgeMessage = viewModel.bridgeFallbackMessage {
-                    Text(bridgeMessage)
-                        .font(.caption)
-                        .foregroundStyle(palette.textTertiary)
-                }
-
-                formSection(title: "Essentiel", palette: palette) {
-                    ThemedTextField(title: "Nom de la playlist", text: $viewModel.name, palette: palette)
-                    ThemedTextField(title: "Artiste seed", text: $viewModel.seedArtist, palette: palette)
-                    ThemedTextField(title: "Morceau seed", text: $viewModel.seedTrack, palette: palette)
-                    ThemedTextField(
-                        title: "Mots-clés (séparés par des virgules)",
-                        text: $viewModel.keywordsText,
-                        palette: palette
-                    )
-                    ThemedTextField(
-                        title: "Nombre de morceaux",
-                        text: $viewModel.targetTrackCountText,
-                        palette: palette
-                    )
-                }
-
-                DisclosureGroup(isExpanded: $showAdvancedOptions) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ThemedTextField(
-                            title: "Description",
-                            text: $viewModel.descriptionText,
-                            palette: palette,
-                            axis: .vertical
-                        )
-                        ThemedTextField(
-                            title: "Durée cible (min)",
-                            text: $viewModel.targetDurationText,
-                            palette: palette
-                        )
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Courbe d'énergie")
-                                .font(.caption)
-                                .foregroundStyle(palette.textSecondary)
-                            Menu {
-                                ForEach(EnergyCurveProfile.allCases) { profile in
-                                    Button(profile.displayName) { viewModel.energyProfile = profile }
-                                }
-                            } label: {
-                                HStack {
-                                    Text(viewModel.energyProfile.displayName)
-                                        .foregroundStyle(palette.textPrimary)
-                                    Spacer()
-                                    Image(systemName: "chevron.up.chevron.down")
-                                        .font(.caption)
-                                        .foregroundStyle(palette.textSecondary)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(palette.inputBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .strokeBorder(palette.borderSubtle, lineWidth: 1)
-                                        .allowsHitTesting(false)
-                                }
-                            }
-                            .menuStyle(.borderlessButton)
-                        }
-
-                        if let provider = viewModel.selectedProvider {
-                            HStack {
-                                Label(provider.displayName, systemImage: "music.note")
-                                    .foregroundStyle(palette.textSecondary)
-                                Spacer()
-                                Text("Provider par défaut")
-                                    .font(.caption)
-                                    .foregroundStyle(palette.textTertiary)
-                            }
-                        }
-                    }
-                    .padding(.top, 8)
-                } label: {
-                    Text("Options avancées")
-                        .font(.headline)
-                        .foregroundStyle(palette.textPrimary)
-                }
-                .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
-
-                DisclosureGroup(isExpanded: $showExclusions) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if viewModel.exclusions.isEmpty {
-                            Text("Aucune exclusion pour le moment.")
-                                .font(.callout)
-                                .foregroundStyle(palette.textSecondary)
-                        } else {
-                            ForEach(viewModel.exclusions) { rule in
-                                ExclusionEditorRow(
-                                    rule: binding(for: rule),
-                                    palette: palette,
-                                    onRemove: { viewModel.removeExclusion(rule) }
-                                )
-                            }
-                        }
-                        Button("Ajouter une exclusion") {
-                            viewModel.addExclusion()
-                            viewModel.validateForm()
-                        }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(palette.accentPrimary)
-                    }
-                    .padding(.top, 8)
-                } label: {
-                    Text("Exclusions")
-                        .font(.headline)
-                        .foregroundStyle(palette.textPrimary)
-                }
-                .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
-
-                HStack {
-                    if !viewModel.canGenerate {
-                        Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
-                            .font(.caption)
-                            .foregroundStyle(palette.textTertiary)
-                    }
-                    Spacer()
-                    Button {
-                        Task { await viewModel.generate() }
-                    } label: {
-                        if viewModel.screenState == .generating {
-                            ProgressView()
-                                .controlSize(.small)
-                                .padding(.horizontal, 8)
-                        } else {
-                            Label("Générer", systemImage: "sparkles")
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(palette.accentPrimary)
-                    .disabled(!viewModel.canGenerate)
-                }
-            }
-            .padding(24)
-        }
-        .onChange(of: viewModel.name) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.seedArtist) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.seedTrack) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.keywordsText) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.targetTrackCountText) { _, _ in viewModel.validateForm() }
-        .onChange(of: viewModel.targetDurationText) { _, _ in viewModel.validateForm() }
-    }
-
-    private func helpBanner(palette: ThemePalette) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Crée une playlist en quelques champs")
-                .font(.headline)
-                .foregroundStyle(palette.textPrimary)
-            Text("Remplis au minimum un nom et une graine ou des mots-clés.")
-                .font(.callout)
-                .foregroundStyle(palette.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle, padding: 14)
-    }
-
-    private func binding(for rule: ExclusionRule) -> Binding<ExclusionRule> {
-        Binding(
-            get: {
-                viewModel.exclusions.first(where: { $0.id == rule.id }) ?? rule
-            },
-            set: { updated in
-                guard let index = viewModel.exclusions.firstIndex(where: { $0.id == rule.id }) else {
-                    return
-                }
-                viewModel.exclusions[index] = updated
-                viewModel.validateForm()
-            }
-        )
-    }
-
-    @ViewBuilder
-    private func formSection<Content: View>(
-        title: String,
-        palette: ThemePalette,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(palette.textPrimary)
-            content()
-        }
-        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
-    }
-}
-
 private struct ExclusionEditorRow: View {
     @Binding var rule: ExclusionRule
     let palette: ThemePalette
     let onRemove: () -> Void
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Menu {
+                Picker("Type", selection: $rule.kind) {
                     ForEach(ExclusionKind.allCases) { kind in
-                        Button(kind.displayName) { rule.kind = kind }
+                        Text(kind.displayName).tag(kind)
                     }
-                } label: {
-                    HStack {
-                        Text(rule.kind.displayName)
-                            .foregroundStyle(palette.textPrimary)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(palette.textSecondary)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(palette.inputBackground, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
-                .menuStyle(.borderlessButton)
-
+                .labelsHidden()
                 Spacer()
-
                 Button(role: .cancel, action: onRemove) {
                     Image(systemName: "minus.circle")
                 }
                 .buttonStyle(.borderless)
-                .foregroundStyle(palette.textSecondary)
             }
             TextField("Valeur", text: $rule.value)
-                .textFieldStyle(.plain)
-                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
                 .foregroundStyle(palette.inputText)
-                .tint(palette.accentPrimary)
-                .focused($isFocused)
-                .themedInputChrome(
-                    fill: palette.inputBackground,
-                    border: palette.borderSubtle,
-                    focusBorder: palette.accentPrimary.opacity(0.65),
-                    isFocused: isFocused
-                )
         }
-    }
-}
-
-private struct ValidationBanner: View {
-    let errors: [ValidationError]
-    let palette: ThemePalette
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label("Validation", systemImage: "exclamationmark.triangle")
-                .font(.headline)
-                .foregroundStyle(palette.statusWarning)
-            ForEach(errors, id: \.self) { error in
-                Text("\(error.field): \(error.message)")
-                    .font(.callout)
-                    .foregroundStyle(palette.textPrimary)
-            }
-        }
-        .padding(12)
-        .background(palette.statusWarning.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }

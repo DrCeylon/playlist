@@ -60,4 +60,23 @@ final class PlaylistBuilderViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.isValid)
         XCTAssertTrue(viewModel.canGenerate)
     }
+
+    func testFormFieldBindingsUpdatePublishedProperties() {
+        let viewModel = PlaylistBuilderViewModel()
+
+        viewModel.name = "E2E Pool Party"
+        viewModel.seedArtist = "Kygo"
+        viewModel.seedTrack = "Firestone"
+        viewModel.keywordsText = "summer, tropical, dance"
+        viewModel.targetTrackCountText = "20"
+
+        XCTAssertEqual(viewModel.name, "E2E Pool Party")
+        XCTAssertEqual(viewModel.seedArtist, "Kygo")
+        XCTAssertEqual(viewModel.seedTrack, "Firestone")
+        XCTAssertEqual(viewModel.keywordsText, "summer, tropical, dance")
+        XCTAssertEqual(viewModel.targetTrackCountText, "20")
+
+        viewModel.validateForm()
+        XCTAssertTrue(viewModel.canGenerate)
+    }
 }
