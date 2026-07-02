@@ -32,7 +32,11 @@ let package = Package(
         .executableTarget(
             name: "ResonanceMac",
             dependencies: ["ResonanceCore", "ResonanceDesign"],
-            path: "ResonanceMac/Sources/ResonanceMac"
+            path: "ResonanceMac",
+            sources: ["Sources/ResonanceMac"],
+            resources: [
+                .copy("Resources/Assets"),
+            ]
         ),
         .testTarget(
             name: "ResonanceMacTests",

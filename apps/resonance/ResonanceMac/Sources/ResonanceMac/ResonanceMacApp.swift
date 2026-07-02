@@ -23,6 +23,7 @@ struct ResonanceMacApp: App {
                 .environmentObject(themeManager)
                 .onAppear {
                     NSApp.setActivationPolicy(.regular)
+                    ApplicationIconConfigurator.applyIfNeeded()
                     NSApp.activate(ignoringOtherApps: true)
                 }
         }
