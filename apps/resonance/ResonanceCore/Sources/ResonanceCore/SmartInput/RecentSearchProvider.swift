@@ -68,7 +68,7 @@ public final class UserDefaultsRecentSearchProvider: RecentSearchStoring, @unche
     }
 }
 
-public struct InMemoryRecentSearchProvider: RecentSearchStoring, @unchecked Sendable {
+public final class InMemoryRecentSearchProvider: RecentSearchStoring, @unchecked Sendable {
     private var storage: [SmartInputEntityKind: Data] = [:]
     private let maxEntries: Int
     private let encoder = JSONEncoder()

@@ -11,7 +11,7 @@ public actor AutocompleteCache {
         public let payload: Data
 
         public init<Entity: CanonicalEntity & Codable>(_ entity: Entity) throws {
-            self.id = entity.id
+            self.id = String(describing: entity.id)
             self.payload = try JSONEncoder().encode(entity)
         }
 
