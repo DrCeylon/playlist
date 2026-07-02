@@ -1,7 +1,7 @@
 import Foundation
 import ResonanceCore
 
-public final class MockDiagnosticsService: DiagnosticsServing, @unchecked Sendable {
+public struct MockDiagnosticsService: DiagnosticsServing {
     public init() {}
 
     public func fetchDiagnostics() async throws -> DiagnosticsSnapshot {

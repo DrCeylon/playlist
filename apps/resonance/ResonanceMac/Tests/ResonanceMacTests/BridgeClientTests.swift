@@ -4,9 +4,9 @@ import ResonanceCore
 
 final class MockBridgeTransport: BridgeTransport, @unchecked Sendable {
     var lastCommand: BridgeCommand?
-    var handler: ((BridgeCommand, [String: Any]) -> (BridgeResponseMessage, [BridgeEventMessage]))?
+    var handler: ((BridgeCommand, BridgeJSONObject) -> (BridgeResponseMessage, [BridgeEventMessage]))?
 
-    func send(command: BridgeCommand, requestID: String, params: [String: Any]) async throws -> (
+    func send(command: BridgeCommand, requestID: String, params: BridgeJSONObject) async throws -> (
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
     ) {
@@ -29,37 +29,37 @@ final class BridgeClientTests: XCTestCase {
     }
 
     func testDiagnosticsSnapshotDecoding() throws {
-        let payload: [String: Any] = [
-            "engine_version": "1.0.0",
-            "summary": [
-                "bridge_status": "connected",
-                "platform": "darwin",
-                "execution_ms": 8,
-                "catalog_cache_entries": 3,
-                "identity_cache_entries": 1,
-                "catalog_cache_enabled": true,
-                "country_code": "fr",
-                "active_providers": [
-                    [
-                        "provider_id": "apple_music",
-                        "display_name": "Apple Music",
-                        "is_available": true,
-                        "is_connected": true,
-                        "unavailable_reason": "",
-                    ],
-                ],
-                "recent_reports": [],
-                "reports_directory": "reports",
-            ],
-            "events": [
-                [
-                    "phase": "bridge",
-                    "message": "Connecté",
-                    "level": "info",
-                    "timestamp_iso": "2026-01-01T00:00:00",
-                    "payload": [["bridge_status", "connected"]],
-                ],
-            ],
+        let payload: BridgeJSONObject = [
+            "engine_version": .string("1.0.0"),
+            "summary": .object([
+                "bridge_status": .string("connected"),
+                "platform": .string("darwin"),
+                "execution_ms": .number(8),
+                "catalog_cache_entries": .number(3),
+                "identity_cache_entries": .number(1),
+                "catalog_cache_enabled": .bool(true),
+                "country_code": .string("fr"),
+                "active_providers": .array([
+                    .object([
+                        "provider_id": .string("apple_music"),
+                        "display_name": .string("Apple Music"),
+                        "is_available": .bool(true),
+                        "is_connected": .bool(true),
+                        "unavailable_reason": .string(""),
+                    ]),
+                ]),
+                "recent_reports": .array([]),
+                "reports_directory": .string("reports"),
+            ]),
+            "events": .array([
+                .object([
+                    "phase": .string("bridge"),
+                    "message": .string("Connecté"),
+                    "level": .string("info"),
+                    "timestamp_iso": .string("2026-01-01T00:00:00"),
+                    "payload": .array([.array([.string("bridge_status"), .string("connected")])]),
+                ]),
+            ]),
         ]
         let snapshot = try BridgePayloadBuilder.diagnosticsSnapshot(from: payload)
         XCTAssertEqual(snapshot.engineVersion, "1.0.0")
@@ -74,7 +74,7 @@ final class BridgeClientTests: XCTestCase {
         """
         let response = try BridgeResponseParser.parseResponseLine(line)
         XCTAssertTrue(response.ok)
-        XCTAssertEqual(response.result["generation"] as? [String: Any] != nil, true)
+        XCTAssertNotNil(response.result["generation"]?.objectValue)
     }
 
     func testGenerationRequestDictionaryUsesSnakeCase() {
@@ -85,25 +85,25 @@ final class BridgeClientTests: XCTestCase {
             targetTrackCount: 12
         )
         let payload = BridgeContracts.generationRequestDictionary(request)
-        XCTAssertEqual(payload["provider_id"] as? String, "apple_music")
-        XCTAssertEqual(payload["target_track_count"] as? Int, 12)
+        XCTAssertEqual(payload["provider_id"]?.stringValue, "apple_music")
+        XCTAssertEqual(payload["target_track_count"]?.intValue, 12)
     }
 
     func testBridgePayloadBuilderImportResult() throws {
-        let payload: [String: Any] = [
-            "import": [
-                "playlist_name": "Demo",
-                "phase": "completed",
-                "outcomes": [
-                    [
-                        "artist": "Kygo",
-                        "title": "Firestone",
-                        "section": "Main",
-                        "status": "added",
-                        "message": "",
-                    ],
-                ],
-            ],
+        let payload: BridgeJSONObject = [
+            "import": .object([
+                "playlist_name": .string("Demo"),
+                "phase": .string("completed"),
+                "outcomes": .array([
+                    .object([
+                        "artist": .string("Kygo"),
+                        "title": .string("Firestone"),
+                        "section": .string("Main"),
+                        "status": .string("added"),
+                        "message": .string(""),
+                    ]),
+                ]),
+            ]),
         ]
         let result = try BridgePayloadBuilder.importResult(from: payload)
         XCTAssertEqual(result.addedCount, 1)
@@ -114,27 +114,27 @@ final class BridgeClientTests: XCTestCase {
         let transport = MockBridgeTransport()
         transport.handler = { command, _ in
             XCTAssertEqual(command, .generatePlaylist)
-            let result: [String: Any] = [
-                "generation": [
-                    "playlist_name": "Demo",
-                    "sections": [
-                        [
-                            "name": "Main",
-                            "tracks": [
-                                [
-                                    "artist": "Kygo",
-                                    "title": "Firestone",
-                                    "section": "Main",
-                                    "score": 0.91,
-                                    "confidence": "high",
-                                    "source": "seed",
-                                ],
-                            ],
-                        ],
-                    ],
-                    "average_score": 0.91,
-                    "provider_id": "apple_music",
-                ],
+            let result: BridgeJSONObject = [
+                "generation": .object([
+                    "playlist_name": .string("Demo"),
+                    "sections": .array([
+                        .object([
+                            "name": .string("Main"),
+                            "tracks": .array([
+                                .object([
+                                    "artist": .string("Kygo"),
+                                    "title": .string("Firestone"),
+                                    "section": .string("Main"),
+                                    "score": .number(0.91),
+                                    "confidence": .string("high"),
+                                    "source": .string("seed"),
+                                ]),
+                            ]),
+                        ]),
+                    ]),
+                    "average_score": .number(0.91),
+                    "provider_id": .string("apple_music"),
+                ]),
             ]
             return (
                 BridgeResponseMessage(id: "1", ok: true, result: result, error: nil),

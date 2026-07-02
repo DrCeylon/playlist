@@ -54,9 +54,9 @@ final class PlaylistGenerationValidationTests: XCTestCase {
             exclusions: [ExclusionRule(kind: .artist, value: "Pitbull")]
         )
         let payload = BridgeContracts.generationRequestDictionary(request)
-        XCTAssertEqual(payload["provider_id"] as? String, "apple_music")
-        XCTAssertEqual(payload["target_track_count"] as? Int, 12)
-        let seeds = payload["seeds"] as? [[String: Any]]
-        XCTAssertEqual(seeds?.first?["artist"] as? String, "Kygo")
+        XCTAssertEqual(payload["provider_id"]?.stringValue, "apple_music")
+        XCTAssertEqual(payload["target_track_count"]?.intValue, 12)
+        let seeds = payload["seeds"]?.arrayValue?.compactMap(\.objectValue)
+        XCTAssertEqual(seeds?.first?["artist"]?.stringValue, "Kygo")
     }
 }

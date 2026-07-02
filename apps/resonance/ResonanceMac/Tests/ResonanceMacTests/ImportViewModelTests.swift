@@ -32,11 +32,11 @@ final class ImportViewModelTests: XCTestCase {
                         id: "import-1",
                         event: .manualAcquisitionRequired,
                         payload: [
-                            "import_session_id": "session-1",
-                            "token": "track-1",
-                            "artist": "Kygo",
-                            "title": "Firestone",
-                            "instructions": "Ajoute le morceau dans Music.app",
+                            "import_session_id": .string("session-1"),
+                            "token": .string("track-1"),
+                            "artist": .string("Kygo"),
+                            "title": .string("Firestone"),
+                            "instructions": .string("Ajoute le morceau dans Music.app"),
                         ]
                     )
                 )
