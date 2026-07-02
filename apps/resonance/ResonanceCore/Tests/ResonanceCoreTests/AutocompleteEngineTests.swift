@@ -20,27 +20,30 @@ final class AutocompleteEngineTests: XCTestCase {
         XCTAssertTrue(engine.session.results.contains { $0.displayName == "Kygo" })
     }
 
-    func testSelectHighlightedChoosesFirstWhenNoHighlight() {
+    func testSelectHighlightedChoosesFirstWhenNoHighlight() async {
         let provider = MockArtistSuggestionProvider()
         let engine = AutocompleteEngine(provider: provider, entityKind: .artist, debounceInterval: 0)
-        engine.session.results = MockAutocompleteFixtures.artists
-        engine.session.phase = .ready
+        engine.updateQuery("mu")
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(engine.session.phase, .ready)
+        XCTAssertFalse(engine.session.results.isEmpty)
 
         let selected = engine.selectHighlighted()
         XCTAssertEqual(selected?.displayName, "Muse")
         XCTAssertEqual(engine.selection.selected?.displayName, "Muse")
     }
 
-    func testKeyboardHighlightWraps() {
+    func testKeyboardHighlightWraps() async {
         let provider = MockArtistSuggestionProvider()
-        let engine = AutocompleteEngine(provider: provider, entityKind: .artist)
-        engine.session.results = Array(MockAutocompleteFixtures.artists.prefix(3))
-        engine.session.phase = .ready
+        let engine = AutocompleteEngine(provider: provider, entityKind: .artist, debounceInterval: 0)
+        engine.updateQuery("a")
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertGreaterThanOrEqual(engine.session.visibleItems.count, 3)
 
         engine.moveHighlight(delta: 1)
         XCTAssertEqual(engine.session.highlightedIndex, 0)
         engine.moveHighlight(delta: -1)
-        XCTAssertEqual(engine.session.highlightedIndex, 2)
+        XCTAssertEqual(engine.session.highlightedIndex, engine.session.visibleItems.count - 1)
     }
 
     func testRecentSearchRecordedOnSelection() {

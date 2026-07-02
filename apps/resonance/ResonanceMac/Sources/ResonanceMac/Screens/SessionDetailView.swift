@@ -123,11 +123,12 @@ struct SessionDetailView: View {
                 Button(title, action: action)
                     .buttonStyle(.borderedProminent)
                     .tint(palette.accentPrimary)
+                    .disabled(!isEnabled)
             } else {
                 Button(title, action: action)
                     .buttonStyle(.bordered)
+                    .disabled(!isEnabled)
             }
-                .disabled(!isEnabled)
             Text(description)
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
