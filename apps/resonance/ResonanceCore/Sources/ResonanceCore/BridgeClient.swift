@@ -29,6 +29,16 @@ public protocol BridgeTransport: Sendable {
     )
 }
 
+public extension BridgeTransport {
+    func send(
+        command: BridgeCommand,
+        requestID: String = UUID().uuidString,
+        params: [String: Any] = [:]
+    ) async throws -> (response: BridgeResponseMessage, events: [BridgeEventMessage]) {
+        try await send(command: command, requestID: requestID, params: params)
+    }
+}
+
 public final class BridgeClient: BridgeTransport, @unchecked Sendable {
     private let configuration: BridgeClientConfiguration
     private let lock = NSLock()

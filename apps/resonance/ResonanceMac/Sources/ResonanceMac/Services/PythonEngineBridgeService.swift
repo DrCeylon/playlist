@@ -1,4 +1,5 @@
 import Foundation
+import ResonanceCore
 
 public enum ResonancePaths {
     public static func repoRoot(
