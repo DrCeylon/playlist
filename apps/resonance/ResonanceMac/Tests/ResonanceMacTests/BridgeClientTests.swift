@@ -26,6 +26,8 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertEqual(BridgeCommand.importPlaylist.rawValue, "import_playlist")
         XCTAssertEqual(BridgeCommand.diagnostics.rawValue, "diagnostics")
         XCTAssertEqual(BridgeCommand.continueManualAcquisition.rawValue, "continue_manual_acquisition")
+        XCTAssertEqual(BridgeCommand.listHistory.rawValue, "list_history")
+        XCTAssertEqual(BridgeCommand.getHistorySession.rawValue, "get_history_session")
     }
 
     func testDiagnosticsSnapshotDecoding() throws {
@@ -66,6 +68,32 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertEqual(snapshot.summary.catalogCacheEntries, 3)
         XCTAssertEqual(snapshot.events.count, 1)
         XCTAssertEqual(snapshot.events[0].payload.first?.key, "bridge_status")
+    }
+
+    func testHistorySessionDecoding() {
+        let payload: BridgeJSONObject = [
+            "sessions": .array([
+                .object([
+                    "session_id": .string("hist-1"),
+                    "started_at_iso": .string("2026-07-02T08:00:00"),
+                    "finished_at_iso": .string("2026-07-02T08:01:00"),
+                    "playlist_name": .string("Demo"),
+                    "provider_id": .string("apple_music"),
+                    "status": .string("generated"),
+                    "track_count": .number(5),
+                    "added_count": .number(0),
+                    "skipped_count": .number(0),
+                    "not_found_count": .number(0),
+                    "error_count": .number(0),
+                    "duration_ms": .number(1000),
+                    "text_report_path": .string(""),
+                    "json_report_path": .string(""),
+                ]),
+            ]),
+        ]
+        let sessions = BridgePayloadBuilder.historySessions(from: payload)
+        XCTAssertEqual(sessions.count, 1)
+        XCTAssertEqual(sessions.first?.sessionID, "hist-1")
     }
 
     func testBridgeResponseParserDecodesSuccess() throws {

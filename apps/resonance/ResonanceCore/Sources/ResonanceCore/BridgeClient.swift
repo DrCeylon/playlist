@@ -190,7 +190,13 @@ public enum BridgePayloadBuilder {
                 message: item["message"]?.stringValue ?? ""
             )
         }
-        return ImportResultState(playlistName: playlistName, outcomes: outcomes, phase: phase)
+        let historySessionID = payload["history_session_id"]?.stringValue ?? ""
+        return ImportResultState(
+            playlistName: playlistName,
+            outcomes: outcomes,
+            phase: phase,
+            historySessionID: historySessionID
+        )
     }
 
     public static func generationResult(from payload: BridgeJSONObject) throws -> PlaylistGenerationResult {
@@ -223,7 +229,8 @@ public enum BridgePayloadBuilder {
             playlistName: playlistName,
             sections: sections,
             averageScore: averageScore,
-            providerID: providerID
+            providerID: providerID,
+            historySessionID: payload["history_session_id"]?.stringValue ?? ""
         )
     }
 
@@ -306,6 +313,58 @@ public enum BridgePayloadBuilder {
             level: DiagnosticLevel(rawValue: levelRaw) ?? .info,
             timestampISO: object["timestamp_iso"]?.stringValue ?? "",
             payload: payload
+        )
+    }
+
+    public static func historySessions(from payload: BridgeJSONObject) -> [SessionHistorySummary] {
+        let sessionsRaw = payload["sessions"]?.arrayValue ?? []
+        return sessionsRaw.compactMap(\.objectValue).map(historySummary)
+    }
+
+    public static func historySessionDetail(from payload: BridgeJSONObject) -> SessionHistoryDetail? {
+        guard let object = payload["session"]?.objectValue else { return nil }
+        return historyDetail(from: object)
+    }
+
+    public static func exportHistorySession(from payload: BridgeJSONObject) -> SessionHistoryExport? {
+        guard let object = payload["export"]?.objectValue else { return nil }
+        return SessionHistoryExport(
+            sessionID: object["session_id"]?.stringValue ?? "",
+            playlistName: object["playlist_name"]?.stringValue ?? "",
+            providerID: ProviderID(rawValue: object["provider_id"]?.stringValue ?? "") ?? .appleMusic,
+            status: SessionHistoryStatus(rawValue: object["status"]?.stringValue ?? "") ?? .failed,
+            textReportPath: object["text_report_path"]?.stringValue ?? "",
+            jsonReportPath: object["json_report_path"]?.stringValue ?? ""
+        )
+    }
+
+    private static func historySummary(_ object: BridgeJSONObject) -> SessionHistorySummary {
+        SessionHistorySummary(
+            sessionID: object["session_id"]?.stringValue ?? "",
+            startedAtISO: object["started_at_iso"]?.stringValue ?? "",
+            finishedAtISO: object["finished_at_iso"]?.stringValue ?? "",
+            playlistName: object["playlist_name"]?.stringValue ?? "",
+            providerID: ProviderID(rawValue: object["provider_id"]?.stringValue ?? "") ?? .appleMusic,
+            status: SessionHistoryStatus(rawValue: object["status"]?.stringValue ?? "") ?? .failed,
+            trackCount: object["track_count"]?.intValue ?? 0,
+            addedCount: object["added_count"]?.intValue ?? 0,
+            skippedCount: object["skipped_count"]?.intValue ?? 0,
+            notFoundCount: object["not_found_count"]?.intValue ?? 0,
+            errorCount: object["error_count"]?.intValue ?? 0,
+            durationMS: object["duration_ms"]?.intValue,
+            textReportPath: object["text_report_path"]?.stringValue ?? "",
+            jsonReportPath: object["json_report_path"]?.stringValue ?? ""
+        )
+    }
+
+    private static func historyDetail(from object: BridgeJSONObject) -> SessionHistoryDetail {
+        let summary = historySummary(object)
+        return SessionHistoryDetail(
+            summary: summary,
+            generationRequest: object["generation_request"]?.objectValue ?? [:],
+            generationResult: object["generation_result"]?.objectValue ?? [:],
+            importResult: object["import_result"]?.objectValue ?? [:],
+            diagnostics: object["diagnostics"]?.objectValue ?? [:]
         )
     }
 }

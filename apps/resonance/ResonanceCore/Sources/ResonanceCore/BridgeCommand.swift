@@ -7,6 +7,12 @@ public enum BridgeCommand: String, Codable, Sendable {
     case importPlaylist = "import_playlist"
     case diagnostics = "diagnostics"
     case continueManualAcquisition = "continue_manual_acquisition"
+    case listHistory = "list_history"
+    case getHistorySession = "get_history_session"
+    case deleteHistorySession = "delete_history_session"
+    case clearHistory = "clear_history"
+    case replayGeneration = "replay_generation"
+    case exportHistorySession = "export_history_session"
 }
 
 public enum BridgeEventType: String, Codable, Sendable {

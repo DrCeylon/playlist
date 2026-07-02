@@ -55,7 +55,7 @@ public struct PythonEngineBridgeConfiguration: Sendable {
 }
 
 /// Immutable service wrapper around bridge transport and stateless fallback services.
-public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, DiagnosticsServing, @unchecked Sendable {
+public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, DiagnosticsServing, SessionHistoryServing, @unchecked Sendable {
     private let transport: BridgeTransport?
     private let fallbackGeneration: MockPlaylistGenerationService
     private let fallbackImport: MockPlaylistImportService
@@ -118,6 +118,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                     "playlist": .object(BridgePayloadBuilder.playlistDictionary(from: result)),
                     "sync": .bool(true),
                     "write_json_diagnostics": .bool(true),
+                    "history_session_id": .string(result.historySessionID),
                 ]
             )
             for event in events {
@@ -169,6 +170,56 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         } catch let error as BridgeClientError {
             throw mapDiagnosticsError(error)
         }
+    }
+
+    public func listHistory() async throws -> [SessionHistorySummary] {
+        guard let transport else { return [] }
+        let (response, _) = try await transport.send(command: .listHistory, params: [:])
+        return BridgePayloadBuilder.historySessions(from: response.result)
+    }
+
+    public func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? {
+        guard let transport else { return nil }
+        let (response, _) = try await transport.send(
+            command: .getHistorySession,
+            params: ["session_id": .string(sessionID)]
+        )
+        return BridgePayloadBuilder.historySessionDetail(from: response.result)
+    }
+
+    public func deleteHistorySession(sessionID: String) async throws -> Bool {
+        guard let transport else { return false }
+        let (response, _) = try await transport.send(
+            command: .deleteHistorySession,
+            params: ["session_id": .string(sessionID)]
+        )
+        return response.result["deleted"]?.boolValue ?? false
+    }
+
+    public func clearHistory() async throws -> Bool {
+        guard let transport else { return true }
+        let (response, _) = try await transport.send(command: .clearHistory, params: [:])
+        return response.result["cleared"]?.boolValue ?? false
+    }
+
+    public func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult {
+        guard let transport else {
+            throw DiagnosticsServiceError.bridgeUnavailable
+        }
+        let (response, _) = try await transport.send(
+            command: .replayGeneration,
+            params: ["session_id": .string(sessionID)]
+        )
+        return try BridgePayloadBuilder.generationResult(from: response.result)
+    }
+
+    public func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? {
+        guard let transport else { return nil }
+        let (response, _) = try await transport.send(
+            command: .exportHistorySession,
+            params: ["session_id": .string(sessionID)]
+        )
+        return BridgePayloadBuilder.exportHistorySession(from: response.result)
     }
 
     private func mapDiagnosticsError(_ error: BridgeClientError) -> DiagnosticsServiceError {

@@ -197,7 +197,7 @@ swift build && swift run ResonanceMac
 |-------|--------|
 | Accueil | ✅ MVP |
 | Nouvelle Playlist | ✅ formulaire + génération + import |
-| Historique | 📋 placeholder |
+| Historique | ✅ sessions locales |
 | Laboratoire | ✅ diagnostics bridge |
 | Paramètres | ✅ sélecteur de thème |
 
@@ -225,6 +225,16 @@ swift build && swift run ResonanceMac
 5. **Rapports récents** — résumés JSON sans `persistent_id`
 
 Voir [phase-4-diagnostics-lab.md](../docs/product/phase-4-diagnostics-lab.md).
+
+## Phase 4.8 — Session History
+
+1. **Écran Historique** dans la sidebar — sessions locales génération/import
+2. **Liste** — date, playlist, provider, statut, compteurs
+3. **Détail** — requête, preview, import, diagnostics, chemins rapport
+4. **Actions MVP** — relancer génération, supprimer entrée locale, clear, export
+5. **Stockage** — `data/history/sessions.json` (`schema_version`, écriture atomique)
+
+Voir [phase-4-session-history.md](../docs/product/phase-4-session-history.md).
 
 ## Lancer les tests
 
