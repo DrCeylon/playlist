@@ -33,12 +33,12 @@ let package = Package(
             name: "ResonanceMac",
             dependencies: ["ResonanceCore", "ResonanceDesign"],
             path: "ResonanceMac",
-            sources: ["Sources/ResonanceMac"],
             exclude: [
                 "Tests",
                 "Resources/Info.plist",
                 "Resources/AppIcon.iconset",
             ],
+            sources: ["Sources/ResonanceMac"],
             resources: [
                 .copy("Resources/Assets"),
             ]
