@@ -13,6 +13,7 @@ final class ProviderNeutralGuardTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
+            .deletingLastPathComponent()
             .appendingPathComponent("Sources/ResonanceMac")
 
         let targets = ["Screens", "ViewModels"]
