@@ -14,11 +14,14 @@ from playlist_builder.discovery.itunes_provider import ITunesCandidateProvider
 from playlist_builder.discovery.pipeline import DiscoveryPipeline
 from playlist_builder.discovery.providers import StaticCandidateProvider
 from playlist_builder.session.engine import GenerationSessionEngine
+from playlist_builder.app.use_cases.autocomplete_search import AutocompleteSearchUseCase
 from playlist_builder.ui.bridge.commands import (
+    AutocompleteSearchResult,
     DiagnosticsResult,
     GeneratePlaylistResult,
     ImportPlaylistResult,
     ListProvidersResult,
+    autocomplete_request_from_dict,
 )
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.bridge.events import BridgeEvent
@@ -47,6 +50,12 @@ class RuntimeEngineBridgeBackend:
         self._session_store = session_store or ImportSessionStore()
         self._generation_engine = self._build_generation_engine(context)
         self._history = SessionHistoryService(SessionHistoryRepository(Path("data/history/sessions.json")))
+        self._autocomplete = AutocompleteSearchUseCase(context.gateway)
+
+    def autocomplete_search(self, params: dict) -> AutocompleteSearchResult:
+        request = autocomplete_request_from_dict(params)
+        response = self._autocomplete.search(request)
+        return AutocompleteSearchResult(response=response)
 
     def continue_manual_acquisition(self, params: dict) -> dict[str, object]:
         session_id = str(params.get("import_session_id", "")).strip()

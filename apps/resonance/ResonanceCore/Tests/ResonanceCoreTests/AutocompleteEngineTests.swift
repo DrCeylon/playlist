@@ -1,0 +1,108 @@
+import ResonanceCore
+import XCTest
+
+@MainActor
+final class AutocompleteEngineTests: XCTestCase {
+    func testDebounceReturnsResults() async {
+        let provider = MockArtistSuggestionProvider()
+        let engine = AutocompleteEngine(
+            provider: provider,
+            entityKind: .artist,
+            debounceInterval: 0.05
+        )
+
+        engine.updateQuery("ky")
+        XCTAssertEqual(engine.session.phase, .debouncing)
+
+        try? await Task.sleep(nanoseconds: 120_000_000)
+        XCTAssertEqual(engine.session.phase, .ready)
+        XCTAssertFalse(engine.session.results.isEmpty)
+        XCTAssertTrue(engine.session.results.contains { $0.displayName == "Kygo" })
+    }
+
+    func testSelectHighlightedChoosesFirstWhenNoHighlight() {
+        let provider = MockArtistSuggestionProvider()
+        let engine = AutocompleteEngine(provider: provider, entityKind: .artist, debounceInterval: 0)
+        engine.session.results = MockAutocompleteFixtures.artists
+        engine.session.phase = .ready
+
+        let selected = engine.selectHighlighted()
+        XCTAssertEqual(selected?.displayName, "Muse")
+        XCTAssertEqual(engine.selection.selected?.displayName, "Muse")
+    }
+
+    func testKeyboardHighlightWraps() {
+        let provider = MockArtistSuggestionProvider()
+        let engine = AutocompleteEngine(provider: provider, entityKind: .artist)
+        engine.session.results = Array(MockAutocompleteFixtures.artists.prefix(3))
+        engine.session.phase = .ready
+
+        engine.moveHighlight(delta: 1)
+        XCTAssertEqual(engine.session.highlightedIndex, 0)
+        engine.moveHighlight(delta: -1)
+        XCTAssertEqual(engine.session.highlightedIndex, 2)
+    }
+
+    func testRecentSearchRecordedOnSelection() {
+        let recents = InMemoryRecentSearchProvider()
+        let provider = MockArtistSuggestionProvider()
+        let engine = AutocompleteEngine(
+            provider: provider,
+            entityKind: .artist,
+            recentSearchProvider: recents
+        )
+        let artist = MockAutocompleteFixtures.artists[0]
+        engine.select(artist)
+
+        let loaded: [ArtistRef] = recents.load(entityKind: .artist)
+        XCTAssertEqual(loaded.first?.id, artist.id)
+    }
+}
+
+final class AutocompleteCacheTests: XCTestCase {
+    func testCacheStoresAndExpires() async {
+        let cache = AutocompleteCache(maxEntries: 8, defaultTTL: 0.05)
+        let artists = [ArtistRef(id: "muse", displayName: "Muse")]
+
+        await cache.store(artists, entityKind: .artist, query: "muse", context: nil, ttl: 0.05)
+        let hit: [ArtistRef]? = await cache.lookup(entityKind: .artist, query: "muse", context: nil)
+        XCTAssertEqual(hit?.count, 1)
+
+        try? await Task.sleep(nanoseconds: 80_000_000)
+        let miss: [ArtistRef]? = await cache.lookup(entityKind: .artist, query: "muse", context: nil)
+        XCTAssertNil(miss)
+    }
+}
+
+final class AutocompleteBridgeContractsTests: XCTestCase {
+    func testParseArtistSuggestion() {
+        let payload: BridgeJSONObject = [
+            "suggestions": .array([
+                .object([
+                    "kind": .string("artist"),
+                    "id": .string("muse"),
+                    "display_name": .string("Muse"),
+                    "artwork_url": .string("https://example.com/artwork.jpg"),
+                    "album_count": .number(10),
+                ]),
+            ]),
+        ]
+        let response = AutocompleteBridgeContracts.parseResponse(payload, entityKind: .artist)
+        XCTAssertEqual(response.artists.count, 1)
+        XCTAssertEqual(response.artists[0].displayName, "Muse")
+        XCTAssertEqual(response.artists[0].albumCount, 10)
+    }
+
+    func testRequestDictionaryIncludesContext() {
+        let request = AutocompleteRequest(
+            entityKind: .track,
+            query: "fire",
+            context: AutocompleteContext(artistName: "Kygo", artistID: "kygo")
+        )
+        let dict = AutocompleteBridgeContracts.requestDictionary(request)
+        guard case .object(let context) = dict["context"] else {
+            return XCTFail("Missing context")
+        }
+        XCTAssertEqual(context["artist_name"], .string("Kygo"))
+    }
+}

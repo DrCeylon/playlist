@@ -39,6 +39,11 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "ResonanceCoreTests",
+            dependencies: ["ResonanceCore"],
+            path: "ResonanceCore/Tests/ResonanceCoreTests"
+        ),
+        .testTarget(
             name: "ResonanceMacTests",
             dependencies: ["ResonanceMac", "ResonanceCore", "ResonanceDesign"],
             path: "ResonanceMac/Tests/ResonanceMacTests"

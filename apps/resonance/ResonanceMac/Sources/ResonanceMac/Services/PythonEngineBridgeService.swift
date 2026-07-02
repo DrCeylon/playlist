@@ -100,11 +100,12 @@ public struct PythonEngineBridgeConfiguration: Sendable {
 }
 
 /// Immutable service wrapper around bridge transport and stateless fallback services.
-public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, DiagnosticsServing, SessionHistoryServing, @unchecked Sendable {
+public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, DiagnosticsServing, SessionHistoryServing, AutocompleteServing, @unchecked Sendable {
     private let transport: BridgeTransport?
     private let configuration: PythonEngineBridgeConfiguration?
     private let fallbackGeneration: MockPlaylistGenerationService
     private let fallbackImport: MockPlaylistImportService
+    private let fallbackAutocomplete = MockAutocompleteService()
 
     public var isBridgeConfigured: Bool {
         transport != nil
@@ -320,6 +321,37 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return BridgePayloadBuilder.exportHistorySession(from: response.result)
     }
 
+    public func search(request: AutocompleteRequest) async throws -> AutocompleteResponse {
+        guard let transport else {
+            return try await fallbackAutocomplete.search(request: request)
+        }
+        do {
+            let (response, _) = try await transport.send(
+                command: .autocompleteSearch,
+                params: AutocompleteBridgeContracts.requestDictionary(request)
+            )
+            return AutocompleteBridgeContracts.parseResponse(response.result, entityKind: request.entityKind)
+        } catch let error as BridgeClientError {
+            if case .processUnavailable = error {
+                return try await fallbackAutocomplete.search(request: request)
+            }
+            throw mapAutocompleteError(error)
+        }
+    }
+
+    private func mapAutocompleteError(_ error: BridgeClientError) -> AutocompleteServiceError {
+        switch error {
+        case .bridge(let payload):
+            return .bridge(payload)
+        case .processUnavailable, .bridgeUnavailable:
+            return .bridgeUnavailable
+        case .timeout:
+            return .timeout
+        case .invalidResponse:
+            return .invalidResponse
+        }
+    }
+
     private func mapDiagnosticsError(_ error: BridgeClientError) -> DiagnosticsServiceError {
         switch error {
         case .bridge(let payload):
@@ -361,6 +393,13 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
 }
 
 public enum PlaylistImportError: Error, Equatable, Sendable {
+    case bridgeUnavailable
+    case timeout
+    case invalidResponse
+    case bridge(BridgeErrorPayload)
+}
+
+public enum AutocompleteServiceError: Error, Equatable, Sendable {
     case bridgeUnavailable
     case timeout
     case invalidResponse

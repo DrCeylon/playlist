@@ -16,6 +16,8 @@ from playlist_builder.ui.bridge.commands import (
     ImportPlaylistResult,
     ListProvidersResult,
     ValidateGenerationRequestResult,
+    AutocompleteSearchResult,
+    autocomplete_request_from_dict,
     parse_bridge_request,
     playlist_generation_request_from_dict,
 )
@@ -155,6 +157,13 @@ class JsonRpcEngineBridge(EngineBridge):
             yield started_event(request.id, command=request.command.value).to_dict()
             result = self.backend.replay_generation(session_id, request_id=request.id)
             yield completed_event(request.id, summary=result.to_dict()).to_dict()
+            yield BridgeResponse(id=request.id, ok=True, result=result.to_dict()).to_dict()
+            return
+
+        if request.command == BridgeCommand.AUTOCOMPLETE_SEARCH:
+            if self.backend is None or not hasattr(self.backend, "autocomplete_search"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'autocomplete non configuré.")
+            result = self.backend.autocomplete_search(request.params)
             yield BridgeResponse(id=request.id, ok=True, result=result.to_dict()).to_dict()
             return
 

@@ -62,3 +62,36 @@ class AppleITunesSearchHit:
     @property
     def is_explicit(self) -> bool:
         return self.track_explicitness == "explicit"
+
+    @property
+    def artwork_url(self) -> str:
+        return str(self.raw.get("artworkUrl100", "") or self.raw.get("artworkUrl60", ""))
+
+    @property
+    def release_date(self) -> str:
+        return str(self.raw.get("releaseDate", ""))
+
+    @property
+    def track_time_millis(self) -> int | None:
+        value = self.raw.get("trackTimeMillis")
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def wrapper_type(self) -> str:
+        return str(self.raw.get("wrapperType", ""))
+
+    @property
+    def kind(self) -> str:
+        return str(self.raw.get("kind", ""))
+
+    @property
+    def artist_id(self) -> str:
+        value = self.raw.get("artistId")
+        if value is None:
+            return ""
+        return str(value)

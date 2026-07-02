@@ -36,6 +36,7 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertEqual(BridgeCommand.continueManualAcquisition.rawValue, "continue_manual_acquisition")
         XCTAssertEqual(BridgeCommand.listHistory.rawValue, "list_history")
         XCTAssertEqual(BridgeCommand.getHistorySession.rawValue, "get_history_session")
+        XCTAssertEqual(BridgeCommand.autocompleteSearch.rawValue, "autocomplete_search")
     }
 
     func testDiagnosticsSnapshotDecoding() throws {
