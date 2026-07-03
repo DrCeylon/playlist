@@ -407,4 +407,10 @@ final class ImportViewModel: ObservableObject {
             return "Import terminé"
         }
     }
+
+    private func flushPendingImportEvents() async {
+        for _ in 0..<8 {
+            await Task.yield()
+        }
+    }
 }

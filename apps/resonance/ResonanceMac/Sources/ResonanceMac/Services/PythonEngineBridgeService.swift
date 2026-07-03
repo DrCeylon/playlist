@@ -266,7 +266,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             command: .retryImportTracks,
             params: [
                 "playlist": .object(playlistPayload),
-                "track_indices": .array(trackIndices.map { .number($0) }),
+                "track_indices": .array(trackIndices.map { .number(Double($0)) }),
             ],
             onEvent: onEvent,
             onDiagnostic: { line in
