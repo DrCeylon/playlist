@@ -67,6 +67,7 @@ Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive
 - [**Phase 4 — Interface Resonance**](Phase-4-Interface-Resonance)
 - [**Phase 4.8A — Clôture**](Phase-4-8A-Cloture)
 - [**Phase 5.1 — Smart Input Framework**](Phase-5-1-Smart-Input) ← **clôturée**
+- [**Phase 5.1.1 — Import UX**](Phase-5-1-1-Import-UX) ← **clôturée**
 - [Smart Input Framework — architecture](Smart-Input-Framework)
 - [État des phases](Etat-des-Phases) · [Maintenance Git](Maintenance-et-Workflow)
 - [Phase 5 — Vision produit](Phase-5-Vision)

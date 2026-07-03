@@ -4,7 +4,7 @@
 
 ## Contexte
 
-Les Phases 4.0–4.8A et **5.1** ont livré un **MVP macOS fonctionnel** : génération, import Apple Music, historique, diagnostics, thèmes, **Smart Input** (autocomplete artiste/morceau, tags). Les prochaines étapes (5.1.1 import UX, 5.2+) transforment Resonance d'un « laboratoire utilisable » en **produit quotidien**.
+Les Phases 4.0–4.8A, **5.1** et **5.1.1** ont livré un **MVP macOS fonctionnel** : génération, import Apple Music (progression live, deep links Music), historique, diagnostics, thèmes, **Smart Input**. Les prochaines étapes (5.2+) transforment Resonance en **produit quotidien**.
 
 → [État des phases](Etat-des-Phases)
 
@@ -64,6 +64,10 @@ Les Phases 4.0–4.8A et **5.1** ont livré un **MVP macOS fonctionnel** : gén�
 ## Phase 5.1 — livrée
 
 Smart Input Framework mergé (PR #33). Voir [Phase 5.1 — Smart Input](Phase-5-1-Smart-Input) et [Smart Input Framework](Smart-Input-Framework).
+
+## Phase 5.1.1 — livrée
+
+UX import Apple Music mergée (PR #36) : progression morceau par morceau, texte sélectionnable, deep links Music, sonde bibliothèque. Voir [Phase 5.1.1 — Import UX](Phase-5-1-1-Import-UX).
 | Dette bridge | Refactor AsyncStream avant nouvelles commandes |
 | iOS trop tôt | Valider macOS production d'abord |
 

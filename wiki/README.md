@@ -16,13 +16,12 @@ git commit -m "Mise à jour wiki — Phase 4.8A clôture Resonance"
 git push origin master
 ```
 
-## Dernière mise à jour (juillet 2026 — maintenance post Phase 5.1)
+## Dernière mise à jour (juillet 2026 — post intégration 5.1.1)
 
-- Smart Input Framework mergé (PR #33)
-- [État des phases](Etat-des-Phases) — tableau PR / branches actives
-- [Maintenance & workflow Git](Maintenance-et-Workflow)
-- PR actives : #34 icône, #35 autocomplete artiste, #36 import UX
-- ~318 tests Python ; `swift test` sur macOS (CI)
+- Phases **5.1** et **5.1.1** clôturées sur `main`
+- PR #34–#37 mergées ; aucune PR ouverte
+- [État des phases](Etat-des-Phases) · [Phase 5.1.1 Import UX](Phase-5-1-1-Import-UX)
+- 323 tests Python ; `swift test` sur macOS
 
 ## Structure des pages
 
