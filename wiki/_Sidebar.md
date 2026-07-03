@@ -25,7 +25,9 @@
 - [**Phase 4.8A — Clôture**](Phase-4-8A-Cloture)
 - [**Phase 5.1 — Smart Input**](Phase-5-1-Smart-Input)
 - [Smart Input Framework](Smart-Input-Framework)
+- [État des phases](Etat-des-Phases)
 - [Phase 5 — Vision produit](Phase-5-Vision)
+- [Maintenance & workflow Git](Maintenance-et-Workflow)
 - [MusicKit expérimental](MusicKit-Experimental)
 - [Feuille de route iOS](Feuille-de-route-iOS)
 
