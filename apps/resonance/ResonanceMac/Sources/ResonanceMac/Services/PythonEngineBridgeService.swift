@@ -427,13 +427,6 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
     }
 }
 
-public enum PlaylistImportError: Error, Equatable, Sendable {
-    case bridgeUnavailable
-    case timeout
-    case invalidResponse
-    case bridge(BridgeErrorPayload)
-}
-
 public enum AutocompleteServiceError: Error, Equatable, Sendable {
     case bridgeUnavailable
     case timeout

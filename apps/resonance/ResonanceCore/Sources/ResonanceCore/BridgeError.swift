@@ -41,3 +41,10 @@ public enum SessionHistoryServiceError: Error, Equatable, Sendable {
     case invalidResponse
     case bridge(BridgeErrorPayload)
 }
+
+public enum PlaylistImportError: Error, Equatable, Sendable {
+    case bridgeUnavailable
+    case timeout
+    case invalidResponse
+    case bridge(BridgeErrorPayload)
+}
