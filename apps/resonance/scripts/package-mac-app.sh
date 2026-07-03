@@ -16,7 +16,7 @@ APP_DIR="$DIST/$APP_NAME.app"
 ICONSET="$ROOT/ResonanceMac/Resources/AppIcon.iconset"
 INFO_PLIST="$ROOT/ResonanceMac/Resources/Info.plist"
 
-if [[ ! -d "$ICONSET" ]]; then
+if [[ ! -d "$ICONSET" ]] || [[ ! -f "$ICONSET/icon_512x512@2x.png" ]]; then
   echo "==> generating AppIcon.iconset"
   python3 "$ROOT/scripts/generate-app-icon.py"
 fi

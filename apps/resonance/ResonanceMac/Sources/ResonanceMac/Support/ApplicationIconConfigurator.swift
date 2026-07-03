@@ -24,6 +24,8 @@ enum ApplicationIconConfigurator {
                     subdirectory: subdirectory
                 ),
                    let image = NSImage(contentsOf: url) {
+                    image.size = NSSize(width: 512, height: 512)
+                    image.isTemplate = false
                     return image
                 }
             }
