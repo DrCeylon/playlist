@@ -40,14 +40,14 @@ struct SettingsView: View {
                             .font(.headline)
                             .foregroundStyle(palette.textPrimary)
                         infoRow(title: "Version shell", value: "4.8 Preview", palette: palette)
-                        infoRow(title: "Thème actif", value: themeManager.active.displayName, palette: palette)
+                        infoRow(title: "Thème actif", value: themeManager.activeDisplayName, palette: palette)
                     }
                     .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
                 }
                 .padding(24)
             }
             .onAppear {
-                selectedThemeID = themeManager.active.id
+                selectedThemeID = themeManager.selectedThemeID
             }
         }
         .navigationTitle("Paramètres")

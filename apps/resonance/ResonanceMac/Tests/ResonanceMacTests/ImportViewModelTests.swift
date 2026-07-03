@@ -105,22 +105,24 @@ final class ImportViewModelTests: XCTestCase {
                 _ result: PlaylistGenerationResult,
                 onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
             ) async throws -> ImportResultState {
-                onEvent(
-                    BridgeEventMessage(
-                        id: "import-1",
-                        event: .trackProgress,
-                        payload: [
-                            "track_key": .string("0:kygo:firestone"),
-                            "track_index": .number(0),
-                            "artist": .string("Kygo"),
-                            "title": .string("Firestone"),
-                            "step": .string("searching"),
-                            "status": .string("pending"),
-                            "message": .string("Recherche…"),
-                            "is_current": .bool(true),
-                        ]
+                await MainActor.run {
+                    onEvent(
+                        BridgeEventMessage(
+                            id: "import-1",
+                            event: .trackProgress,
+                            payload: [
+                                "track_key": .string("0:kygo:firestone"),
+                                "track_index": .number(0),
+                                "artist": .string("Kygo"),
+                                "title": .string("Firestone"),
+                                "step": .string("searching"),
+                                "status": .string("pending"),
+                                "message": .string("Recherche…"),
+                                "is_current": .bool(true),
+                            ]
+                        )
                     )
-                )
+                }
                 return ImportResultState(playlistName: result.playlistName, phase: .completed)
             }
 

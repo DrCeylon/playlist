@@ -42,9 +42,9 @@ final class DiagnosticsViewModel: ObservableObject {
     var modeIntroduction: String {
         switch displayMode {
         case .simple:
-            return "Vue d'ensemble : état Apple Music, bridge et derniers problèmes détectés."
+            return "Vérifiez ici si Apple Music répond, si le bridge Python est connecté et quel a été le dernier problème détecté."
         case .architect:
-            return "Vue technique : version moteur, chemins, providers, cache et événements bruts."
+            return "Consultez ici la version du moteur, les chemins d'exécution, les providers et les événements techniques bruts."
         }
     }
 

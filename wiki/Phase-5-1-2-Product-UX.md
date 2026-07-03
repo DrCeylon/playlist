@@ -113,6 +113,29 @@ cd apps/resonance && ./scripts/build.sh && swift test && swift build   # macOS
 
 **Ne pas merger sans validation macOS réelle.**
 
+## Phase 5.1.2b — Corrections post-validation macOS
+
+### Tests corrigés
+
+| Test | Cause | Correctif |
+|------|-------|-----------|
+| `ImportViewModelTests.testTrackProgressUpdatesActivities` | Événement `trackProgress` dispatché via `Task` après retour du service | `MainActor.run` dans le mock + `flushPendingImportEvents()` dans le ViewModel |
+| `DiagnosticsViewModelTests` (×2) | Stub enrichi avec événement `warning` non reflété dans les assertions | Architecte = 3 événements, Simple = 2 (sans debug) |
+| `test_app_icon_assets.py` | `Pillow` absent des dépendances dev | Ajout `Pillow>=10.0` dans `requirements-dev.txt` |
+
+### Thème Système (défaut)
+
+- ID virtuel `system` — pas de fichier JSON dupliqué
+- Résolution dynamique : `apple_music_light` / `apple_music_dark` selon `colorScheme`
+- Préférence persistée dans `UserDefaults` (`resonance.selectedThemeID`)
+- Observateur dans `AppShellView` + `ThemedScreen`
+- Choix manuel Light/Dark/Winamp non affecté par l'apparence système
+
+### UX preview
+
+- Scores remplacés par libellés de confiance (élevée / moyenne / faible)
+- Bouton « Modifier le formulaire » renforcé (prominent, icône crayon)
+
 ## Recommandations Phase 5.2
 
 - `ImportCoordinator` unifié pour reprise depuis Historique avec acquisition manuelle

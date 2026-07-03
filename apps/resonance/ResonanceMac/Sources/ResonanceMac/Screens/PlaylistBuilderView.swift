@@ -498,6 +498,7 @@ private struct GenerateButton: View {
             GenerateButtonLabel(isGenerating: viewModel.screenState == .generating)
         }
         .disabled(!canGenerateFromDrafts || viewModel.screenState == .generating)
+        .opacity(canGenerateFromDrafts && viewModel.screenState != .generating ? 1 : 0.55)
     }
 }
 

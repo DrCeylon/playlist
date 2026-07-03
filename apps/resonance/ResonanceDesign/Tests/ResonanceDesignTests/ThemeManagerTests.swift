@@ -1,4 +1,5 @@
 import ResonanceDesign
+import SwiftUI
 import XCTest
 
 @MainActor
@@ -22,8 +23,70 @@ final class ThemeManagerTests: XCTestCase {
         _ = observer
     }
 
-    func testDefaultThemeIsAppleMusicLight() throws {
+    func testDefaultThemeIsSystem() throws {
+        let defaults = UserDefaults.standard
+        let key = "resonance.selectedThemeID"
+        let previous = defaults.string(forKey: key)
+        defer {
+            if let previous {
+                defaults.set(previous, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        defaults.removeObject(forKey: key)
+
         let manager = try ThemeManager()
-        XCTAssertEqual(manager.active.id, ThemeManager.defaultThemeID)
+        XCTAssertEqual(manager.selectedThemeID, ThemeManager.systemThemeID)
+        XCTAssertEqual(manager.active.id, "apple_music_light")
+    }
+
+    func testSystemResolvesDarkAppearance() throws {
+        XCTAssertEqual(
+            ThemeManager.resolveThemeID(
+                selectedThemeID: ThemeManager.systemThemeID,
+                colorScheme: .dark
+            ),
+            "apple_music_dark"
+        )
+    }
+
+    func testSystemResolvesLightAppearance() throws {
+        XCTAssertEqual(
+            ThemeManager.resolveThemeID(
+                selectedThemeID: ThemeManager.systemThemeID,
+                colorScheme: .light
+            ),
+            "apple_music_light"
+        )
+    }
+
+    func testManualThemeIgnoresColorScheme() throws {
+        XCTAssertEqual(
+            ThemeManager.resolveThemeID(
+                selectedThemeID: "classic_winamp_inspired",
+                colorScheme: .dark
+            ),
+            "classic_winamp_inspired"
+        )
+    }
+
+    func testSystemThemeSwitchesActiveTokensWithColorScheme() throws {
+        let registry = try ThemeRegistry.loadBundled()
+        let manager = try ThemeManager(registry: registry, defaultThemeID: ThemeManager.systemThemeID)
+        try manager.apply(themeID: ThemeManager.systemThemeID)
+
+        manager.updateColorScheme(.light)
+        XCTAssertEqual(manager.active.id, "apple_music_light")
+
+        manager.updateColorScheme(.dark)
+        XCTAssertEqual(manager.active.id, "apple_music_dark")
+    }
+
+    func testThemeOptionsIncludeSystemFirst() throws {
+        let manager = try ThemeManager()
+        XCTAssertEqual(manager.themeOptions.first?.themeID, ThemeManager.systemThemeID)
+        XCTAssertEqual(manager.themeOptions.first?.displayName, "Système")
+        XCTAssertEqual(manager.themeOptions.count, 4)
     }
 }

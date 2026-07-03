@@ -7,7 +7,12 @@ from playlist_builder.ui.shared.theme.loader import (
     load_theme_file,
     resolve_definitions,
 )
-from playlist_builder.ui.shared.theme.manager import DEFAULT_THEME_ID, ThemeManager
+from playlist_builder.ui.shared.theme.manager import (
+    DEFAULT_THEME_ID,
+    SYSTEM_THEME_ID,
+    ThemeManager,
+    resolve_theme_id,
+)
 from playlist_builder.ui.shared.theme.models import (
     Theme,
     ThemeDefinition,
@@ -30,6 +35,7 @@ from playlist_builder.ui.shared.theme.validation import (
 
 __all__ = [
     "DEFAULT_THEME_ID",
+    "SYSTEM_THEME_ID",
     "DesignTokens",
     "REQUIRED_COLOR_KEYS",
     "REQUIRED_RADIUS_KEYS",
@@ -50,6 +56,7 @@ __all__ = [
     "load_bundled_definitions",
     "load_theme_file",
     "resolve_definitions",
+    "resolve_theme_id",
     "theme_to_option",
     "validate_theme",
     "validate_tokens",

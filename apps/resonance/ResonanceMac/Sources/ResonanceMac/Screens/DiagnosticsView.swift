@@ -39,7 +39,7 @@ struct DiagnosticsView: View {
 
     @ViewBuilder
     private func header(palette: ThemePalette) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center) {
                 Label("Laboratoire Resonance", systemImage: "flask")
                     .font(.title2.weight(.semibold))
@@ -53,7 +53,7 @@ struct DiagnosticsView: View {
                 )
                 .frame(maxWidth: 260)
             }
-            Text("Vérifie que Resonance peut parler à Apple Music et au moteur Python.")
+            Text("Cet écran vous aide à vérifier que Resonance peut communiquer avec Apple Music et le moteur Python.")
                 .font(.callout)
                 .foregroundStyle(palette.textSecondary)
             Text(viewModel.modeIntroduction)

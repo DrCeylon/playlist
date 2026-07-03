@@ -31,6 +31,7 @@ final class ImportViewModel: ObservableObject {
 
         do {
             let result = try await service.importPlaylist(generationResult, onEvent: importEventHandler)
+            await flushPendingImportEvents()
             finishImport(with: result)
         } catch let error as PlaylistImportError {
             failImport(error)
@@ -56,6 +57,7 @@ final class ImportViewModel: ObservableObject {
                 importSessionID: importSessionID,
                 onEvent: importEventHandler
             )
+            await flushPendingImportEvents()
             finishImport(with: result)
         } catch let error as PlaylistImportError {
             failImport(error)
@@ -374,6 +376,12 @@ final class ImportViewModel: ObservableObject {
             return "Import échoué"
         default:
             return "Import terminé"
+        }
+    }
+
+    private func flushPendingImportEvents() async {
+        for _ in 0..<8 {
+            await Task.yield()
         }
     }
 }

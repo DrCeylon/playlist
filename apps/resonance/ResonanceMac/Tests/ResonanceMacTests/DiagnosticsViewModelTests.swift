@@ -21,7 +21,7 @@ final class DiagnosticsViewModelTests: XCTestCase {
         viewModel.displayMode = .architect
         await viewModel.refresh()
 
-        XCTAssertEqual(viewModel.filteredEvents().count, 2)
+        XCTAssertEqual(viewModel.filteredEvents().count, 3)
     }
 
     func testSimpleModeHidesDebugEvents() async {
@@ -30,7 +30,8 @@ final class DiagnosticsViewModelTests: XCTestCase {
         viewModel.displayMode = .simple
         await viewModel.refresh()
 
-        XCTAssertEqual(viewModel.filteredEvents().count, 1)
+        XCTAssertEqual(viewModel.filteredEvents().count, 2)
+        XCTAssertFalse(viewModel.filteredEvents().contains { $0.level == .debug })
         XCTAssertEqual(viewModel.filteredEvents().first?.level, .info)
     }
 
@@ -42,7 +43,7 @@ final class DiagnosticsViewModelTests: XCTestCase {
         let architectIntro = viewModel.modeIntroduction
         XCTAssertNotEqual(simpleIntro, architectIntro)
         XCTAssertTrue(simpleIntro.contains("Apple Music"))
-        XCTAssertTrue(architectIntro.contains("technique"))
+        XCTAssertTrue(architectIntro.contains("moteur"))
     }
 
     func testAppleMusicStatusLabelWhenConnected() async {

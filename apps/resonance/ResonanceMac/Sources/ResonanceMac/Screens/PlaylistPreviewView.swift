@@ -19,8 +19,11 @@ struct PlaylistPreviewView: View {
                     Text(result.playlistName)
                         .font(.largeTitle.weight(.semibold))
                         .foregroundStyle(palette.textPrimary)
-                    Text("\(result.trackCount) morceaux · score moyen \(scoreLabel(result.averageScore))")
+                    Text("\(result.trackCount) morceaux · \(TrackConfidenceDisplay.averageLabel(for: result.averageScore))")
                         .font(.callout)
+                        .foregroundStyle(palette.textSecondary)
+                    Text("Chaque morceau est classé selon sa pertinence par rapport à votre demande.")
+                        .font(.caption)
                         .foregroundStyle(palette.textSecondary)
                     Text(previewSourceLabel)
                         .font(.caption)
@@ -43,8 +46,8 @@ struct PlaylistPreviewView: View {
                                         .foregroundStyle(palette.textSecondary)
                                 }
                                 Spacer()
-                                Text(scoreLabel(track.score))
-                                    .font(.caption.monospacedDigit())
+                                Text(TrackConfidenceDisplay.label(for: track.score))
+                                    .font(.caption.weight(.medium))
                                     .foregroundStyle(palette.accentPrimary)
                             }
                             .padding(.vertical, 6)
@@ -57,24 +60,26 @@ struct PlaylistPreviewView: View {
                 }
 
                 if showsWorkflowActions {
-                    HStack {
-                        Button("Modifier", action: onEdit)
-                            .buttonStyle(.bordered)
+                    HStack(spacing: 12) {
+                        Button(action: onEdit) {
+                            Label("Modifier le formulaire", systemImage: "pencil")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(palette.accentSecondary)
+                        .controlSize(.large)
+
                         Spacer()
+
                         Button(action: onImport) {
                             Label("Importer", systemImage: "square.and.arrow.down")
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(palette.accentPrimary)
+                        .controlSize(.large)
                     }
                 }
             }
             .padding(24)
         }
-    }
-
-    private func scoreLabel(_ score: Double) -> String {
-        let percent = score > 1.0 ? score : score * 100
-        return String(format: "%.0f%%", percent)
     }
 }

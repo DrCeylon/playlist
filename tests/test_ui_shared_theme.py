@@ -8,12 +8,14 @@ import pytest
 from playlist_builder.ui.shared.dto.theme import ThemeOption
 from playlist_builder.ui.shared.theme import (
     DesignTokens,
+    SYSTEM_THEME_ID,
     Theme,
     ThemeLoadError,
     ThemeManager,
     ThemeNotFoundError,
     ThemeRegistry,
     ThemeValidationError,
+    resolve_theme_id,
     theme_to_option,
     validate_theme,
 )
@@ -144,10 +146,23 @@ def test_theme_manager_unsubscribe_stops_notifications():
     assert seen == ["apple_music_dark"]
 
 
-def test_theme_manager_active_defaults_to_apple_music_light():
+def test_theme_manager_active_defaults_to_system_light() -> None:
     registry = ThemeRegistry.load_bundled()
     manager = ThemeManager(registry)
+    assert manager.selected_theme_id == SYSTEM_THEME_ID
     assert manager.active.id == "apple_music_light"
+
+
+def test_theme_manager_system_follows_dark_flag() -> None:
+    registry = ThemeRegistry.load_bundled()
+    manager = ThemeManager(registry, default_theme_id=SYSTEM_THEME_ID, dark=True)
+    assert manager.active.id == "apple_music_dark"
+    manager.set_dark(False)
+    assert manager.active.id == "apple_music_light"
+
+
+def test_resolve_theme_id_manual_choice() -> None:
+    assert resolve_theme_id("apple_music_dark", dark=False) == "apple_music_dark"
 
 
 def test_theme_to_option_mapping():

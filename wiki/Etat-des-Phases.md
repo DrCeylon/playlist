@@ -51,4 +51,4 @@ python3 -m pytest -q
 cd apps/resonance && ./scripts/build.sh   # macOS
 ```
 
-329 tests Python (1 skipped hors macOS) ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+333 tests Python (1 skipped hors macOS) ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
