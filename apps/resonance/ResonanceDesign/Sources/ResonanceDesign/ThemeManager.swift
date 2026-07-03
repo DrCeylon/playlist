@@ -13,11 +13,11 @@ public final class ThemeManager: ObservableObject {
     private nonisolated static let darkThemeID = "apple_music_dark"
 
     private static let pickerOrder = [
-    systemThemeID,
-    lightThemeID,
-    darkThemeID,
-    "classic_winamp_inspired",
-  ]
+        systemThemeID,
+        lightThemeID,
+        darkThemeID,
+        "classic_winamp_inspired",
+    ]
 
     @Published public private(set) var active: Theme
     @Published public private(set) var selectedThemeID: String
@@ -29,10 +29,13 @@ public final class ThemeManager: ObservableObject {
     public init(registry: ThemeRegistry, defaultThemeID: String = ThemeManager.defaultThemeID) throws {
         self.registry = registry
         let stored = UserDefaults.standard.string(forKey: Self.preferencesKey)
-        self.selectedThemeID = stored ?? defaultThemeID
-        self.active = try registry.get(
-            Self.resolveThemeID(selectedThemeID: selectedThemeID, colorScheme: .light)
+        let initialSelection = stored ?? defaultThemeID
+        self.selectedThemeID = initialSelection
+        let resolvedThemeID = Self.resolveThemeID(
+            selectedThemeID: initialSelection,
+            colorScheme: .light
         )
+        self.active = try registry.get(resolvedThemeID)
     }
 
     public convenience init() throws {
