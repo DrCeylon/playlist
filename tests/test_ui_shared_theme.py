@@ -101,6 +101,14 @@ def test_bundled_themes_have_readable_contrast(theme_id: str):
     assert has_readable_contrast(error, background), (
         f"{theme_id}: error vs background ({contrast_ratio(error, background):.3f} < {MINIMUM_CONTRAST_RATIO})"
     )
+    text_secondary = colors["color.text.secondary"]
+    text_tertiary = colors["color.text.tertiary"]
+    assert has_readable_contrast(text_secondary, background), (
+        f"{theme_id}: textSecondary vs background ({contrast_ratio(text_secondary, background):.3f})"
+    )
+    assert has_readable_contrast(text_tertiary, surface), (
+        f"{theme_id}: textTertiary vs surface ({contrast_ratio(text_tertiary, surface):.3f})"
+    )
 
 
 def test_theme_manager_notifies_subscribers_on_apply():

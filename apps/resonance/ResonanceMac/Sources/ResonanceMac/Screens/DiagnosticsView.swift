@@ -17,6 +17,11 @@ struct DiagnosticsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     header(palette: palette)
+                    if let feedback = viewModel.actionFeedback {
+                        Text(feedback)
+                            .font(.callout)
+                            .foregroundStyle(palette.textSecondary)
+                    }
                     content(palette: palette)
                 }
                 .padding(24)
@@ -34,18 +39,26 @@ struct DiagnosticsView: View {
 
     @ViewBuilder
     private func header(palette: ThemePalette) -> some View {
-        HStack(alignment: .center) {
-            Label("Diagnostics Engine Bridge", systemImage: "flask")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Spacer()
-            ThemedSegmentedPicker(
-                title: "",
-                selection: $viewModel.displayMode,
-                options: DiagnosticsViewModel.DisplayMode.allCases.map { ($0, $0.title) },
-                palette: palette
-            )
-            .frame(maxWidth: 260)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                Label("Laboratoire Resonance", systemImage: "flask")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary)
+                Spacer()
+                ThemedSegmentedPicker(
+                    title: "",
+                    selection: $viewModel.displayMode,
+                    options: DiagnosticsViewModel.DisplayMode.allCases.map { ($0, $0.title) },
+                    palette: palette
+                )
+                .frame(maxWidth: 260)
+            }
+            Text("Vérifie que Resonance peut parler à Apple Music et au moteur Python.")
+                .font(.callout)
+                .foregroundStyle(palette.textSecondary)
+            Text(viewModel.modeIntroduction)
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -65,7 +78,7 @@ struct DiagnosticsView: View {
                 if viewModel.displayMode == .architect, let detail = viewModel.architectErrorDetail {
                     Text(detail)
                         .font(.caption.monospaced())
-                        .foregroundStyle(palette.textTertiary)
+                        .foregroundStyle(palette.textSecondary)
                         .textSelection(.enabled)
                 }
                 Button("Réessayer") {
@@ -75,18 +88,98 @@ struct DiagnosticsView: View {
                 .tint(palette.accentPrimary)
             }
         case .connected, .completed:
-            if let snapshot = viewModel.snapshot {
-                summaryCard(snapshot: snapshot, palette: palette)
-                providersSection(snapshot: snapshot, palette: palette)
-                if !snapshot.summary.recentReports.isEmpty {
-                    reportsSection(snapshot: snapshot, palette: palette)
-                }
-                timelineSection(events: viewModel.filteredEvents(), palette: palette)
-                if viewModel.displayMode == .architect {
-                    architectDetails(snapshot: snapshot, palette: palette)
-                }
+            if viewModel.displayMode == .simple {
+                simpleContent(palette: palette)
+            } else if let snapshot = viewModel.snapshot {
+                architectContent(snapshot: snapshot, palette: palette)
             }
         }
+    }
+
+    @ViewBuilder
+    private func simpleContent(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            statusCard(
+                title: "Apple Music",
+                value: viewModel.appleMusicStatusLabel,
+                palette: palette
+            )
+            statusCard(
+                title: "Bridge Python",
+                value: viewModel.bridgeStatusLabel,
+                palette: palette
+            )
+            statusCard(
+                title: "Dernier import",
+                value: viewModel.lastImportLabel,
+                palette: palette
+            )
+            statusCard(
+                title: "Dernier problème",
+                value: viewModel.lastProblemLabel,
+                palette: palette
+            )
+
+            HStack(spacing: 12) {
+                Button("Rafraîchir") {
+                    Task { await viewModel.refresh() }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(palette.accentPrimary)
+
+                Button("Tester Apple Music") {
+                    Task { await viewModel.testAppleMusic() }
+                }
+                .buttonStyle(.bordered)
+
+                Button("Ouvrir les rapports") {
+                    viewModel.openReportsDirectory()
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func architectContent(snapshot: DiagnosticsSnapshot, palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            summaryCard(snapshot: snapshot, palette: palette)
+            metadataCard(palette: palette)
+            providersSection(snapshot: snapshot, palette: palette)
+            if !snapshot.summary.recentReports.isEmpty {
+                reportsSection(snapshot: snapshot, palette: palette)
+            }
+            timelineSection(events: viewModel.filteredEvents(), palette: palette)
+            architectDetails(snapshot: snapshot, palette: palette)
+        }
+    }
+
+    @ViewBuilder
+    private func statusCard(title: String, value: String, palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+            Text(value)
+                .font(.callout)
+                .foregroundStyle(palette.textPrimary)
+        }
+        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
+    }
+
+    @ViewBuilder
+    private func metadataCard(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Environnement")
+                .font(.headline)
+            LabeledContent("Version moteur", value: viewModel.engineVersionLabel)
+            LabeledContent("Plateforme", value: viewModel.platformLabel)
+            LabeledContent("Python", value: viewModel.pythonPathLabel)
+            LabeledContent("Working directory", value: viewModel.workingDirectoryLabel)
+        }
+        .font(.callout)
+        .foregroundStyle(palette.textPrimary)
+        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
     }
 
     @ViewBuilder
@@ -133,7 +226,7 @@ struct DiagnosticsView: View {
                         if !provider.unavailableReason.isEmpty {
                             Text(provider.unavailableReason)
                                 .font(.caption)
-                                .foregroundStyle(palette.textTertiary)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     }
                     Spacer()
@@ -170,14 +263,14 @@ struct DiagnosticsView: View {
             }
             Text("Dossier : \(snapshot.summary.reportsDirectory)")
                 .font(.caption)
-                .foregroundStyle(palette.textTertiary)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
     @ViewBuilder
     private func timelineSection(events: [DiagnosticEvent], palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Timeline")
+            Text("Derniers événements")
                 .font(.headline)
                 .foregroundStyle(palette.textPrimary)
             if events.isEmpty {
@@ -185,12 +278,12 @@ struct DiagnosticsView: View {
                     .font(.callout)
                     .foregroundStyle(palette.textSecondary)
             } else {
-                ForEach(events) { event in
+                ForEach(events.suffix(12)) { event in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Text(event.timestampISO.isEmpty ? "—" : event.timestampISO)
                                 .font(.caption.monospacedDigit())
-                                .foregroundStyle(palette.textTertiary)
+                                .foregroundStyle(palette.textSecondary)
                             Text(event.phase)
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(levelColor(event.level, palette: palette))
@@ -199,12 +292,12 @@ struct DiagnosticsView: View {
                         Text(event.message)
                             .font(.callout)
                             .foregroundStyle(palette.textPrimary)
-                        if viewModel.displayMode == .architect, !event.payload.isEmpty {
+                        if !event.payload.isEmpty {
                             Text(
                                 event.payload.map { "\($0.key)=\($0.value)" }.joined(separator: " · ")
                             )
                             .font(.caption.monospaced())
-                            .foregroundStyle(palette.textTertiary)
+                            .foregroundStyle(palette.textSecondary)
                         }
                     }
                     .padding(.vertical, 4)
@@ -216,7 +309,7 @@ struct DiagnosticsView: View {
     @ViewBuilder
     private func architectDetails(snapshot: DiagnosticsSnapshot, palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Détails JSON (architecte)")
+            Text("Diagnostic brut")
                 .font(.headline)
                 .foregroundStyle(palette.textPrimary)
             Text("Cache catalogue activé : \(snapshot.summary.catalogCacheEnabled ? "oui" : "non")")
@@ -233,7 +326,7 @@ struct DiagnosticsView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(palette.textTertiary)
+                .foregroundStyle(palette.textSecondary)
             Text(value)
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)
@@ -253,7 +346,7 @@ struct DiagnosticsView: View {
     private func levelColor(_ level: DiagnosticLevel, palette: ThemePalette) -> Color {
         switch level {
         case .debug:
-            return palette.textTertiary
+            return palette.textSecondary
         case .info:
             return palette.accentPrimary
         case .warning:

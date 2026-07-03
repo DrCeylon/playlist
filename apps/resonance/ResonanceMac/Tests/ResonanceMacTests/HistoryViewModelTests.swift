@@ -39,7 +39,7 @@ final class HistoryViewModelTests: XCTestCase {
         }
     }
 
-    func testSessionDetailMappingAndReplayAction() async {
+    func testSessionDetailMappingAndRetryAction() async {
         let service = StubHistoryService()
         let viewModel = HistoryViewModel(service: service)
         await viewModel.refresh()
@@ -49,38 +49,63 @@ final class HistoryViewModelTests: XCTestCase {
         }
         await viewModel.select(session: session)
         XCTAssertEqual(viewModel.selectedDetail?.summary.sessionID, session.sessionID)
-        await viewModel.replayGeneration()
+        await viewModel.retryGeneration()
         if case .success(let message) = viewModel.actionFeedback {
-            XCTAssertTrue(message.contains("Relance OK"))
+            XCTAssertTrue(message.contains("régénérée"))
         } else {
-            XCTFail("Expected replay success feedback")
+            XCTFail("Expected retry success feedback")
         }
     }
 
-    func testReplayWithoutRequestShowsClearFailure() async {
+    func testRetryWithoutRequestShowsClearFailure() async {
         let service = StubHistoryService(generationRequest: [:])
         let viewModel = HistoryViewModel(service: service)
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
-        await viewModel.replayGeneration()
+        await viewModel.retryGeneration()
         if case .failure(let message) = viewModel.actionFeedback {
-            XCTAssertTrue(message.contains("Requête indisponible"))
+            XCTAssertTrue(message.contains("Paramètres"))
         } else {
-            XCTFail("Expected replay failure feedback")
+            XCTFail("Expected retry failure feedback")
         }
     }
 
-    func testReimportWithoutPreviewShowsClearFailure() async {
+    func testImportWithoutPreviewShowsClearFailure() async {
         let service = StubHistoryService(generationResult: [:])
         let viewModel = HistoryViewModel(service: service, importService: StubImportService())
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
-        await viewModel.reimportSelected()
+        await viewModel.importSelected()
         if case .failure(let message) = viewModel.actionFeedback {
-            XCTAssertTrue(message.contains("Preview indisponible") || message.contains("Données insuffisantes"))
+            XCTAssertTrue(message.contains("Preview indisponible") || message.contains("insuffisantes"))
         } else {
-            XCTFail("Expected reimport failure feedback")
+            XCTFail("Expected import failure feedback")
         }
+    }
+
+    func testPreparePlaylistPreviewLoadsGenerationResult() async {
+        let service = StubHistoryService()
+        let viewModel = HistoryViewModel(service: service)
+        await viewModel.refresh()
+        await viewModel.select(session: viewModel.sessions.first!)
+        viewModel.preparePlaylistPreview()
+        XCTAssertEqual(viewModel.playlistPreview?.playlistName, "Demo")
+    }
+
+    func testEditRequestMapsStoredPayload() async {
+        let service = StubHistoryService()
+        let viewModel = HistoryViewModel(service: service)
+        await viewModel.refresh()
+        await viewModel.select(session: viewModel.sessions.first!)
+        let request = viewModel.editRequestForSelectedSession()
+        XCTAssertEqual(request?.name, "Demo")
+        XCTAssertEqual(request?.seeds.first?.artist, "Kygo")
+        XCTAssertEqual(request?.keywords, ["pool"])
+    }
+
+    func testStatusLabelsAreFrench() {
+        XCTAssertEqual(SessionHistoryDisplay.statusLabel(for: .generated), "Générée")
+        XCTAssertEqual(SessionHistoryDisplay.statusLabel(for: .waitingForManualAcquisition), "Action manuelle requise")
     }
 
     func testExportShowsSuccessFeedback() async {
@@ -100,7 +125,15 @@ final class HistoryViewModelTests: XCTestCase {
 }
 
 private struct StubHistoryService: SessionHistoryServing {
-    var generationRequest: BridgeJSONObject = ["name": .string("Demo")]
+    var generationRequest: BridgeJSONObject = [
+        "name": .string("Demo"),
+        "provider_id": .string("apple_music"),
+        "seeds": .array([
+            .object(["artist": .string("Kygo"), "title": .string("Firestone"), "weight": .number(1)]),
+        ]),
+        "keywords": .array([.string("pool")]),
+        "target_track_count": .number(50),
+    ]
     var generationResult: BridgeJSONObject = [
         "playlist_name": .string("Demo"),
         "sections": .array([]),

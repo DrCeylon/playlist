@@ -2,6 +2,14 @@ import Foundation
 import ResonanceCore
 
 enum ImportErrorHumanizer {
+    static let importPreparationFailure = """
+    L'importation a échoué pendant la préparation. Vous pouvez réessayer ou consulter le détail technique.
+    """
+
+    static let genericFailure = """
+    Une erreur interne s'est produite. Réessayez ou consultez le diagnostic technique.
+    """
+
     static func userMessage(for error: Error) -> String {
         if let importError = error as? PlaylistImportError {
             return message(for: importError)
@@ -17,7 +25,7 @@ enum ImportErrorHumanizer {
             return "Réponse bridge invalide (format JSON incorrect)."
         }
         if nsError.domain == NSCocoaErrorDomain {
-            return "Erreur inattendue pendant l'import."
+            return genericFailure
         }
         return "L'import a échoué. Vérifie Music.app et les autorisations Automatisation."
     }
@@ -59,12 +67,16 @@ enum ImportErrorHumanizer {
     }
 
     static func humanizeBridgeMessage(_ message: String) -> String {
+        if isTechnicalErrorMessage(message) {
+            return importPreparationFailure
+        }
+
         let lowered = message.lowercased()
         if lowered.contains("not found") || lowered.contains("introuvable") {
-            return "Morceau introuvable dans Apple Music : \(message)"
+            return "Morceau introuvable dans Apple Music."
         }
         if lowered.contains("already") || lowered.contains("déjà") || lowered.contains("skipped") {
-            return "Morceau déjà présent ou ignoré : \(message)"
+            return "Morceau déjà présent ou ignoré."
         }
         if lowered.contains("not authorized")
             || lowered.contains("automation")
@@ -75,6 +87,25 @@ enum ImportErrorHumanizer {
         if lowered.contains("timeout") || lowered.contains("timed out") {
             return "Music.app n'a pas répondu à temps. Ouvre Music.app puis relance l'import."
         }
+        if lowered.contains("importation a échoué") || lowered.contains("erreur interne") {
+            return message
+        }
         return message
+    }
+
+    static func isTechnicalErrorMessage(_ message: String) -> Bool {
+        let lowered = message.lowercased()
+        let markers = [
+            "cannot access local variable",
+            "unboundlocalerror",
+            "traceback",
+            "nameerror",
+            "attributeerror",
+            "typeerror",
+            "file \"",
+            "line ",
+            "where it is not associated with a value",
+        ]
+        return markers.contains { lowered.contains($0) }
     }
 }

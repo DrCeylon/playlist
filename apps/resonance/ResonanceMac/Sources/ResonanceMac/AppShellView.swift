@@ -4,6 +4,7 @@ import SwiftUI
 
 struct AppShellView: View {
     @State private var selection: SidebarItem? = .home
+    @State private var pendingHistoryEdit: PlaylistGenerationRequest?
 
     var body: some View {
         NavigationSplitView {
@@ -21,9 +22,12 @@ struct AppShellView: View {
         case .home:
             HomeView(selection: $selection)
         case .newPlaylist:
-            PlaylistBuilderView()
+            PlaylistBuilderView(pendingEditRequest: $pendingHistoryEdit)
         case .history:
-            HistoryView()
+            HistoryView { request in
+                pendingHistoryEdit = request
+                selection = .newPlaylist
+            }
         case .laboratory:
             DiagnosticsView()
         case .settings:

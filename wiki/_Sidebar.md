@@ -25,6 +25,7 @@
 - [**Phase 4.8A — Clôture**](Phase-4-8A-Cloture)
 - [**Phase 5.1 — Smart Input**](Phase-5-1-Smart-Input)
 - [**Phase 5.1.1 — Import UX**](Phase-5-1-1-Import-UX)
+- [**Phase 5.1.2 — Stabilisation UX**](Phase-5-1-2-Product-UX)
 - [Smart Input Framework](Smart-Input-Framework)
 - [État des phases](Etat-des-Phases)
 - [Phase 5 — Vision produit](Phase-5-Vision)

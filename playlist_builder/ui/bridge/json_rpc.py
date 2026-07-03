@@ -24,7 +24,8 @@ from playlist_builder.ui.bridge.commands import (
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode, InvalidBridgeRequestError
 from playlist_builder.ui.bridge.events import BridgeEvent, completed_event, started_event
 from playlist_builder.ui.bridge.protocol import EngineBridge, EngineBridgeBackend
-from playlist_builder.ui.shared.dto import ImportResultState, ProviderOption, default_provider_options
+from playlist_builder.ui.shared.error_humanizer import humanize_engine_error
+from playlist_builder.ui.shared.dto import default_provider_options
 from playlist_builder.ui.shared.validation.generation import validate_playlist_generation_request
 
 
@@ -54,10 +55,15 @@ class JsonRpcEngineBridge(EngineBridge):
         except BridgeError as exc:
             yield _error_response(bridge_request.id, exc.code, exc.message, details=exc.details).to_dict()
         except Exception as exc:
+            user_message, details = humanize_engine_error(
+                str(exc),
+                context=bridge_request.command.value,
+            )
             yield _error_response(
                 bridge_request.id,
                 BridgeErrorCode.ENGINE_ERROR,
-                str(exc),
+                user_message,
+                details=details,
             ).to_dict()
 
     def _dispatch(self, request: BridgeRequest) -> Iterator[dict[str, Any]]:

@@ -7,8 +7,14 @@ struct HistoryView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @State private var showClearConfirmation = false
 
-    init(service: any SessionHistoryServing = PythonEngineBridgeService()) {
+    var onEditRequest: (PlaylistGenerationRequest) -> Void = { _ in }
+
+    init(
+        service: any SessionHistoryServing = PythonEngineBridgeService(),
+        onEditRequest: @escaping (PlaylistGenerationRequest) -> Void = { _ in }
+    ) {
         _viewModel = StateObject(wrappedValue: HistoryViewModel(service: service))
+        self.onEditRequest = onEditRequest
     }
 
     var body: some View {
@@ -25,6 +31,28 @@ struct HistoryView: View {
         .task {
             await viewModel.refresh()
         }
+        .sheet(isPresented: Binding(
+            get: { viewModel.playlistPreview != nil },
+            set: { if !$0 { viewModel.dismissPlaylistPreview() } }
+        )) {
+            if let preview = viewModel.playlistPreview {
+                NavigationStack {
+                    PlaylistPreviewView(
+                        result: preview,
+                        previewSourceLabel: "Session enregistrée",
+                        showsWorkflowActions: false
+                    )
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Fermer") {
+                                viewModel.dismissPlaylistPreview()
+                            }
+                        }
+                    }
+                }
+                .frame(minWidth: 560, minHeight: 480)
+            }
+        }
         .confirmationDialog(
             "Vider tout l'historique ?",
             isPresented: $showClearConfirmation,
@@ -40,18 +68,23 @@ struct HistoryView: View {
     }
 
     private func header(palette: ThemePalette) -> some View {
-        HStack {
-            Text("Sessions locales")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Spacer()
-            Button("Vider") { showClearConfirmation = true }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isBusy)
-            Button("Rafraîchir") { Task { await viewModel.refresh() } }
-                .buttonStyle(.borderedProminent)
-                .tint(palette.accentPrimary)
-                .disabled(viewModel.isBusy)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Sessions locales")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary)
+                Spacer()
+                Button("Vider") { showClearConfirmation = true }
+                    .buttonStyle(.bordered)
+                    .disabled(viewModel.isBusy)
+                Button("Rafraîchir") { Task { await viewModel.refresh() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accentPrimary)
+                    .disabled(viewModel.isBusy)
+            }
+            Text("Retrouve tes playlists, reprends une génération ou relance un import.")
+                .font(.callout)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -100,7 +133,7 @@ struct HistoryView: View {
             Text(message).foregroundStyle(palette.statusWarning)
         case .ready:
             if viewModel.sessions.isEmpty {
-                Text("Aucune session pour le moment.")
+                Text("Aucune session pour le moment. Génère une playlist pour commencer.")
                     .foregroundStyle(palette.textSecondary)
             } else {
                 HStack(alignment: .top, spacing: 16) {
@@ -121,16 +154,28 @@ struct HistoryView: View {
 
                     SessionDetailView(
                         detail: viewModel.selectedDetail,
-                        canReplay: viewModel.canReplaySelectedSession,
-                        canReimport: viewModel.canReimportSelectedSession,
+                        canView: viewModel.canViewSelectedPlaylist,
+                        canEdit: viewModel.canEditSelectedPlaylist,
+                        canImport: viewModel.canImportSelectedSession,
+                        canRetry: viewModel.canRetrySelectedSession,
                         isBusy: viewModel.isBusy,
-                        replayDescription: viewModel.replayActionDescription,
-                        reimportDescription: viewModel.reimportActionDescription,
+                        viewDescription: viewModel.viewActionDescription,
+                        editDescription: viewModel.editActionDescription,
+                        importDescription: viewModel.importActionDescription,
+                        retryDescription: viewModel.retryActionDescription,
                         exportDescription: viewModel.exportActionDescription,
-                        replayDisabledReason: viewModel.replayDisabledReason,
-                        reimportDisabledReason: viewModel.reimportDisabledReason,
-                        onReplay: { Task { await viewModel.replayGeneration() } },
-                        onReimport: { Task { await viewModel.reimportSelected() } },
+                        viewDisabledReason: viewModel.viewDisabledReason,
+                        editDisabledReason: viewModel.editDisabledReason,
+                        importDisabledReason: viewModel.importDisabledReason,
+                        retryDisabledReason: viewModel.retryDisabledReason,
+                        onView: { viewModel.preparePlaylistPreview() },
+                        onEdit: {
+                            if let request = viewModel.editRequestForSelectedSession() {
+                                onEditRequest(request)
+                            }
+                        },
+                        onImport: { Task { await viewModel.importSelected() } },
+                        onRetry: { Task { await viewModel.retryGeneration() } },
                         onExport: { Task { await viewModel.exportSelection() } }
                     )
                 }
@@ -145,29 +190,19 @@ struct HistoryView: View {
                 .foregroundStyle(palette.textPrimary)
             Text("\(session.startedAtISO) · \(session.providerID.rawValue)")
                 .font(.caption)
-                .foregroundStyle(palette.textTertiary)
-            Text(badgeLabel(for: session))
+                .foregroundStyle(palette.textSecondary)
+            Text(SessionHistoryDisplay.statusLabel(for: session.status))
                 .font(.caption.weight(.medium))
-                .foregroundStyle(badgeColor(for: session, palette: palette))
-            Text("+\(session.addedCount) · skip \(session.skippedCount) · nf \(session.notFoundCount) · err \(session.errorCount)")
-                .font(.caption2.monospaced())
-                .foregroundStyle(palette.textTertiary)
+                .foregroundStyle(statusColor(for: session.status, palette: palette))
+            Text(SessionHistoryDisplay.rowSubtitle(for: session))
+                .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
         }
         .contentShape(Rectangle())
     }
 
-    private func badgeLabel(for session: SessionHistorySummary) -> String {
-        switch session.status {
-        case .generated: return "generated"
-        case .imported: return "imported"
-        case .partialSuccess: return "partial"
-        case .failed: return "failed"
-        case .waitingForManualAcquisition: return "manual"
-        }
-    }
-
-    private func badgeColor(for session: SessionHistorySummary, palette: ThemePalette) -> Color {
-        switch session.status {
+    private func statusColor(for status: SessionHistoryStatus, palette: ThemePalette) -> Color {
+        switch status {
         case .generated: return palette.accentPrimary
         case .imported: return palette.statusSuccess
         case .partialSuccess, .waitingForManualAcquisition: return palette.statusWarning

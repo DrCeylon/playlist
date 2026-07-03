@@ -16,13 +16,13 @@ struct HomeView: View {
                         Text("Bonjour")
                             .font(.largeTitle.weight(.semibold))
                             .foregroundStyle(palette.textPrimary)
-                        Text("Génère, importe et retrouve tes playlists depuis une interface macOS.")
+                        Text("Crée une playlist, prévisualise les morceaux, importe dans Apple Music puis retrouve tout dans Historique.")
                             .font(.body)
                             .foregroundStyle(palette.textSecondary)
                     }
 
                     card(title: "Par où commencer", palette: palette) {
-                        Text("Ouvre Nouvelle Playlist, saisis un nom et une graine musicale, puis génère et importe dans Apple Music.")
+                        Text("Ouvre Nouvelle Playlist, saisis un nom et une graine, génère, importe, puis consulte Historique pour modifier ou réessayer.")
                             .font(.callout)
                             .foregroundStyle(palette.textSecondary)
                     }
@@ -36,7 +36,7 @@ struct HomeView: View {
                     }
 
                     card(title: "État", palette: palette) {
-                        Text("Resonance — Preview produit Phase 4.8")
+                        Text("Resonance — Phase 5.1.2 stabilisation UX")
                             .font(.callout.weight(.medium))
                             .foregroundStyle(palette.textPrimary)
                         Text("Moteur Python provider-neutral, bridge runtime et historique local.")

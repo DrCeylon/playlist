@@ -256,7 +256,6 @@ def stream_import_playlist(
                 error_count=error_count,
             )
             from playlist_builder.ui.shared.dto.import_state import ImportResultState, ImportTrackOutcome
-            from playlist_builder.ui.shared.dto.enums import ImportTrackStatus
 
             import_state = ImportResultState(
                 playlist_name=playlist.name,

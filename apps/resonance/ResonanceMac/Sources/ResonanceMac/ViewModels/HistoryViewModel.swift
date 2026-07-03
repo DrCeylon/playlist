@@ -23,6 +23,7 @@ final class HistoryViewModel: ObservableObject {
     @Published var selectedDetail: SessionHistoryDetail?
     @Published var actionFeedback: ActionFeedback = .none
     @Published var architectErrorDetail: String?
+    @Published var playlistPreview: PlaylistGenerationResult?
 
     private let service: any SessionHistoryServing
     private let importService: any PlaylistImportServing
@@ -40,38 +41,94 @@ final class HistoryViewModel: ObservableObject {
         return screenState == .loading
     }
 
-    var replayActionDescription: String {
-        "Relance la génération Python avec la requête enregistrée pour cette session."
+    var viewActionDescription: String {
+        "Affiche la liste complète des morceaux générés pour cette session."
     }
 
-    var reimportActionDescription: String {
-        "Recrée la playlist dans Apple Music à partir de la preview enregistrée (mêmes morceaux/sections)."
+    var editActionDescription: String {
+        "Recharge le formulaire Nouvelle Playlist avec la demande enregistrée."
+    }
+
+    var importActionDescription: String {
+        "Recrée la playlist dans Apple Music à partir de la preview enregistrée."
+    }
+
+    var retryActionDescription: String {
+        "Relance la génération avec les mêmes paramètres enregistrés."
     }
 
     var exportActionDescription: String {
-        "Ouvre le rapport JSON ou texte de la session dans le Finder, s'il existe sur disque."
+        "Ouvre le rapport technique de la session dans le Finder (mode diagnostic)."
     }
 
-    var canReplaySelectedSession: Bool {
-        guard let detail = selectedDetail else { return false }
-        return !detail.generationRequest.isEmpty
-    }
-
-    var canReimportSelectedSession: Bool {
+    var canViewSelectedPlaylist: Bool {
         guard let detail = selectedDetail else { return false }
         return !detail.generationResult.isEmpty
     }
 
-    var replayDisabledReason: String? {
-        guard selectedDetail != nil else { return "Sélectionne une session." }
-        if canReplaySelectedSession { return nil }
-        return "Requête indisponible pour cette session."
+    var canEditSelectedPlaylist: Bool {
+        guard let detail = selectedDetail else { return false }
+        return HistoryPayloadMapper.generationRequest(from: detail.generationRequest) != nil
     }
 
-    var reimportDisabledReason: String? {
+    var canImportSelectedSession: Bool {
+        guard let detail = selectedDetail else { return false }
+        return !detail.generationResult.isEmpty
+    }
+
+    var canRetrySelectedSession: Bool {
+        guard let detail = selectedDetail else { return false }
+        return !detail.generationRequest.isEmpty
+    }
+
+    var viewDisabledReason: String? {
         guard selectedDetail != nil else { return "Sélectionne une session." }
-        if canReimportSelectedSession { return nil }
-        return "Preview indisponible — réimport impossible pour cette session."
+        if canViewSelectedPlaylist { return nil }
+        return "Aucune preview enregistrée pour cette session."
+    }
+
+    var editDisabledReason: String? {
+        guard selectedDetail != nil else { return "Sélectionne une session." }
+        if canEditSelectedPlaylist { return nil }
+        return "Demande originale indisponible pour cette session."
+    }
+
+    var importDisabledReason: String? {
+        guard selectedDetail != nil else { return "Sélectionne une session." }
+        if canImportSelectedSession { return nil }
+        return "Preview indisponible — import impossible."
+    }
+
+    var retryDisabledReason: String? {
+        guard selectedDetail != nil else { return "Sélectionne une session." }
+        if canRetrySelectedSession { return nil }
+        return "Paramètres de génération indisponibles."
+    }
+
+    func editRequestForSelectedSession() -> PlaylistGenerationRequest? {
+        guard let detail = selectedDetail else { return nil }
+        return HistoryPayloadMapper.generationRequest(from: detail.generationRequest)
+    }
+
+    func preparePlaylistPreview() {
+        guard let detail = selectedDetail else {
+            actionFeedback = .failure("Sélectionne une session avant d'afficher la playlist.")
+            return
+        }
+        guard canViewSelectedPlaylist else {
+            actionFeedback = .failure(viewDisabledReason ?? "Preview indisponible.")
+            return
+        }
+        do {
+            playlistPreview = try HistoryPayloadMapper.generationResult(from: detail.generationResult)
+        } catch {
+            playlistPreview = nil
+            actionFeedback = .failure("Impossible d'afficher la playlist enregistrée.")
+        }
+    }
+
+    func dismissPlaylistPreview() {
+        playlistPreview = nil
     }
 
     func refresh() async {
@@ -96,6 +153,7 @@ final class HistoryViewModel: ObservableObject {
 
     func select(session: SessionHistorySummary) async {
         actionFeedback = .none
+        playlistPreview = nil
         do {
             selectedDetail = try await service.getHistorySession(sessionID: session.sessionID)
         } catch let error as SessionHistoryServiceError {
@@ -112,6 +170,7 @@ final class HistoryViewModel: ObservableObject {
                 sessions.removeAll { $0.sessionID == session.sessionID }
                 if selectedDetail?.summary.sessionID == session.sessionID {
                     selectedDetail = nil
+                    playlistPreview = nil
                 }
                 actionFeedback = .success("Session supprimée.")
             } else {
@@ -129,6 +188,7 @@ final class HistoryViewModel: ObservableObject {
             if cleared {
                 sessions = []
                 selectedDetail = nil
+                playlistPreview = nil
                 actionFeedback = .success("Historique vidé.")
             } else {
                 actionFeedback = .failure("Nettoyage impossible.")
@@ -138,42 +198,42 @@ final class HistoryViewModel: ObservableObject {
         }
     }
 
-    func replayGeneration() async {
+    func retryGeneration() async {
         guard !isBusy else { return }
         guard let sessionID = selectedDetail?.summary.sessionID else {
-            actionFeedback = .failure("Sélectionne une session avant de relancer.")
+            actionFeedback = .failure("Sélectionne une session avant de réessayer.")
             return
         }
-        guard canReplaySelectedSession else {
-            actionFeedback = .failure(replayDisabledReason ?? "Requête indisponible pour cette session.")
+        guard canRetrySelectedSession else {
+            actionFeedback = .failure(retryDisabledReason ?? "Paramètres indisponibles.")
             return
         }
 
-        actionFeedback = .inProgress("Relance de la génération en cours…")
+        actionFeedback = .inProgress("Génération en cours…")
         do {
             let result = try await service.replayGeneration(sessionID: sessionID)
             actionFeedback = .success(
-                "Relance OK — «\(result.playlistName)» (\(result.trackCount) morceau(x), score moyen \(String(format: "%.2f", result.averageScore)))."
+                "Playlist régénérée — «\(result.playlistName)» (\(result.trackCount) morceau(x))."
             )
         } catch let error as SessionHistoryServiceError {
-            actionFeedback = .failure("Relance impossible : \(message(for: error))")
+            actionFeedback = .failure("Réessai impossible : \(message(for: error))")
         } catch {
-            actionFeedback = .failure("Relance impossible : erreur inattendue.")
+            actionFeedback = .failure("Réessai impossible : erreur inattendue.")
         }
     }
 
-    func reimportSelected() async {
+    func importSelected() async {
         guard !isBusy else { return }
         guard let detail = selectedDetail else {
-            actionFeedback = .failure("Sélectionne une session avant de réimporter.")
+            actionFeedback = .failure("Sélectionne une session avant d'importer.")
             return
         }
-        guard canReimportSelectedSession else {
-            actionFeedback = .failure(reimportDisabledReason ?? "Données insuffisantes pour réimporter.")
+        guard canImportSelectedSession else {
+            actionFeedback = .failure(importDisabledReason ?? "Données insuffisantes pour importer.")
             return
         }
 
-        actionFeedback = .inProgress("Réimport Apple Music en cours…")
+        actionFeedback = .inProgress("Import Apple Music en cours…")
         do {
             let generation = try HistoryPayloadMapper.generationResult(from: detail.generationResult)
             let importResult = try await importService.importPlaylist(generation) { [weak self] event in
@@ -183,19 +243,19 @@ final class HistoryViewModel: ObservableObject {
             }
             if importResult.phase == .waitingForManualAcquisition {
                 actionFeedback = .failure(
-                    "Réimport interrompu : ajout manuel requis dans Music.app. Utilise Nouvelle Playlist pour terminer l'import interactif."
+                    "Import interrompu : ajout manuel requis dans Music.app. Utilise Nouvelle Playlist pour terminer."
                 )
                 return
             }
             actionFeedback = .success(
-                "Réimport terminé — ajoutés \(importResult.addedCount), ignorés \(importResult.skippedCount), introuvables \(importResult.notFoundCount), erreurs \(importResult.errorCount)."
+                "Import terminé — \(importResult.addedCount) ajouté(s), \(importResult.skippedCount) ignoré(s)."
             )
             await refresh()
             await select(session: detail.summary)
         } catch let error as PlaylistImportError {
-            actionFeedback = .failure("Réimport impossible : \(ImportErrorHumanizer.message(for: error))")
+            actionFeedback = .failure(ImportErrorHumanizer.message(for: error))
         } catch {
-            actionFeedback = .failure("Réimport impossible : \(ImportErrorHumanizer.userMessage(for: error))")
+            actionFeedback = .failure(ImportErrorHumanizer.userMessage(for: error))
         }
     }
 
@@ -214,12 +274,12 @@ final class HistoryViewModel: ObservableObject {
             }
 
             if let opened = openExportedFile(export.jsonReportPath) ?? openExportedFile(export.textReportPath) {
-                actionFeedback = .success("Export ouvert : \(opened.path)")
+                actionFeedback = .success("Rapport ouvert : \(opened.path)")
                 return
             }
 
             actionFeedback = .success(
-                "Export JSON prêt (session \(export.sessionID), statut \(export.status.rawValue)). Aucun fichier rapport sur disque — données disponibles via le bridge."
+                "Export JSON prêt (session \(export.sessionID)). Aucun fichier rapport sur disque."
             )
         } catch let error as SessionHistoryServiceError {
             actionFeedback = .failure("Export impossible : \(message(for: error))")
@@ -238,7 +298,7 @@ final class HistoryViewModel: ObservableObject {
             if let processed = event.payload["processed_tracks"]?.intValue,
                let total = event.payload["total_tracks"]?.intValue,
                total > 0 {
-                actionFeedback = .inProgress("Réimport Apple Music — \(processed)/\(total) morceaux")
+                actionFeedback = .inProgress("Import Apple Music — \(processed)/\(total) morceaux")
             }
         default:
             break
@@ -272,7 +332,7 @@ final class HistoryViewModel: ObservableObject {
         case .invalidResponse:
             return "Réponse bridge invalide pour l'historique."
         case .bridge(let payload):
-            return payload.message
+            return ImportErrorHumanizer.humanizeBridgeMessage(payload.message)
         }
     }
 }

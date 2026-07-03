@@ -23,6 +23,18 @@ final class ImportErrorHumanizerTests: XCTestCase {
         let message = ImportErrorHumanizer.message(for: .invalidResponse)
         XCTAssertTrue(message.contains("Réponse bridge invalide"))
     }
+
+    func testHumanizesPythonUnboundLocalImportError() {
+        let raw = "cannot access local variable 'ImportTrackStatus' where it is not associated with a value"
+        let message = ImportErrorHumanizer.humanizeBridgeMessage(raw)
+        XCTAssertFalse(message.contains("ImportTrackStatus"))
+        XCTAssertTrue(message.contains("importation a échoué"))
+    }
+
+    func testTechnicalErrorDetection() {
+        XCTAssertTrue(ImportErrorHumanizer.isTechnicalErrorMessage("Traceback (most recent call last):"))
+        XCTAssertFalse(ImportErrorHumanizer.isTechnicalErrorMessage("Music.app n'est pas ouvert."))
+    }
 }
 
 final class ImportPerformanceGuardTests: XCTestCase {

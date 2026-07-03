@@ -7,6 +7,7 @@ struct PlaylistBuilderView: View {
     @StateObject private var importViewModel: ImportViewModel
     @StateObject private var smartInputEngines: SmartInputFormEngines
     @EnvironmentObject private var themeManager: ThemeManager
+    @Binding private var pendingEditRequest: PlaylistGenerationRequest?
 
     @State private var draftName = ""
     @State private var draftTrackCount = ""
@@ -16,10 +17,12 @@ struct PlaylistBuilderView: View {
     @State private var showExclusions = false
 
     init(
+        pendingEditRequest: Binding<PlaylistGenerationRequest?> = .constant(nil),
         generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
         importService: any PlaylistImportServing = PythonEngineBridgeService(),
         autocompleteService: (any AutocompleteServing)? = nil
     ) {
+        _pendingEditRequest = pendingEditRequest
         let resolvedAutocomplete: any AutocompleteServing = autocompleteService
             ?? (generationService as? AutocompleteServing)
             ?? MockAutocompleteService()
@@ -67,9 +70,13 @@ struct PlaylistBuilderView: View {
         .background(palette.backgroundPrimary)
         .navigationTitle("Nouvelle Playlist")
         .onAppear {
+            applyPendingHistoryEditIfNeeded()
             syncDraftFromViewModel()
             pushDraftToViewModel()
             viewModel.validateForm()
+        }
+        .onChange(of: pendingEditRequest) { _, _ in
+            applyPendingHistoryEditIfNeeded()
         }
         .onChange(of: viewModel.screenState) { _, newState in
             if newState == .editing {
@@ -133,6 +140,14 @@ struct PlaylistBuilderView: View {
     private func commitDraftAndValidate() {
         pushDraftToViewModel()
         viewModel.validateForm()
+    }
+
+    private func applyPendingHistoryEditIfNeeded() {
+        guard let request = pendingEditRequest else { return }
+        viewModel.loadFromHistory(request)
+        smartInputEngines.syncFromViewModel(viewModel)
+        syncDraftFromViewModel()
+        pendingEditRequest = nil
     }
 }
 
@@ -227,7 +242,7 @@ private struct BuilderHelpSection: View {
     let palette: ThemePalette
 
     var body: some View {
-        Text("Remplis au minimum un nom et une graine ou des mots-clés.")
+        Text("Remplis au minimum un nom et une graine ou des mots-clés, puis génère, prévisualise et importe.")
             .font(.callout)
             .foregroundStyle(palette.textSecondary)
     }
@@ -270,7 +285,7 @@ private struct BridgeMessageSection: View {
         if let message {
             Text(message)
                 .font(.caption)
-                .foregroundStyle(palette.textTertiary)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 }
@@ -454,7 +469,7 @@ private struct GenerateFooterSection: View {
                 if !canGenerateFromDrafts {
                     Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
                         .font(.caption)
-                        .foregroundStyle(palette.textTertiary)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
             Spacer()
@@ -503,12 +518,14 @@ private struct NativeFormTextField: View {
     let title: String
     @Binding var text: String
     var isMultiline: Bool = false
+    @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
+        let palette = ThemePalette(theme: themeManager.active)
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
             AppKitTextField(
                 placeholder: title,
                 text: $text,

@@ -18,6 +18,7 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **4.8A** | Stabilisation UX macOS, thèmes, import | PR #32 |
 | **5.1** | Smart Input Framework (autocomplete, refs canoniques) | PR #33 |
 | **5.1.1** | UX import Apple Music (progression live, Music deep links, acquisition auto) | PR #36 |
+| **5.1.2** | Stabilisation UX produit (import, historique, laboratoire, thèmes, erreurs) | PR en cours |
 
 Correctifs intégrés sur `main` :
 
@@ -29,7 +30,7 @@ Correctifs intégrés sur `main` :
 
 ## PR ouvertes
 
-Aucune — toutes les PR actives de juillet 2026 ont été mergées.
+- **Phase 5.1.2** — Stabilisation UX produit (en validation macOS)
 
 ## Prochaines étapes envisagées
 
@@ -50,4 +51,4 @@ python3 -m pytest -q
 cd apps/resonance && ./scripts/build.sh   # macOS
 ```
 
-323 tests Python (1 skipped hors macOS) ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+329 tests Python (1 skipped hors macOS) ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).

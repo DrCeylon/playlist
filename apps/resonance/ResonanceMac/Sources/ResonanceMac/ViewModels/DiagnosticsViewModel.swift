@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import ResonanceCore
 
@@ -30,6 +31,7 @@ final class DiagnosticsViewModel: ObservableObject {
     @Published var snapshot: DiagnosticsSnapshot?
     @Published var providers: [ProviderOption] = []
     @Published var architectErrorDetail: String?
+    @Published var actionFeedback: String?
 
     private let service: any DiagnosticsServing
 
@@ -37,17 +39,84 @@ final class DiagnosticsViewModel: ObservableObject {
         self.service = service
     }
 
+    var modeIntroduction: String {
+        switch displayMode {
+        case .simple:
+            return "Vue d'ensemble : état Apple Music, bridge et derniers problèmes détectés."
+        case .architect:
+            return "Vue technique : version moteur, chemins, providers, cache et événements bruts."
+        }
+    }
+
     var bridgeStatusLabel: String {
-        snapshot?.summary.bridgeStatus ?? "déconnecté"
+        guard let status = snapshot?.summary.bridgeStatus else { return "Inconnu" }
+        switch status.lowercased() {
+        case "connected": return "Connecté"
+        case "disconnected": return "Déconnecté"
+        default: return status
+        }
+    }
+
+    var appleMusicStatusLabel: String {
+        guard let provider = appleMusicProvider else { return "Indisponible" }
+        if provider.isConnected { return "Connecté" }
+        if provider.isAvailable { return "Disponible" }
+        if provider.unavailableReason.isEmpty { return "Indisponible" }
+        return provider.unavailableReason
+    }
+
+    var lastImportLabel: String {
+        guard let report = snapshot?.summary.recentReports.first else {
+            return "Aucun import récent enregistré."
+        }
+        return "«\(report.playlistName)» — +\(report.added) ajouté(s), \(report.notFound) introuvable(s), \(report.errors) erreur(s)"
+    }
+
+    var lastProblemLabel: String {
+        let problems = filteredEvents().filter { $0.level == .warning || $0.level == .error }
+        guard let latest = problems.last else { return "Aucun problème récent détecté." }
+        return latest.message
     }
 
     var engineVersionLabel: String {
         snapshot?.engineVersion ?? "—"
     }
 
+    var platformLabel: String {
+        snapshot?.summary.platform ?? "—"
+    }
+
+    var pythonPathLabel: String {
+        if let bridge = service as? PythonEngineBridgeService,
+           let cwd = bridge.bridgeWorkingDirectory {
+            return ResonancePaths.resolvePythonExecutable(repoRoot: URL(fileURLWithPath: cwd))
+        }
+        if let root = ResonancePaths.repoRoot() {
+            return ResonancePaths.resolvePythonExecutable(repoRoot: root)
+        }
+        return "Non détecté"
+    }
+
+    var workingDirectoryLabel: String {
+        if let bridge = service as? PythonEngineBridgeService {
+            return bridge.bridgeWorkingDirectory ?? FileManager.default.currentDirectoryPath
+        }
+        return FileManager.default.currentDirectoryPath
+    }
+
+    var reportsDirectoryLabel: String {
+        snapshot?.summary.reportsDirectory ?? "—"
+    }
+
+    private var appleMusicProvider: ProviderOption? {
+        providers.first { $0.providerID == .appleMusic }
+            ?? snapshot?.summary.activeProviders.first { $0.providerID == .appleMusic }
+    }
+
     func refresh() async {
         screenState = .running
         architectErrorDetail = nil
+        actionFeedback = nil
         do {
             async let diagnosticsTask = service.fetchDiagnostics()
             async let providersTask = service.listProviders()
@@ -56,6 +125,7 @@ final class DiagnosticsViewModel: ObservableObject {
             snapshot = diagnostics
             providers = providerList
             screenState = diagnostics.summary.bridgeStatus == "connected" ? .completed : .connected
+            actionFeedback = "Diagnostics mis à jour."
         } catch let error as DiagnosticsServiceError {
             screenState = .failed(message(for: error))
             architectErrorDetail = architectDetail(for: error)
@@ -63,6 +133,34 @@ final class DiagnosticsViewModel: ObservableObject {
             screenState = .failed("Impossible de charger les diagnostics.")
             architectErrorDetail = String(describing: error)
         }
+    }
+
+    func testAppleMusic() async {
+        actionFeedback = "Test Apple Music en cours…"
+        await refresh()
+        if case .failed(let message) = screenState {
+            actionFeedback = message
+            return
+        }
+        actionFeedback = "Apple Music : \(appleMusicStatusLabel) · Bridge : \(bridgeStatusLabel)"
+    }
+
+    func openReportsDirectory() {
+        let path = reportsDirectoryLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty, path != "—" else {
+            actionFeedback = "Dossier de rapports indisponible."
+            return
+        }
+        let url: URL
+        if path.hasPrefix("/") {
+            url = URL(fileURLWithPath: path)
+        } else if let repo = ResonancePaths.repoRoot() {
+            url = repo.appendingPathComponent(path)
+        } else {
+            url = URL(fileURLWithPath: path)
+        }
+        NSWorkspace.shared.open(url)
+        actionFeedback = "Dossier rapports ouvert."
     }
 
     func filteredEvents() -> [DiagnosticEvent] {
@@ -84,7 +182,7 @@ final class DiagnosticsViewModel: ObservableObject {
         case .invalidResponse:
             return "Réponse bridge incomplète. Passe en mode Architecte pour les détails."
         case .bridge(let payload):
-            return payload.message
+            return ImportErrorHumanizer.humanizeBridgeMessage(payload.message)
         }
     }
 

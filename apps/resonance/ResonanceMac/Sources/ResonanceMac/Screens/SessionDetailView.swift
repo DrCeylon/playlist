@@ -4,16 +4,24 @@ import SwiftUI
 
 struct SessionDetailView: View {
     let detail: SessionHistoryDetail?
-    let canReplay: Bool
-    let canReimport: Bool
+    let canView: Bool
+    let canEdit: Bool
+    let canImport: Bool
+    let canRetry: Bool
     let isBusy: Bool
-    let replayDescription: String
-    let reimportDescription: String
+    let viewDescription: String
+    let editDescription: String
+    let importDescription: String
+    let retryDescription: String
     let exportDescription: String
-    let replayDisabledReason: String?
-    let reimportDisabledReason: String?
-    let onReplay: () -> Void
-    let onReimport: () -> Void
+    let viewDisabledReason: String?
+    let editDisabledReason: String?
+    let importDisabledReason: String?
+    let retryDisabledReason: String?
+    let onView: () -> Void
+    let onEdit: () -> Void
+    let onImport: () -> Void
+    let onRetry: () -> Void
     let onExport: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
 
@@ -21,7 +29,7 @@ struct SessionDetailView: View {
         let palette = ThemePalette(theme: themeManager.active)
         BoundedScrollScreen {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Détail session")
+                Text("Reprendre le workflow")
                     .font(.headline)
                     .foregroundStyle(palette.textPrimary)
 
@@ -29,17 +37,20 @@ struct SessionDetailView: View {
                     Text(detail.summary.playlistName)
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(palette.textPrimary)
-                    Text("Statut : \(statusLabel(detail.summary.status))")
-                        .font(.caption)
+                    statusBadge(for: detail.summary.status, palette: palette)
+                    Text(SessionHistoryDisplay.rowSubtitle(for: detail.summary))
+                        .font(.callout)
                         .foregroundStyle(palette.textSecondary)
 
                     importMetrics(for: detail, palette: palette)
                     importOutcomeList(for: detail, palette: palette)
+                    primaryActionsSection(palette: palette)
 
-                    availabilitySection(for: detail, palette: palette)
-                    actionsSection(palette: palette)
+                    if ResonanceFeatureFlags.architectModeEnabled {
+                        architectSection(for: detail, palette: palette)
+                    }
                 } else {
-                    Text("Sélectionne une session pour afficher les détails.")
+                    Text("Sélectionne une session pour afficher les actions disponibles.")
                         .foregroundStyle(palette.textSecondary)
                 }
             }
@@ -50,52 +61,76 @@ struct SessionDetailView: View {
     }
 
     @ViewBuilder
-    private func availabilitySection(for detail: SessionHistoryDetail, palette: ThemePalette) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Données disponibles")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.textSecondary)
-            Text("Requête : \(detail.generationRequest.isEmpty ? "indisponible" : "enregistrée")")
-            Text("Preview : \(detail.generationResult.isEmpty ? "indisponible" : "enregistrée")")
-            Text("Import : \(detail.importResult.isEmpty ? "non exécuté" : "rapport enregistré")")
-            if !detail.summary.jsonReportPath.isEmpty {
-                Text("Rapport JSON : \(detail.summary.jsonReportPath)")
-            } else if !detail.summary.textReportPath.isEmpty {
-                Text("Rapport texte : \(detail.summary.textReportPath)")
-            } else {
-                Text("Rapport fichier : non généré sur disque")
-            }
-        }
-        .font(.caption)
-        .foregroundStyle(palette.textTertiary)
-        .textSelection(.enabled)
+    private func statusBadge(for status: SessionHistoryStatus, palette: ThemePalette) -> some View {
+        Text(SessionHistoryDisplay.statusLabel(for: status))
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(badgeBackground(for: status, palette: palette))
+            .foregroundStyle(badgeForeground(for: status, palette: palette))
+            .clipShape(Capsule())
     }
 
     @ViewBuilder
-    private func actionsSection(palette: ThemePalette) -> some View {
+    private func primaryActionsSection(palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Actions")
-                .font(.subheadline.weight(.semibold))
-
             actionRow(
-                title: "Relancer génération",
-                description: replayDescription,
-                disabledReason: replayDisabledReason,
-                isEnabled: canReplay && !isBusy,
+                title: "Voir la playlist",
+                description: viewDescription,
+                disabledReason: viewDisabledReason,
+                isEnabled: canView && !isBusy,
                 palette: palette,
-                action: onReplay,
+                action: onView,
                 isPrimary: true
             )
 
             actionRow(
-                title: "Réimporter dans Apple Music",
-                description: reimportDescription,
-                disabledReason: reimportDisabledReason,
-                isEnabled: canReimport && !isBusy,
+                title: "Modifier cette playlist",
+                description: editDescription,
+                disabledReason: editDisabledReason,
+                isEnabled: canEdit && !isBusy,
                 palette: palette,
-                action: onReimport,
+                action: onEdit,
                 isPrimary: false
             )
+
+            actionRow(
+                title: "Importer",
+                description: importDescription,
+                disabledReason: importDisabledReason,
+                isEnabled: canImport && !isBusy,
+                palette: palette,
+                action: onImport,
+                isPrimary: false
+            )
+
+            actionRow(
+                title: "Réessayer",
+                description: retryDescription,
+                disabledReason: retryDisabledReason,
+                isEnabled: canRetry && !isBusy,
+                palette: palette,
+                action: onRetry,
+                isPrimary: false
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func architectSection(for detail: SessionHistoryDetail, palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Diagnostic")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Requête : \(detail.generationRequest.isEmpty ? "indisponible" : "enregistrée")")
+                Text("Preview : \(detail.generationResult.isEmpty ? "indisponible" : "enregistrée")")
+                Text("Import : \(detail.importResult.isEmpty ? "non exécuté" : "rapport enregistré")")
+            }
+            .font(.caption)
+            .foregroundStyle(palette.textSecondary)
+            .textSelection(.enabled)
 
             actionRow(
                 title: "Exporter le rapport",
@@ -142,11 +177,16 @@ struct SessionDetailView: View {
 
     @ViewBuilder
     private func importMetrics(for detail: SessionHistoryDetail, palette: ThemePalette) -> some View {
-        HStack(spacing: 8) {
-            metric("Ajoutés", value: detail.summary.addedCount, palette: palette)
-            metric("Ignorés", value: detail.summary.skippedCount, palette: palette)
-            metric("Introuv.", value: detail.summary.notFoundCount, palette: palette)
-            metric("Erreurs", value: detail.summary.errorCount, palette: palette)
+        if detail.summary.addedCount > 0
+            || detail.summary.skippedCount > 0
+            || detail.summary.notFoundCount > 0
+            || detail.summary.errorCount > 0 {
+            HStack(spacing: 8) {
+                metric("Ajoutés", value: detail.summary.addedCount, palette: palette)
+                metric("Ignorés", value: detail.summary.skippedCount, palette: palette)
+                metric("Introuv.", value: detail.summary.notFoundCount, palette: palette)
+                metric("Erreurs", value: detail.summary.errorCount, palette: palette)
+            }
         }
     }
 
@@ -154,8 +194,10 @@ struct SessionDetailView: View {
         VStack(spacing: 2) {
             Text("\(value)")
                 .font(.caption.monospacedDigit().weight(.semibold))
+                .foregroundStyle(palette.textPrimary)
             Text(title)
                 .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(6)
@@ -176,23 +218,32 @@ struct SessionDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(outcome.artist) — \(outcome.title)")
                             .font(.caption)
+                            .foregroundStyle(palette.textPrimary)
                             .textSelection(.enabled)
                         Text(outcomeLabel(outcome))
                             .font(.caption2)
-                            .foregroundStyle(palette.textTertiary)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
             }
         }
     }
 
-    private func statusLabel(_ status: SessionHistoryStatus) -> String {
+    private func badgeBackground(for status: SessionHistoryStatus, palette: ThemePalette) -> Color {
         switch status {
-        case .generated: return "Générée"
-        case .imported: return "Importée"
-        case .partialSuccess: return "Import partiel"
-        case .failed: return "Échouée"
-        case .waitingForManualAcquisition: return "Ajout manuel requis"
+        case .generated: return palette.accentPrimary.opacity(0.15)
+        case .imported: return palette.statusSuccess.opacity(0.15)
+        case .partialSuccess, .waitingForManualAcquisition: return palette.statusWarning.opacity(0.15)
+        case .failed: return palette.statusError.opacity(0.15)
+        }
+    }
+
+    private func badgeForeground(for status: SessionHistoryStatus, palette: ThemePalette) -> Color {
+        switch status {
+        case .generated: return palette.accentPrimary
+        case .imported: return palette.statusSuccess
+        case .partialSuccess, .waitingForManualAcquisition: return palette.statusWarning
+        case .failed: return palette.statusError
         }
     }
 

@@ -34,6 +34,29 @@ final class DiagnosticsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.filteredEvents().first?.level, .info)
     }
 
+    func testSimpleModeIntroductionDiffersFromArchitect() {
+        let viewModel = DiagnosticsViewModel(service: StubDiagnosticsService())
+        viewModel.displayMode = .simple
+        let simpleIntro = viewModel.modeIntroduction
+        viewModel.displayMode = .architect
+        let architectIntro = viewModel.modeIntroduction
+        XCTAssertNotEqual(simpleIntro, architectIntro)
+        XCTAssertTrue(simpleIntro.contains("Apple Music"))
+        XCTAssertTrue(architectIntro.contains("technique"))
+    }
+
+    func testAppleMusicStatusLabelWhenConnected() async {
+        let viewModel = DiagnosticsViewModel(service: StubDiagnosticsService())
+        await viewModel.refresh()
+        XCTAssertEqual(viewModel.appleMusicStatusLabel, "Connecté")
+    }
+
+    func testLastProblemLabelUsesWarningOrErrorEvents() async {
+        let viewModel = DiagnosticsViewModel(service: StubDiagnosticsService())
+        await viewModel.refresh()
+        XCTAssertEqual(viewModel.lastProblemLabel, "Attention cache")
+    }
+
     func testBridgeUnavailableShowsFailure() async {
         final class FailingDiagnosticsService: DiagnosticsServing {
             func fetchDiagnostics() async throws -> DiagnosticsSnapshot {
@@ -75,12 +98,22 @@ private struct StubDiagnosticsService: DiagnosticsServing {
                         isConnected: true
                     ),
                 ],
-                recentReports: [],
+                recentReports: [
+                    DiagnosticsReportSummary(
+                        filename: "demo.json",
+                        playlistName: "Demo",
+                        generatedAt: "2026-07-02",
+                        added: 3,
+                        notFound: 1,
+                        errors: 0
+                    ),
+                ],
                 reportsDirectory: "reports"
             ),
             events: [
                 DiagnosticEvent(phase: "bridge", message: "Connecté", level: .info),
                 DiagnosticEvent(phase: "cache", message: "Debug", level: .debug),
+                DiagnosticEvent(phase: "cache", message: "Attention cache", level: .warning),
             ]
         )
     }

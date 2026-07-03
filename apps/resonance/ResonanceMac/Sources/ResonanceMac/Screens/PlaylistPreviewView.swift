@@ -5,8 +5,9 @@ import SwiftUI
 struct PlaylistPreviewView: View {
     let result: PlaylistGenerationResult
     let previewSourceLabel: String
-    let onEdit: () -> Void
-    let onImport: () -> Void
+    var showsWorkflowActions: Bool = true
+    var onEdit: () -> Void = {}
+    var onImport: () -> Void = {}
     @EnvironmentObject private var themeManager: ThemeManager
 
     var body: some View {
@@ -23,7 +24,7 @@ struct PlaylistPreviewView: View {
                         .foregroundStyle(palette.textSecondary)
                     Text(previewSourceLabel)
                         .font(.caption)
-                        .foregroundStyle(palette.textTertiary)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 ForEach(result.sections) { section in
@@ -55,15 +56,17 @@ struct PlaylistPreviewView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
-                HStack {
-                    Button("Modifier le formulaire", action: onEdit)
-                        .buttonStyle(.bordered)
-                    Spacer()
-                    Button(action: onImport) {
-                        Label("Importer dans Apple Music", systemImage: "square.and.arrow.down")
+                if showsWorkflowActions {
+                    HStack {
+                        Button("Modifier", action: onEdit)
+                            .buttonStyle(.bordered)
+                        Spacer()
+                        Button(action: onImport) {
+                            Label("Importer", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(palette.accentPrimary)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(palette.accentPrimary)
                 }
             }
             .padding(24)
