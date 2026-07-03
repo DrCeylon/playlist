@@ -100,7 +100,9 @@ final class ImportViewModelTests: XCTestCase {
     }
 
     func testTrackProgressUpdatesActivities() async {
-        final class TrackProgressImportService: PlaylistImportServing {
+        final class TrackProgressImportService: PlaylistImportServing, @unchecked Sendable {
+            private var releaseGate: CheckedContinuation<Void, Never>?
+
             func importPlaylist(
                 _ result: PlaylistGenerationResult,
                 onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
@@ -123,7 +125,15 @@ final class ImportViewModelTests: XCTestCase {
                         )
                     )
                 }
+                await withCheckedContinuation { continuation in
+                    releaseGate = continuation
+                }
                 return ImportResultState(playlistName: result.playlistName, phase: .completed)
+            }
+
+            func releaseImport() {
+                releaseGate?.resume()
+                releaseGate = nil
             }
 
             func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
@@ -135,13 +145,33 @@ final class ImportViewModelTests: XCTestCase {
             }
         }
 
-        let viewModel = ImportViewModel(service: TrackProgressImportService())
-        await viewModel.importPlaylist(
-            PlaylistGenerationResult(playlistName: "Demo", sections: [], averageScore: 0)
-        )
+        let service = TrackProgressImportService()
+        let viewModel = ImportViewModel(service: service)
+        let importTask = Task {
+            await viewModel.importPlaylist(
+                PlaylistGenerationResult(playlistName: "Demo", sections: [], averageScore: 0)
+            )
+        }
+
+        for _ in 0..<50 {
+            if viewModel.progress.activities.count == 1 {
+                break
+            }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        XCTAssertEqual(viewModel.screenState, .importing)
         XCTAssertEqual(viewModel.progress.activities.count, 1)
         XCTAssertEqual(viewModel.progress.activities[0].title, "Firestone")
+        XCTAssertEqual(viewModel.progress.activities[0].message, "Recherche…")
         XCTAssertEqual(viewModel.progress.currentStep, "Recherche…")
+
+        service.releaseImport()
+        await importTask.value
+
+        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertEqual(viewModel.progress.activities.count, 1)
+        XCTAssertEqual(viewModel.progress.currentStep, "Playlist créée — 0 morceau(x) ajouté(s)")
     }
 
     func testDiagnosticsRingBufferLimitsGrowth() async {
