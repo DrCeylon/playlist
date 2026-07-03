@@ -10,7 +10,7 @@ from playlist_builder.integration.apple_music.mapper import (
 )
 from playlist_builder.integration.apple_music.models import AppleITunesSearchHit
 from playlist_builder.ui.shared.dto.autocomplete import AutocompleteRequest, AutocompleteResponse
-from playlist_builder.scoring.match_engine import score_text_match
+from playlist_builder.scoring.match_engine import artist_name_matches, score_text_match
 
 
 def _normalize_identity(value: str) -> str:
@@ -42,8 +42,9 @@ class AppleAutocompleteGateway:
             return AutocompleteResponse()
 
         if artist_name.strip():
+            filtered = [hit for hit in hits if artist_name_matches(artist_name, hit.artist_name)]
             ranked = sorted(
-                hits,
+                filtered,
                 key=lambda hit: score_text_match(artist_name, request.query, hit.artist_name, hit.track_name),
                 reverse=True,
             )

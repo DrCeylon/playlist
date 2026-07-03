@@ -172,14 +172,15 @@ public struct MockAutocompleteService: AutocompleteServing {
             let artists = MockAutocompleteFixtures.artists.filter { $0.displayName.lowercased().contains(query) }
             return AutocompleteResponse(artists: artists)
         case .track:
-            let artistContext = request.context?.artistName.lowercased() ?? ""
+            let artistContext = request.context?.artistName ?? ""
             let tracks = MockAutocompleteFixtures.tracks
-                .filter { $0.title.lowercased().contains(query) || $0.artistName.lowercased().contains(query) }
-                .sorted { lhs, rhs in
-                    let lhsBoost = artistContext.isEmpty ? 0 : (lhs.artistName.lowercased() == artistContext ? 1 : 0)
-                    let rhsBoost = artistContext.isEmpty ? 0 : (rhs.artistName.lowercased() == artistContext ? 1 : 0)
-                    return lhsBoost == rhsBoost ? lhs.title < rhs.title : lhsBoost > rhsBoost
+                .filter { track in
+                    guard AutocompleteArtistNameMatching.matches(wanted: artistContext, candidate: track.artistName) else {
+                        return false
+                    }
+                    return track.title.lowercased().contains(query) || track.artistName.lowercased().contains(query)
                 }
+                .sorted { $0.title < $1.title }
             return AutocompleteResponse(tracks: tracks)
         case .genre:
             let genres = MockAutocompleteFixtures.genres.filter {

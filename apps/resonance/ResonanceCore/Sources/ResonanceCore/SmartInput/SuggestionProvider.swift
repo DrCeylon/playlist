@@ -1,5 +1,16 @@
 import Foundation
 
+enum AutocompleteArtistNameMatching {
+    static func matches(wanted: String, candidate: String) -> Bool {
+        let wantedNorm = wanted.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let candidateNorm = candidate.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if wantedNorm.isEmpty { return true }
+        if candidateNorm.isEmpty { return false }
+        if wantedNorm == candidateNorm { return true }
+        return candidateNorm.contains(wantedNorm) || wantedNorm.contains(candidateNorm)
+    }
+}
+
 public protocol SuggestionProvider<Entity>: Sendable {
     associatedtype Entity: CanonicalEntity
     func suggestions(for request: AutocompleteRequest) async throws -> [Entity]
@@ -81,18 +92,16 @@ public struct MockTrackSuggestionProvider: SuggestionProvider {
     public func suggestions(for request: AutocompleteRequest) async throws -> [TrackRef] {
         let query = request.query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return [] }
-        let artistContext = request.context?.artistName.lowercased() ?? ""
+        let artistContext = request.context?.artistName ?? ""
         return fixtures
             .filter { track in
-                track.title.lowercased().contains(query)
+                guard AutocompleteArtistNameMatching.matches(wanted: artistContext, candidate: track.artistName) else {
+                    return false
+                }
+                return track.title.lowercased().contains(query)
                     || track.artistName.lowercased().contains(query)
             }
-            .sorted { lhs, rhs in
-                let lhsBoost = artistContext.isEmpty ? 0 : (lhs.artistName.lowercased() == artistContext ? 1 : 0)
-                let rhsBoost = artistContext.isEmpty ? 0 : (rhs.artistName.lowercased() == artistContext ? 1 : 0)
-                if lhsBoost != rhsBoost { return lhsBoost > rhsBoost }
-                return lhs.title < rhs.title
-            }
+            .sorted { $0.title < $1.title }
     }
 }
 

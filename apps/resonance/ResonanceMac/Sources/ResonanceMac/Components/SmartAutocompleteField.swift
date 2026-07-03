@@ -48,6 +48,7 @@ struct SmartAutocompleteField<Provider: SuggestionProvider>: View where Provider
                 engineHolder.syncText()
                 engineHolder.engine.beginEditing()
                 isFocused = true
+                onCommit()
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(palette.textTertiary)

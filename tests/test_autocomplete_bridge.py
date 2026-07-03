@@ -101,6 +101,29 @@ def test_apple_autocomplete_gateway_maps_artists(monkeypatch: pytest.MonkeyPatch
     assert response.suggestions[0].display_name == "Muse"
 
 
+def test_apple_autocomplete_gateway_filters_tracks_by_artist() -> None:
+    client = MagicMock()
+    client.search_tracks.return_value = (
+        [
+            AppleITunesSearchHit({"artistName": "Kygo", "trackName": "Firestone", "trackId": 1}),
+            AppleITunesSearchHit({"artistName": "Muse", "trackName": "Fire and Fury", "trackId": 2}),
+        ],
+        "",
+    )
+    gateway = AppleAutocompleteGateway(client=client)
+    response = gateway.search_tracks(
+        AutocompleteRequest(
+            provider_id=ProviderId.APPLE_MUSIC,
+            entity_kind=AutocompleteEntityKind.TRACK,
+            query="fire",
+        ),
+        artist_name="Kygo",
+    )
+    assert len(response.suggestions) == 1
+    assert response.suggestions[0].title == "Firestone"
+    assert response.suggestions[0].artist_name == "Kygo"
+
+
 def test_autocomplete_use_case_genre_is_local() -> None:
     use_case = AutocompleteSearchUseCase(integration_gateway=MagicMock())
     response = use_case.search(

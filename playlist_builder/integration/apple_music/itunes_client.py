@@ -15,7 +15,7 @@ from playlist_builder.core.models import TrackRef
 from playlist_builder.infrastructure.cache.keys import catalog_entry_key
 from playlist_builder.infrastructure.cache.store import JsonCache
 from playlist_builder.integration.apple_music.models import AppleITunesSearchHit
-from playlist_builder.scoring.match_engine import pick_best_match
+from playlist_builder.scoring.match_engine import artist_name_matches, pick_best_match
 
 ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
 USER_AGENT = f"PlaylistBuilder/{__version__} (AppleMusicCatalog; Python)"
@@ -185,12 +185,21 @@ class ITunesSearchClient:
         if cached is not None:
             return self._hits_from_cache_payload(cached)
 
+        search_term = term
+        fetch_limit = limit
+        if artist_key:
+            search_term = f"{wanted_artist.strip()} {term}".strip()
+            fetch_limit = max(limit * 5, 25)
+
         total_wait = 0.0
         last_error = ""
         for attempt in range(1, self.retry_policy.max_attempts + 1):
             self.rate_limiter.wait()
             try:
-                hits = self._search_entity(term, entity="song", limit=limit)
+                hits = self._search_entity(search_term, entity="song", limit=fetch_limit)
+                if artist_key:
+                    hits = [hit for hit in hits if artist_name_matches(wanted_artist, hit.artist_name)]
+                hits = hits[:limit]
                 self._write_cache(new_key, self._serialize_hits(hits))
                 return hits, ""
             except urllib.error.HTTPError as exc:
