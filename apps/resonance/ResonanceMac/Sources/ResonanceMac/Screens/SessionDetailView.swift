@@ -135,8 +135,8 @@ struct SessionDetailView: View {
             actionRow(
                 title: "Exporter",
                 description: exportDescription,
-                disabledReason: detail == nil ? "Sélectionne une session." : nil,
-                isEnabled: detail != nil && !isBusy,
+                disabledReason: isBusy ? "Action en cours." : nil,
+                isEnabled: !isBusy,
                 palette: palette,
                 action: onExport,
                 isPrimary: false

@@ -345,18 +345,17 @@ struct SmartSearchTextField: NSViewRepresentable {
             case #selector(NSResponder.cancelOperation(_:)):
                 parent.onDismiss()
                 return true
-            default:
-                if commandSelector == Selector(("deleteBackward:")),
-                   NSEvent.modifierFlags.contains(.command) {
-                    parent.onClearWithCommand()
-                    if let field = control as? NSTextField {
-                        field.stringValue = ""
-                        lastSyncedText = ""
-                        parent.text = ""
-                        parent.onTextChange("")
-                    }
-                    return true
+            case #selector(NSResponder.deleteBackward(_:)):
+                guard NSEvent.modifierFlags.contains(.command) else { return false }
+                parent.onClearWithCommand()
+                if let field = control as? NSTextField {
+                    field.stringValue = ""
+                    lastSyncedText = ""
+                    parent.text = ""
+                    parent.onTextChange("")
                 }
+                return true
+            default:
                 return false
             }
         }

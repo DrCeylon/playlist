@@ -80,7 +80,7 @@ public final class ThemeManager: ObservableObject {
         subscribers.removeAll { $0 === observer }
     }
 
-    nonisolated static func resolveThemeID(selectedThemeID: String, colorScheme: ColorScheme) -> String {
+    nonisolated private static func resolveThemeID(selectedThemeID: String, colorScheme: ColorScheme) -> String {
         if selectedThemeID == systemThemeID {
             return colorScheme == .dark ? darkThemeID : lightThemeID
         }

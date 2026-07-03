@@ -7,7 +7,6 @@ final class ThemeManagerTests: XCTestCase {
     func testApplyNotifiesObserver() throws {
         let registry = try ThemeRegistry.loadBundled()
         let manager = try ThemeManager(registry: registry)
-        let observer = ThemeObserver { _ in }
         var seen: [String] = []
         let tracked = ThemeObserver { theme in
             seen.append(theme.id)
@@ -20,7 +19,6 @@ final class ThemeManagerTests: XCTestCase {
         manager.unsubscribe(tracked)
         try manager.apply(themeID: "classic_winamp_inspired")
         XCTAssertEqual(seen, ["apple_music_dark"])
-        _ = observer
     }
 
     func testDefaultThemeIsSystem() throws {
@@ -41,36 +39,6 @@ final class ThemeManagerTests: XCTestCase {
         XCTAssertEqual(manager.active.id, "apple_music_light")
     }
 
-    func testSystemResolvesDarkAppearance() throws {
-        XCTAssertEqual(
-            ThemeManager.resolveThemeID(
-                selectedThemeID: ThemeManager.systemThemeID,
-                colorScheme: .dark
-            ),
-            "apple_music_dark"
-        )
-    }
-
-    func testSystemResolvesLightAppearance() throws {
-        XCTAssertEqual(
-            ThemeManager.resolveThemeID(
-                selectedThemeID: ThemeManager.systemThemeID,
-                colorScheme: .light
-            ),
-            "apple_music_light"
-        )
-    }
-
-    func testManualThemeIgnoresColorScheme() throws {
-        XCTAssertEqual(
-            ThemeManager.resolveThemeID(
-                selectedThemeID: "classic_winamp_inspired",
-                colorScheme: .dark
-            ),
-            "classic_winamp_inspired"
-        )
-    }
-
     func testSystemThemeSwitchesActiveTokensWithColorScheme() throws {
         let registry = try ThemeRegistry.loadBundled()
         let manager = try ThemeManager(registry: registry, defaultThemeID: ThemeManager.systemThemeID)
@@ -83,10 +51,32 @@ final class ThemeManagerTests: XCTestCase {
         XCTAssertEqual(manager.active.id, "apple_music_dark")
     }
 
+    func testManualThemeIgnoresSystemColorSchemeChanges() throws {
+        let registry = try ThemeRegistry.loadBundled()
+        let manager = try ThemeManager(registry: registry)
+        try manager.apply(themeID: "classic_winamp_inspired")
+
+        manager.updateColorScheme(.light)
+        XCTAssertEqual(manager.active.id, "classic_winamp_inspired")
+
+        manager.updateColorScheme(.dark)
+        XCTAssertEqual(manager.active.id, "classic_winamp_inspired")
+    }
+
     func testThemeOptionsIncludeSystemFirst() throws {
         let manager = try ThemeManager()
         XCTAssertEqual(manager.themeOptions.first?.themeID, ThemeManager.systemThemeID)
         XCTAssertEqual(manager.themeOptions.first?.displayName, "Système")
         XCTAssertEqual(manager.themeOptions.count, 4)
+    }
+
+    func testActiveDisplayNameReflectsSystemSelection() throws {
+        let registry = try ThemeRegistry.loadBundled()
+        let manager = try ThemeManager(registry: registry, defaultThemeID: ThemeManager.systemThemeID)
+        try manager.apply(themeID: ThemeManager.systemThemeID)
+
+        manager.updateColorScheme(.light)
+        XCTAssertTrue(manager.activeDisplayName.hasPrefix("Système ("))
+        XCTAssertTrue(manager.activeDisplayName.contains("Apple Music Light"))
     }
 }
