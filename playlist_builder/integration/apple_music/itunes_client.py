@@ -135,6 +135,103 @@ class ITunesSearchClient:
         self._write_cache(new_key, self._serialize_hit(None, error=last_error))
         return None, last_error
 
+    def search_artists(self, term: str, *, limit: int = 10) -> tuple[list[AppleITunesSearchHit], str]:
+        normalized = term.strip().lower()
+        new_key = catalog_entry_key(_PROVIDER_ID, "artist", f"{self.country}::{normalized}::{limit}")
+        cached = self._read_cache(new_key, None)
+        if cached is not None:
+            return self._hits_from_cache_payload(cached)
+
+        total_wait = 0.0
+        last_error = ""
+        for attempt in range(1, self.retry_policy.max_attempts + 1):
+            self.rate_limiter.wait()
+            try:
+                hits = self._search_entity(term, entity="musicArtist", limit=limit)
+                self._write_cache(new_key, self._serialize_hits(hits))
+                return hits, ""
+            except urllib.error.HTTPError as exc:
+                last_error = f"HTTP Error {exc.code}: {exc.reason}"
+                if exc.code != 429:
+                    break
+            except Exception as exc:
+                last_error = str(exc)
+                break
+
+            delay = self.retry_policy.delay_for_attempt(attempt)
+            if total_wait + delay > self.retry_policy.max_total_wait:
+                break
+            total_wait += delay
+            time.sleep(delay)
+
+        self._write_cache(new_key, self._serialize_hits([], error=last_error))
+        return [], last_error
+
+    def search_tracks(
+        self,
+        term: str,
+        *,
+        limit: int = 10,
+        wanted_artist: str = "",
+    ) -> tuple[list[AppleITunesSearchHit], str]:
+        normalized = term.strip().lower()
+        artist_key = wanted_artist.strip().lower()
+        new_key = catalog_entry_key(
+            _PROVIDER_ID,
+            "tracks",
+            f"{self.country}::{normalized}::{artist_key}::{limit}",
+        )
+        cached = self._read_cache(new_key, None)
+        if cached is not None:
+            return self._hits_from_cache_payload(cached)
+
+        total_wait = 0.0
+        last_error = ""
+        for attempt in range(1, self.retry_policy.max_attempts + 1):
+            self.rate_limiter.wait()
+            try:
+                hits = self._search_entity(term, entity="song", limit=limit)
+                self._write_cache(new_key, self._serialize_hits(hits))
+                return hits, ""
+            except urllib.error.HTTPError as exc:
+                last_error = f"HTTP Error {exc.code}: {exc.reason}"
+                if exc.code != 429:
+                    break
+            except Exception as exc:
+                last_error = str(exc)
+                break
+
+            delay = self.retry_policy.delay_for_attempt(attempt)
+            if total_wait + delay > self.retry_policy.max_total_wait:
+                break
+            total_wait += delay
+            time.sleep(delay)
+
+        self._write_cache(new_key, self._serialize_hits([], error=last_error))
+        return [], last_error
+
+    def _search_entity(self, term: str, *, entity: str, limit: int) -> list[AppleITunesSearchHit]:
+        query = urllib.parse.urlencode(
+            {
+                "term": term,
+                "country": self.country,
+                "media": "music",
+                "entity": entity,
+                "limit": str(limit),
+            }
+        )
+        url = f"{ITUNES_SEARCH_URL}?{query}"
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(request, timeout=20) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+        results = data.get("results", [])
+        hits: list[AppleITunesSearchHit] = []
+        for item in results:
+            if isinstance(item, dict):
+                hits.append(AppleITunesSearchHit(item))
+        return hits[:limit]
+
     def _search_once(
         self,
         term: str,
@@ -176,6 +273,22 @@ class ITunesSearchClient:
     def _write_cache(self, key: str, payload: dict[str, Any]) -> None:
         if self.cache is not None:
             self.cache.set(key, payload)
+
+    @staticmethod
+    def _serialize_hits(hits: list[AppleITunesSearchHit], *, error: str = "") -> dict[str, Any]:
+        return {
+            "hits": [hit.raw for hit in hits],
+            "error": error,
+        }
+
+    @staticmethod
+    def _hits_from_cache_payload(payload: dict[str, Any]) -> tuple[list[AppleITunesSearchHit], str]:
+        error = str(payload.get("error", ""))
+        raw_hits = payload.get("hits")
+        if not isinstance(raw_hits, list):
+            return [], error
+        hits = [AppleITunesSearchHit(item) for item in raw_hits if isinstance(item, dict)]
+        return hits, error
 
     @staticmethod
     def _serialize_hit(hit: AppleITunesSearchHit | None, *, error: str = "") -> dict[str, Any]:

@@ -9,15 +9,19 @@ final class PlaylistBuilderViewModelTests: XCTestCase {
         let viewModel = PlaylistBuilderViewModel()
         viewModel.name = "Pool Party"
         viewModel.descriptionText = "Sunset vibes"
-        viewModel.seedArtist = "Kygo"
-        viewModel.seedTrack = "Firestone"
-        viewModel.keywordsText = "tropical, deep house"
+        viewModel.seedArtist = ArtistRef(id: "kygo", displayName: "Kygo")
+        viewModel.seedTrack = TrackRef(id: "firestone", title: "Firestone", artistName: "Kygo")
+        viewModel.keywords = [
+            KeywordRef(id: "tropical", label: "tropical"),
+            KeywordRef(id: "deep-house", label: "deep house"),
+        ]
         viewModel.targetTrackCountText = "40"
         viewModel.energyProfile = .party
 
         let request = viewModel.buildRequest()
         XCTAssertEqual(request.name, "Pool Party")
         XCTAssertEqual(request.seeds.first?.artist, "Kygo")
+        XCTAssertEqual(request.seeds.first?.title, "Firestone")
         XCTAssertEqual(request.keywords, ["tropical", "deep house"])
         XCTAssertEqual(request.targetTrackCount, 40)
         XCTAssertEqual(request.energyCurve.profile, .party)
@@ -26,8 +30,8 @@ final class PlaylistBuilderViewModelTests: XCTestCase {
     func testGenerateProducesPreview() async {
         let viewModel = PlaylistBuilderViewModel()
         viewModel.name = "Test Playlist"
-        viewModel.seedArtist = "Artist"
-        viewModel.seedTrack = "Track"
+        viewModel.seedArtist = ArtistRef(id: "artist", displayName: "Artist")
+        viewModel.seedTrack = TrackRef(id: "track", title: "Track", artistName: "Artist")
         viewModel.targetTrackCountText = "8"
 
         await viewModel.generate()
@@ -50,9 +54,13 @@ final class PlaylistBuilderViewModelTests: XCTestCase {
     func testValidFormEnablesGenerate() {
         let viewModel = PlaylistBuilderViewModel()
         viewModel.name = "E2E Pool Party"
-        viewModel.seedArtist = "Kygo"
-        viewModel.seedTrack = "Firestone"
-        viewModel.keywordsText = "summer, tropical, dance"
+        viewModel.seedArtist = ArtistRef(id: "kygo", displayName: "Kygo")
+        viewModel.seedTrack = TrackRef(id: "firestone", title: "Firestone", artistName: "Kygo")
+        viewModel.keywords = [
+            KeywordRef(id: "summer", label: "summer"),
+            KeywordRef(id: "tropical", label: "tropical"),
+            KeywordRef(id: "dance", label: "dance"),
+        ]
         viewModel.targetTrackCountText = "20"
 
         viewModel.validateForm()
@@ -61,20 +69,25 @@ final class PlaylistBuilderViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.canGenerate)
     }
 
-    func testFormFieldBindingsUpdatePublishedProperties() {
+    func testCanonicalRefsUpdatePublishedProperties() {
         let viewModel = PlaylistBuilderViewModel()
+        let artist = ArtistRef(id: "kygo", displayName: "Kygo")
+        let track = TrackRef(id: "firestone", title: "Firestone", artistName: "Kygo")
+        let keywords = [
+            KeywordRef(id: "summer", label: "summer"),
+            KeywordRef(id: "tropical", label: "tropical"),
+        ]
 
         viewModel.name = "E2E Pool Party"
-        viewModel.seedArtist = "Kygo"
-        viewModel.seedTrack = "Firestone"
-        viewModel.keywordsText = "summer, tropical, dance"
+        viewModel.seedArtist = artist
+        viewModel.seedTrack = track
+        viewModel.keywords = keywords
         viewModel.targetTrackCountText = "20"
 
-        XCTAssertEqual(viewModel.name, "E2E Pool Party")
-        XCTAssertEqual(viewModel.seedArtist, "Kygo")
-        XCTAssertEqual(viewModel.seedTrack, "Firestone")
-        XCTAssertEqual(viewModel.keywordsText, "summer, tropical, dance")
-        XCTAssertEqual(viewModel.targetTrackCountText, "20")
+        XCTAssertEqual(viewModel.seedArtist?.displayName, "Kygo")
+        XCTAssertEqual(viewModel.seedTrack?.title, "Firestone")
+        XCTAssertEqual(viewModel.keywords.map(\.label), ["summer", "tropical"])
+        XCTAssertTrue(viewModel.hasSeedOrKeywords)
 
         viewModel.validateForm()
         XCTAssertTrue(viewModel.canGenerate)

@@ -18,6 +18,12 @@ from playlist_builder.ui.shared.dto import (
     ProviderOption,
     SeedReference,
 )
+from playlist_builder.ui.shared.dto.autocomplete import (
+    AutocompleteContext,
+    AutocompleteEntityKind,
+    AutocompleteRequest,
+    AutocompleteResponse,
+)
 from playlist_builder.ui.shared.dto.enums import DiagnosticLevel
 from playlist_builder.ui.shared.validation import ValidationError, dto_to_dict
 
@@ -35,6 +41,7 @@ class BridgeCommand(StrEnum):
     CLEAR_HISTORY = "clear_history"
     REPLAY_GENERATION = "replay_generation"
     EXPORT_HISTORY_SESSION = "export_history_session"
+    AUTOCOMPLETE_SEARCH = "autocomplete_search"
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +141,44 @@ class HistorySessionResult:
 
     def to_dict(self) -> dict[str, Any]:
         return {"session": dict(self.session) if self.session else None}
+
+
+@dataclass(frozen=True, slots=True)
+class AutocompleteSearchResult:
+    response: AutocompleteResponse
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.response.to_dict()
+
+
+def autocomplete_request_from_dict(data: dict[str, Any]) -> AutocompleteRequest:
+    provider_id = _parse_provider_id(data.get("provider_id", ProviderId.APPLE_MUSIC.value))
+    entity_raw = str(data.get("entity_kind", "")).strip()
+    try:
+        entity_kind = AutocompleteEntityKind(entity_raw)
+    except ValueError as exc:
+        raise InvalidBridgeRequestError(f"entity_kind invalide : {entity_raw!r}") from exc
+
+    query = str(data.get("query", ""))
+    limit = _optional_int(data.get("limit", 10), field_name="limit") or 10
+    if limit < 1:
+        raise InvalidBridgeRequestError("limit doit être >= 1.")
+
+    context_data = data.get("context", {})
+    context: AutocompleteContext | None = None
+    if isinstance(context_data, dict) and context_data:
+        context = AutocompleteContext(
+            artist_name=str(context_data.get("artist_name", "")),
+            artist_id=str(context_data.get("artist_id", "")),
+        )
+
+    return AutocompleteRequest(
+        provider_id=provider_id,
+        entity_kind=entity_kind,
+        query=query,
+        limit=limit,
+        context=context,
+    )
 
 
 def parse_bridge_request(payload: dict[str, Any]) -> BridgeRequest:

@@ -33,10 +33,20 @@ let package = Package(
             name: "ResonanceMac",
             dependencies: ["ResonanceCore", "ResonanceDesign"],
             path: "ResonanceMac",
+            exclude: [
+                "Tests",
+                "Resources/Info.plist",
+                "Resources/AppIcon.iconset",
+            ],
             sources: ["Sources/ResonanceMac"],
             resources: [
                 .copy("Resources/Assets"),
             ]
+        ),
+        .testTarget(
+            name: "ResonanceCoreTests",
+            dependencies: ["ResonanceCore"],
+            path: "ResonanceCore/Tests/ResonanceCoreTests"
         ),
         .testTarget(
             name: "ResonanceMacTests",

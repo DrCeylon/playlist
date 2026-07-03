@@ -65,7 +65,8 @@ Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive
 **Évolution**
 - [Phase 2 — Génération intelligente](Phase-2-Generation)
 - [**Phase 4 — Interface Resonance**](Phase-4-Interface-Resonance)
-- [**Phase 4.8A — Clôture**](Phase-4-8A-Cloture) ← **état actuel**
+- [**Phase 4.8A — Clôture**](Phase-4-8A-Cloture)
+- [**Phase 5.1 — Smart Input Framework**](Smart-Input-Framework) ← **en cours**
 - [Phase 5 — Vision produit](Phase-5-Vision)
 - [MusicKit (expérimental)](MusicKit-Experimental)
 - [Feuille de route iOS](Feuille-de-route-iOS)

@@ -12,6 +12,7 @@ from playlist_builder.canonical.models import (
 from playlist_builder.core.models import CatalogMatch, TrackRef
 from playlist_builder.discovery.models import DiscoveryCandidate, DiscoveryQuery
 from playlist_builder.integration.apple_music.models import AppleITunesSearchHit, AppleMusicTrack
+from playlist_builder.ui.shared.dto.autocomplete import ArtistSuggestion, TrackSuggestion
 from playlist_builder.planning.models import CandidateTrack
 from playlist_builder.scoring.match_engine import score_text_match
 from playlist_builder.scoring.resolution import ResolutionCandidate
@@ -179,6 +180,51 @@ def resolution_candidates_from_apple_music_tracks(
         )
         for track in tracks
     ]
+
+
+def _normalize_identity(value: str) -> str:
+    import re
+    import unicodedata
+
+    normalized = unicodedata.normalize("NFKD", value.strip().casefold())
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+    return re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
+
+
+def _release_year_from_hit(hit: AppleITunesSearchHit) -> int | None:
+    release_date = hit.release_date
+    if not release_date:
+        return None
+    try:
+        return int(release_date[:4])
+    except ValueError:
+        return None
+
+
+def artist_suggestion_from_itunes_hit(hit: AppleITunesSearchHit) -> ArtistSuggestion:
+    display_name = hit.artist_name.strip()
+    artist_id = hit.artist_id or _normalize_identity(display_name)
+    return ArtistSuggestion(
+        id=artist_id,
+        display_name=display_name,
+        artwork_url=hit.artwork_url,
+        artist_type=hit.kind or hit.wrapper_type,
+    )
+
+
+def track_suggestion_from_itunes_hit(hit: AppleITunesSearchHit) -> TrackSuggestion:
+    title = hit.track_name.strip()
+    artist_name = hit.artist_name.strip()
+    track_id = hit.track_id or _normalize_identity(f"{artist_name}-{title}")
+    return TrackSuggestion(
+        id=track_id,
+        title=title,
+        artist_name=artist_name,
+        album_title=hit.collection_name,
+        release_year=_release_year_from_hit(hit),
+        duration_ms=hit.track_time_millis,
+        artwork_url=hit.artwork_url,
+    )
 
 
 def canonical_candidate_from_apple_music_track(

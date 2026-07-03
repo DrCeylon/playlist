@@ -13,6 +13,7 @@ public enum BridgeCommand: String, Codable, Sendable {
     case clearHistory = "clear_history"
     case replayGeneration = "replay_generation"
     case exportHistorySession = "export_history_session"
+    case autocompleteSearch = "autocomplete_search"
 }
 
 public enum BridgeEventType: String, Codable, Sendable {

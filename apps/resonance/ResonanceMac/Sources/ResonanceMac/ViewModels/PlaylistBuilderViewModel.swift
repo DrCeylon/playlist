@@ -11,9 +11,9 @@ final class PlaylistBuilderViewModel: ObservableObject {
 
     @Published var name = ""
     @Published var descriptionText = ""
-    @Published var seedArtist = ""
-    @Published var seedTrack = ""
-    @Published var keywordsText = ""
+    @Published var seedArtist: ArtistRef?
+    @Published var seedTrack: TrackRef?
+    @Published var keywords: [KeywordRef] = []
     @Published var targetTrackCountText = "50"
     @Published var targetDurationText = ""
     @Published var energyProfile: EnergyCurveProfile = .rising
@@ -41,32 +41,33 @@ final class PlaylistBuilderViewModel: ObservableObject {
         screenState != .generating && validationErrors.isEmpty
     }
 
+    var hasSeedOrKeywords: Bool {
+        seedArtist != nil || seedTrack != nil || !keywords.isEmpty
+    }
+
     func buildRequest() -> PlaylistGenerationRequest {
-        let keywords = keywordsText
-            .split { $0 == "," || $0 == ";" || $0 == "\n" }
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        let keywordLabels = keywords.map(\.label)
 
         let seeds: [SeedReference]
-        let trimmedArtist = seedArtist.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedTrack = seedTrack.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedArtist.isEmpty && trimmedTrack.isEmpty {
+        let artistName = seedArtist?.displayName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let trackTitle = seedTrack?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if artistName.isEmpty && trackTitle.isEmpty {
             seeds = []
         } else {
-            seeds = [SeedReference(artist: trimmedArtist, title: trimmedTrack)]
+            seeds = [SeedReference(artist: artistName, title: trackTitle)]
         }
 
         return PlaylistGenerationRequest(
             name: name,
             providerID: .appleMusic,
             seeds: seeds,
-            keywords: keywords,
+            keywords: keywordLabels,
             description: descriptionText,
             targetTrackCount: Int(targetTrackCountText.trimmingCharacters(in: .whitespacesAndNewlines)),
             targetDurationMinutes: Int(targetDurationText.trimmingCharacters(in: .whitespacesAndNewlines)),
             energyCurve: EnergyCurveOption(profile: energyProfile),
             exclusions: exclusions,
-            playlistTheme: keywords.joined(separator: ", ")
+            playlistTheme: keywordLabels.joined(separator: ", ")
         )
     }
 

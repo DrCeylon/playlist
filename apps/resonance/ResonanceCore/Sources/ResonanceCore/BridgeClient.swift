@@ -174,7 +174,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
         return try Self.parseConversation(requestID: requestID, lines: lines)
     }
 
-    public static func dispatchStreamingLine(
+    static func dispatchStreamingLine(
         line: String,
         requestID: String,
         onEvent: (@Sendable (BridgeEventMessage) -> Void)?,

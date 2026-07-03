@@ -5,12 +5,10 @@ import SwiftUI
 struct PlaylistBuilderView: View {
     @StateObject private var viewModel: PlaylistBuilderViewModel
     @StateObject private var importViewModel: ImportViewModel
+    @StateObject private var smartInputEngines: SmartInputFormEngines
     @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var draftName = ""
-    @State private var draftSeedArtist = ""
-    @State private var draftSeedTrack = ""
-    @State private var draftKeywords = ""
     @State private var draftTrackCount = ""
     @State private var draftDescription = ""
     @State private var draftDuration = ""
@@ -19,10 +17,15 @@ struct PlaylistBuilderView: View {
 
     init(
         generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
-        importService: any PlaylistImportServing = PythonEngineBridgeService()
+        importService: any PlaylistImportServing = PythonEngineBridgeService(),
+        autocompleteService: (any AutocompleteServing)? = nil
     ) {
+        let resolvedAutocomplete: any AutocompleteServing = autocompleteService
+            ?? (generationService as? AutocompleteServing)
+            ?? MockAutocompleteService()
         _viewModel = StateObject(wrappedValue: PlaylistBuilderViewModel(service: generationService))
         _importViewModel = StateObject(wrappedValue: ImportViewModel(service: importService))
+        _smartInputEngines = StateObject(wrappedValue: SmartInputFormEngines(autocompleteService: resolvedAutocomplete))
     }
 
     var body: some View {
@@ -94,11 +97,9 @@ struct PlaylistBuilderView: View {
         case .editing, .generating:
             PlaylistBuilderFormView(
                 viewModel: viewModel,
+                smartInputEngines: smartInputEngines,
                 palette: palette,
                 draftName: $draftName,
-                draftSeedArtist: $draftSeedArtist,
-                draftSeedTrack: $draftSeedTrack,
-                draftKeywords: $draftKeywords,
                 draftTrackCount: $draftTrackCount,
                 draftDescription: $draftDescription,
                 draftDuration: $draftDuration,
@@ -114,22 +115,18 @@ struct PlaylistBuilderView: View {
 
     private func syncDraftFromViewModel() {
         draftName = viewModel.name
-        draftSeedArtist = viewModel.seedArtist
-        draftSeedTrack = viewModel.seedTrack
-        draftKeywords = viewModel.keywordsText
         draftTrackCount = viewModel.targetTrackCountText
         draftDescription = viewModel.descriptionText
         draftDuration = viewModel.targetDurationText
+        smartInputEngines.syncFromViewModel(viewModel)
     }
 
     private func pushDraftToViewModel() {
         viewModel.name = draftName
-        viewModel.seedArtist = draftSeedArtist
-        viewModel.seedTrack = draftSeedTrack
-        viewModel.keywordsText = draftKeywords
         viewModel.targetTrackCountText = draftTrackCount
         viewModel.descriptionText = draftDescription
         viewModel.targetDurationText = draftDuration
+        smartInputEngines.pushToViewModel(viewModel)
     }
 
     private func commitDraftAndValidate() {
@@ -142,12 +139,10 @@ struct PlaylistBuilderView: View {
 
 private struct PlaylistBuilderFormView: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
+    @ObservedObject var smartInputEngines: SmartInputFormEngines
     let palette: ThemePalette
 
     @Binding var draftName: String
-    @Binding var draftSeedArtist: String
-    @Binding var draftSeedTrack: String
-    @Binding var draftKeywords: String
     @Binding var draftTrackCount: String
     @Binding var draftDescription: String
     @Binding var draftDuration: String
@@ -161,10 +156,7 @@ private struct PlaylistBuilderFormView: View {
 
     private var draftsLookComplete: Bool {
         let trimmedName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasSeed = !draftSeedArtist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !draftSeedTrack.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !draftKeywords.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return !trimmedName.isEmpty && hasSeed
+        return !trimmedName.isEmpty && viewModel.hasSeedOrKeywords
     }
 
     var body: some View {
@@ -177,11 +169,13 @@ private struct PlaylistBuilderFormView: View {
                 ValidationSection(errors: validationErrors, palette: palette)
                 BridgeMessageSection(message: bridgeFallbackMessage, palette: palette)
                 EssentialFieldsSection(
+                    palette: palette,
                     draftName: $draftName,
-                    draftSeedArtist: $draftSeedArtist,
-                    draftSeedTrack: $draftSeedTrack,
-                    draftKeywords: $draftKeywords,
-                    draftTrackCount: $draftTrackCount
+                    draftTrackCount: $draftTrackCount,
+                    viewModel: viewModel,
+                    smartInputEngines: smartInputEngines,
+                    onCommitDraft: onCommitDraft,
+                    onPushDraft: onPushDraft
                 )
                 AdvancedOptionsSection(
                     viewModel: viewModel,
@@ -281,23 +275,66 @@ private struct BridgeMessageSection: View {
 }
 
 private struct EssentialFieldsSection: View {
+    let palette: ThemePalette
     @Binding var draftName: String
-    @Binding var draftSeedArtist: String
-    @Binding var draftSeedTrack: String
-    @Binding var draftKeywords: String
     @Binding var draftTrackCount: String
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    @ObservedObject var smartInputEngines: SmartInputFormEngines
+    let onCommitDraft: () -> Void
+    let onPushDraft: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Essentiel")
                 .font(.headline)
             NativeFormTextField(title: "Nom de la playlist", text: $draftName)
-            NativeFormTextField(title: "Artiste seed", text: $draftSeedArtist)
-            NativeFormTextField(title: "Morceau seed", text: $draftSeedTrack)
-            NativeFormTextField(
-                title: "Mots-clés (séparés par des virgules)",
-                text: $draftKeywords
+
+            SmartAutocompleteField(
+                title: "Artiste seed",
+                placeholder: "Rechercher un artiste…",
+                engineHolder: smartInputEngines.artistHolder,
+                palette: palette,
+                rowContent: { artist, highlighted in
+                    AnyView(ArtistResultRow(artist: artist, isHighlighted: highlighted, palette: palette))
+                },
+                onCommit: {
+                    smartInputEngines.pushToViewModel(viewModel)
+                    if let artist = viewModel.seedArtist {
+                        smartInputEngines.trackHolder.engine.setContext(
+                            AutocompleteContext(artistName: artist.displayName, artistID: artist.id)
+                        )
+                    }
+                    onPushDraft()
+                    onCommitDraft()
+                }
             )
+
+            SmartAutocompleteField(
+                title: "Morceau seed",
+                placeholder: "Rechercher un morceau…",
+                engineHolder: smartInputEngines.trackHolder,
+                palette: palette,
+                rowContent: { track, highlighted in
+                    AnyView(TrackResultRow(track: track, isHighlighted: highlighted, palette: palette))
+                },
+                onCommit: {
+                    smartInputEngines.pushToViewModel(viewModel)
+                    onPushDraft()
+                    onCommitDraft()
+                }
+            )
+
+            KeywordTagField(
+                title: "Mots-clés",
+                keywords: $viewModel.keywords,
+                engineHolder: smartInputEngines.keywordHolder,
+                palette: palette,
+                onCommit: {
+                    onPushDraft()
+                    onCommitDraft()
+                }
+            )
+
             NativeFormTextField(title: "Nombre de morceaux", text: $draftTrackCount)
         }
     }
