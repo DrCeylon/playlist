@@ -109,3 +109,33 @@ final class AutocompleteBridgeContractsTests: XCTestCase {
         XCTAssertEqual(context["artist_name"], .string("Kygo"))
     }
 }
+
+@MainActor
+final class MockTrackSuggestionProviderTests: XCTestCase {
+    func testTrackSuggestionsFilterByArtistContext() async throws {
+        let provider = MockTrackSuggestionProvider()
+        let request = AutocompleteRequest(
+            entityKind: .track,
+            query: "fire",
+            context: AutocompleteContext(artistName: "Kygo", artistID: "kygo")
+        )
+        let results = try await provider.suggestions(for: request)
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results[0].title, "Firestone")
+        XCTAssertEqual(results[0].artistName, "Kygo")
+    }
+
+    func testSetContextRefreshesTrackResults() async {
+        let provider = MockTrackSuggestionProvider()
+        let engine = AutocompleteEngine(provider: provider, entityKind: .track, debounceInterval: 0)
+        engine.updateQuery("star")
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(engine.session.results.count, 1)
+        XCTAssertEqual(engine.session.results[0].artistName, "Muse")
+
+        engine.setContext(AutocompleteContext(artistName: "Kygo", artistID: "kygo"))
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(engine.session.phase, .ready)
+        XCTAssertTrue(engine.session.results.isEmpty)
+    }
+}

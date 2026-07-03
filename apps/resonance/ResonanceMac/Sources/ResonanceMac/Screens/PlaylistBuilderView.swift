@@ -303,6 +303,8 @@ private struct EssentialFieldsSection: View {
                         smartInputEngines.trackHolder.engine.setContext(
                             AutocompleteContext(artistName: artist.displayName, artistID: artist.id)
                         )
+                    } else {
+                        smartInputEngines.trackHolder.engine.setContext(nil)
                     }
                     onPushDraft()
                     onCommitDraft()

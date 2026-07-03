@@ -37,7 +37,24 @@ public final class AutocompleteEngine<Provider: SuggestionProvider> {
     }
 
     public func setContext(_ context: AutocompleteContext?) {
+        let changed = self.context != context
         self.context = context
+        guard changed else { return }
+
+        let trimmed = selection.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            session.results = []
+            session.highlightedIndex = -1
+            session.phase = .idle
+            return
+        }
+
+        searchTask?.cancel()
+        session.phase = .searching
+        searchTask = Task { [weak self] in
+            guard let self else { return }
+            await self.performSearch(query: trimmed)
+        }
     }
 
     public func setSelected(_ entity: Entity?) {

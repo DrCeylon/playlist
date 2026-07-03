@@ -54,6 +54,18 @@ def score_text_match(wanted_artist: str, wanted_title: str, candidate_artist: st
     return value
 
 
+def artist_name_matches(wanted_artist: str, candidate_artist: str) -> bool:
+    wanted_artist_norm = normalize_text(wanted_artist)
+    artist_norm = normalize_text(candidate_artist)
+    if not wanted_artist_norm:
+        return True
+    if not artist_norm:
+        return False
+    if wanted_artist_norm == artist_norm:
+        return True
+    return wanted_artist_norm in artist_norm or artist_norm in wanted_artist_norm
+
+
 def score_fuzzy_match(wanted_artist: str, wanted_title: str, candidate_artist: str, candidate_title: str) -> int:
     title_similarity = similarity_ratio(wanted_title, candidate_title)
     title_tokens = token_overlap(wanted_title, candidate_title)
