@@ -37,6 +37,7 @@ struct PlaylistBuilderView: View {
                 ImportProgressView(
                     progress: importViewModel.progress,
                     manualPrompt: importViewModel.manualPrompt,
+                    manualPollStatus: importViewModel.manualPollStatus,
                     architectErrorDetail: importViewModel.architectErrorDetail,
                     onConfirmManual: {
                         Task { await importViewModel.confirmManualAcquisition() }
@@ -531,6 +532,7 @@ private struct ImportFailureView: View {
                 .foregroundStyle(palette.statusWarning)
             Text(message)
                 .foregroundStyle(palette.textSecondary)
+                .textSelection(.enabled)
             if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
                 Text(architectErrorDetail)
                     .font(.caption.monospaced())

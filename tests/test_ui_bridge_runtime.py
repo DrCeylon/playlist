@@ -93,11 +93,14 @@ def test_bridge_response_never_exposes_persistent_id():
 
 
 def test_continue_manual_acquisition_command():
+    from playlist_builder.ui.bridge.commands import ImportPlaylistResult
+    from playlist_builder.ui.shared.dto.import_state import ImportResultState
+
     backend = MagicMock()
-    backend.continue_manual_acquisition.return_value = {
-        "acknowledged": True,
-        "import": {"playlist_name": "Demo", "phase": "completed", "outcomes": []},
-    }
+    final = ImportPlaylistResult(
+        import_result=ImportResultState(playlist_name="Demo", phase=ImportPhase.COMPLETED),
+    )
+    backend.continue_manual_acquisition_stream.return_value = [final]
     bridge = JsonRpcEngineBridge(backend=backend)
     messages = bridge.handle(
         {
@@ -106,8 +109,24 @@ def test_continue_manual_acquisition_command():
             "params": {"import_session_id": "abc"},
         }
     )
+    assert any(message.get("event") == "started" for message in messages)
     assert messages[-1]["ok"] is True
     assert messages[-1]["result"]["acknowledged"] is True
+
+
+def test_probe_manual_acquisition_command():
+    backend = MagicMock()
+    backend.probe_manual_acquisition.return_value = {"found": True, "message": "ok"}
+    bridge = JsonRpcEngineBridge(backend=backend)
+    messages = bridge.handle(
+        {
+            "id": "probe-1",
+            "command": BridgeCommand.PROBE_MANUAL_ACQUISITION.value,
+            "params": {"import_session_id": "abc"},
+        }
+    )
+    assert messages[-1]["ok"] is True
+    assert messages[-1]["result"]["found"] is True
 
 
 @patch("playlist_builder.app.bridge_runtime.backend.stream_import_playlist")

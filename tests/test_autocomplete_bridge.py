@@ -41,6 +41,25 @@ def test_bridge_command_autocomplete_raw_value() -> None:
     assert BridgeCommand.AUTOCOMPLETE_SEARCH.value == "autocomplete_search"
 
 
+def test_track_progress_event_payload() -> None:
+    from playlist_builder.ui.bridge.events import track_progress_event
+
+    event = track_progress_event(
+        "req-1",
+        track_key="0:kygo:firestone",
+        track_index=0,
+        total_tracks=3,
+        artist="Kygo",
+        title="Firestone",
+        step="searching",
+        status="pending",
+        message="Recherche…",
+    )
+    assert event.event.value == "track_progress"
+    assert event.payload["artist"] == "Kygo"
+    assert event.payload["step"] == "searching"
+
+
 def test_autocomplete_request_from_dict_parses_context() -> None:
     request = autocomplete_request_from_dict(
         {

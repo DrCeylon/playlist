@@ -11,6 +11,65 @@ public enum ImportPhase: String, Codable, Sendable, CaseIterable {
     case failed
 }
 
+public enum ImportTrackStep: String, Codable, Sendable, CaseIterable {
+    case pending
+    case searching
+    case resolving
+    case acquiring
+    case adding
+    case completed
+}
+
+public struct ImportTrackActivity: Identifiable, Equatable, Sendable {
+    public let trackKey: String
+    public var trackIndex: Int
+    public var artist: String
+    public var title: String
+    public var album: String
+    public var section: String
+    public var step: ImportTrackStep
+    public var status: ImportTrackStatus
+    public var message: String
+    public var catalogURL: String
+    public var isCurrent: Bool
+
+    public var id: String { trackKey }
+
+    public init(
+        trackKey: String,
+        trackIndex: Int,
+        artist: String,
+        title: String,
+        album: String = "",
+        section: String = "",
+        step: ImportTrackStep = .pending,
+        status: ImportTrackStatus = .pending,
+        message: String = "",
+        catalogURL: String = "",
+        isCurrent: Bool = false
+    ) {
+        self.trackKey = trackKey
+        self.trackIndex = trackIndex
+        self.artist = artist
+        self.title = title
+        self.album = album
+        self.section = section
+        self.step = step
+        self.status = status
+        self.message = message
+        self.catalogURL = catalogURL
+        self.isCurrent = isCurrent
+    }
+
+    public var displayLabel: String {
+        let artist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if artist.isEmpty { return title }
+        if title.isEmpty { return artist }
+        return "\(artist) — \(title)"
+    }
+}
+
 public enum ImportTrackStatus: String, Codable, Sendable, CaseIterable {
     case pending
     case added
@@ -27,6 +86,8 @@ public struct ImportTrackOutcome: Identifiable, Hashable, Codable, Sendable {
     public var section: String
     public var status: ImportTrackStatus
     public var message: String
+    public var album: String
+    public var catalogURL: String
 
     public init(
         id: UUID = UUID(),
@@ -34,7 +95,9 @@ public struct ImportTrackOutcome: Identifiable, Hashable, Codable, Sendable {
         title: String,
         section: String,
         status: ImportTrackStatus,
-        message: String = ""
+        message: String = "",
+        album: String = "",
+        catalogURL: String = ""
     ) {
         self.id = id
         self.artist = artist
@@ -42,11 +105,30 @@ public struct ImportTrackOutcome: Identifiable, Hashable, Codable, Sendable {
         self.section = section
         self.status = status
         self.message = message
+        self.album = album
+        self.catalogURL = catalogURL
+    }
+
+    public var displayLabel: String {
+        let artist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if artist.isEmpty { return title }
+        if title.isEmpty { return artist }
+        return "\(title) — \(artist)"
+    }
+
+    public var searchLine: String {
+        let artist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if artist.isEmpty { return title }
+        if title.isEmpty { return artist }
+        return "\(artist) \(title)"
     }
 }
 
 public struct ImportProgressSnapshot: Equatable, Sendable {
     public static let maxVisibleDiagnostics = 8
+    public static let maxVisibleActivities = 12
 
     public var phase: ImportPhase
     public var playlistName: String
@@ -59,6 +141,7 @@ public struct ImportProgressSnapshot: Equatable, Sendable {
     public var notFoundCount: Int
     public var errorCount: Int
     public var diagnostics: [String]
+    public var activities: [ImportTrackActivity]
     public var cancellationNote: String
     public var lastActivityAt: Date
 
@@ -74,6 +157,7 @@ public struct ImportProgressSnapshot: Equatable, Sendable {
         notFoundCount: Int = 0,
         errorCount: Int = 0,
         diagnostics: [String] = [],
+        activities: [ImportTrackActivity] = [],
         cancellationNote: String = "Annulation prévue — l'import en cours ne peut pas être interrompu proprement.",
         lastActivityAt: Date = .now
     ) {
@@ -88,6 +172,7 @@ public struct ImportProgressSnapshot: Equatable, Sendable {
         self.notFoundCount = notFoundCount
         self.errorCount = errorCount
         self.diagnostics = diagnostics
+        self.activities = activities
         self.cancellationNote = cancellationNote
         self.lastActivityAt = lastActivityAt
     }
@@ -108,19 +193,33 @@ public struct ManualAcquisitionPrompt: Equatable, Sendable {
     public var title: String
     public var instructions: String
     public var catalogLabel: String
+    public var album: String
+    public var catalogURL: String
 
     public init(
         token: String,
         artist: String,
         title: String,
         instructions: String,
-        catalogLabel: String = ""
+        catalogLabel: String = "",
+        album: String = "",
+        catalogURL: String = ""
     ) {
         self.token = token
         self.artist = artist
         self.title = title
         self.instructions = instructions
         self.catalogLabel = catalogLabel
+        self.album = album
+        self.catalogURL = catalogURL
+    }
+
+    public var searchLine: String {
+        let artist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if artist.isEmpty { return title }
+        if title.isEmpty { return artist }
+        return "\(artist) — \(title)"
     }
 }
 
@@ -170,9 +269,16 @@ public protocol PlaylistImportServing: Sendable {
     ) async throws -> ImportResultState
 
     func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState
+
+    func probeManualAcquisition(importSessionID: String) async throws -> Bool
 }
 
 public extension PlaylistImportServing {
+    func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+        _ = importSessionID
+        return false
+    }
+
     func continueManualAcquisition(
         importSessionID: String,
         onEvent: @escaping @Sendable (BridgeEventMessage) -> Void

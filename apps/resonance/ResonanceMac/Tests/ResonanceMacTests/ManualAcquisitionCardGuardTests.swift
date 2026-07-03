@@ -9,7 +9,7 @@ final class ManualAcquisitionCardGuardTests: XCTestCase {
         XCTAssertTrue(source.contains("ManualAcquisitionCard"))
         XCTAssertTrue(source.contains("ClipboardSupport.copy"))
         XCTAssertTrue(source.contains("Copier recherche"))
-        XCTAssertTrue(source.contains("Ouvrir Music.app"))
+        XCTAssertTrue(source.contains("Ouvrir dans Music"))
         XCTAssertTrue(source.contains("textSelection(.enabled)"))
     }
 

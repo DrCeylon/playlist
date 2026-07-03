@@ -5,6 +5,7 @@ import SwiftUI
 struct ImportProgressView: View {
     let progress: ImportProgressSnapshot
     let manualPrompt: ManualAcquisitionPrompt?
+    let manualPollStatus: String
     let architectErrorDetail: String?
     let onConfirmManual: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
@@ -20,10 +21,15 @@ struct ImportProgressView: View {
 
                 progressHeader(palette: palette)
 
+                if !progress.activities.isEmpty {
+                    activityFeed(palette: palette)
+                }
+
                 if let manualPrompt {
                     ManualAcquisitionCard(
                         prompt: manualPrompt,
                         trackPositionLabel: trackPositionLabel,
+                        pollStatus: manualPollStatus,
                         palette: palette,
                         onConfirmManual: onConfirmManual
                     )
@@ -34,10 +40,11 @@ struct ImportProgressView: View {
                 }
 
                 if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
-                    Text(architectErrorDetail)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(palette.textTertiary)
-                        .textSelection(.enabled)
+                    SelectableText(
+                        text: architectErrorDetail,
+                        font: .caption2.monospaced(),
+                        foreground: palette.textTertiary
+                    )
                 }
             }
             .padding(24)
@@ -61,29 +68,61 @@ struct ImportProgressView: View {
             }
 
             if !progress.currentStep.isEmpty {
-                Text(progress.currentStep)
-                    .font(.headline)
-                    .foregroundStyle(palette.textPrimary)
+                SelectableText(
+                    text: progress.currentStep,
+                    font: .headline,
+                    foreground: palette.textPrimary
+                )
             } else {
-                Text(phaseLabel(progress.phase))
-                    .font(.headline)
-                    .foregroundStyle(palette.textPrimary)
+                SelectableText(
+                    text: phaseLabel(progress.phase),
+                    font: .headline,
+                    foreground: palette.textPrimary
+                )
             }
 
             if !progress.currentTrackLabel.isEmpty {
-                Text(progress.currentTrackLabel)
-                    .font(.callout)
-                    .foregroundStyle(palette.textSecondary)
-                    .textSelection(.enabled)
+                SelectableText(
+                    text: progress.currentTrackLabel,
+                    font: .callout,
+                    foreground: palette.textSecondary
+                )
             }
 
-            metricsRow(palette: palette)
+            ImportMetricsRow(
+                resolved: progress.totalTracks > 0 ? progress.processedTracks : nil,
+                resolvedTotal: progress.totalTracks > 0 ? progress.totalTracks : nil,
+                added: progress.addedCount,
+                skipped: progress.skippedCount,
+                notFound: progress.notFoundCount,
+                errors: progress.errorCount,
+                palette: palette
+            )
 
             if manualPrompt == nil {
-                Text(progress.cancellationNote)
-                    .font(.caption)
-                    .foregroundStyle(palette.textTertiary)
+                SelectableText(
+                    text: progress.cancellationNote,
+                    font: .caption,
+                    foreground: palette.textTertiary
+                )
             }
+        }
+    }
+
+    @ViewBuilder
+    private func activityFeed(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Progression morceau par morceau")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(progress.activities) { activity in
+                    ImportTrackActivityRow(activity: activity, palette: palette)
+                }
+            }
+            .padding(12)
+            .background(palette.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 
@@ -102,40 +141,6 @@ struct ImportProgressView: View {
     }
 
     @ViewBuilder
-    private func metricsRow(palette: ThemePalette) -> some View {
-        HStack(spacing: 10) {
-            metricChip("Résolus", value: progress.resolvedCount, total: progress.totalTracks, palette: palette)
-            metricChip("Ajoutés", value: progress.addedCount, palette: palette)
-            metricChip("Introuv.", value: progress.notFoundCount, palette: palette)
-            metricChip("Erreurs", value: progress.errorCount, palette: palette)
-        }
-    }
-
-    private func metricChip(
-        _ title: String,
-        value: Int,
-        total: Int? = nil,
-        palette: ThemePalette
-    ) -> some View {
-        VStack(spacing: 2) {
-            if let total {
-                Text("\(value)/\(max(total, 1))")
-                    .font(.caption.monospacedDigit().weight(.semibold))
-            } else {
-                Text("\(value)")
-                    .font(.caption.monospacedDigit().weight(.semibold))
-            }
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(palette.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(palette.backgroundSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-
-    @ViewBuilder
     private func diagnosticsSection(palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Dernières étapes")
@@ -143,11 +148,12 @@ struct ImportProgressView: View {
                 .foregroundStyle(palette.textSecondary)
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(progress.diagnostics, id: \.self) { line in
-                    Text(line)
-                        .font(.caption)
-                        .foregroundStyle(palette.textTertiary)
-                        .textSelection(.enabled)
-                        .lineLimit(2)
+                    SelectableText(
+                        text: line,
+                        font: .caption,
+                        foreground: palette.textTertiary,
+                        lineLimit: 2
+                    )
                 }
             }
         }

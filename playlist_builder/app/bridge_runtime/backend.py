@@ -58,6 +58,71 @@ class RuntimeEngineBridgeBackend:
         return AutocompleteSearchResult(response=response)
 
     def continue_manual_acquisition(self, params: dict) -> dict[str, object]:
+        final = self._continue_manual_acquisition_result(params)
+        return {"acknowledged": True, "import": final.to_dict()["import"]}
+
+    def continue_manual_acquisition_stream(
+        self,
+        params: dict,
+    ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
+        session_id = str(params.get("import_session_id", "")).strip()
+        if not session_id:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "import_session_id est requis.")
+        checkpoint = self._session_store.load(session_id)
+        if checkpoint is None:
+            raise BridgeError(
+                BridgeErrorCode.MANUAL_ACTION_REQUIRED,
+                "Session d'import introuvable ou expirée.",
+            )
+        for item in stream_import_playlist(
+            self._context,
+            checkpoint.playlist,
+            checkpoint.request_id,
+            sync=checkpoint.sync,
+            write_json_diagnostics=checkpoint.write_json_diagnostics,
+            session_store=self._session_store,
+            checkpoint=checkpoint,
+        ):
+            yield item
+
+    def probe_manual_acquisition(self, params: dict) -> dict[str, object]:
+        session_id = str(params.get("import_session_id", "")).strip()
+        if not session_id:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "import_session_id est requis.")
+        checkpoint = self._session_store.load(session_id)
+        if checkpoint is None:
+            raise BridgeError(
+                BridgeErrorCode.MANUAL_ACTION_REQUIRED,
+                "Session d'import introuvable ou expirée.",
+            )
+        if sys.platform != "darwin":
+            return {"found": False, "message": "Disponible uniquement sur macOS."}
+
+        apple_gateway = self._context.registry.get(ProviderId.APPLE_MUSIC)
+        if apple_gateway is None:
+            return {"found": False, "message": "Apple Music indisponible."}
+
+        from playlist_builder.canonical.compat import canonical_playlist_from_legacy
+
+        canonical = canonical_playlist_from_legacy(checkpoint.playlist)
+        rows = []
+        for section in canonical.sections:
+            for track in section.tracks:
+                rows.append((track, section.name))
+        if checkpoint.next_index >= len(rows):
+            return {"found": False, "message": "Aucun morceau en attente."}
+
+        track, section_name = rows[checkpoint.next_index]
+        resolver = apple_gateway.import_service.resolver
+        found = resolver.probe_library_presence(track, section=section_name)
+        message = (
+            "Morceau détecté dans la bibliothèque Music.app."
+            if found
+            else "Morceau pas encore visible dans la bibliothèque."
+        )
+        return {"found": found, "message": message}
+
+    def _continue_manual_acquisition_result(self, params: dict) -> ImportPlaylistResult:
         session_id = str(params.get("import_session_id", "")).strip()
         if not session_id:
             raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "import_session_id est requis.")
@@ -81,7 +146,7 @@ class RuntimeEngineBridgeBackend:
                 final = item
         if final is None:
             raise BridgeError(BridgeErrorCode.ENGINE_ERROR, "Reprise d'import sans résultat.")
-        return {"acknowledged": True, "import": final.to_dict()["import"]}
+        return final
 
     def list_providers(self) -> ListProvidersResult:
         providers: list[ProviderOption] = []
