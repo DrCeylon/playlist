@@ -31,6 +31,47 @@ class AppleMusicDelivery:
         self._applescript.ensure_running()
         self._applescript.ensure_playlist(name)
 
+    def add_resolved_track(
+        self,
+        playlist_name: str,
+        outcome: AppleMusicResolutionOutcome,
+        *,
+        section_name: str,
+        existing_keys: set[str] | None = None,
+    ) -> CanonicalImportResult:
+        known_keys = set(existing_keys or ())
+        if outcome.status != AppleMusicResolutionStatus.RESOLVED:
+            return _result_from_outcome(outcome, section_name)
+        track_key = outcome.track.identity_key
+        if track_key in known_keys:
+            return CanonicalImportResult(
+                track=outcome.track,
+                status=ImportStatus.SKIPPED,
+                section_name=section_name,
+            )
+        statuses = self._add_batch_with_retry(playlist_name, [(0, outcome, section_name)])
+        status = statuses[0]
+        if status.startswith("added"):
+            return CanonicalImportResult(
+                track=outcome.track,
+                status=ImportStatus.ADDED,
+                section_name=section_name,
+            )
+        if status.startswith("not_found"):
+            return CanonicalImportResult(
+                track=outcome.track,
+                status=ImportStatus.NOT_FOUND,
+                section_name=section_name,
+                error="Apple Music library track introuvable pour le persistent ID résolu.",
+            )
+        _, _, detail = _parse_delivery_status(status)
+        return CanonicalImportResult(
+            track=outcome.track,
+            status=ImportStatus.ERROR,
+            section_name=section_name,
+            error=detail or "Erreur AppleScript lors de l'ajout.",
+        )
+
     def sync_playlist(
         self,
         playlist: CanonicalPlaylist,

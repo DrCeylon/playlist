@@ -59,6 +59,16 @@ struct ImportProgressView: View {
                 .tint(palette.accentPrimary)
                 .animation(.easeInOut(duration: 0.25), value: progress.progressRatio)
 
+            Text(progress.phaseLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+
+            if !progress.remainingTracksLabel.isEmpty {
+                Text(progress.remainingTracksLabel)
+                    .font(.caption)
+                    .foregroundStyle(palette.textTertiary)
+            }
+
             HStack(spacing: 8) {
                 ProgressView()
                     .controlSize(.small)

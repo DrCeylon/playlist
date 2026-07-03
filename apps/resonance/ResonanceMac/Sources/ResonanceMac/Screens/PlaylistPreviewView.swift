@@ -24,6 +24,15 @@ struct PlaylistPreviewView: View {
                     Text(previewSourceLabel)
                         .font(.caption)
                         .foregroundStyle(palette.textTertiary)
+                    if result.isShort, !result.shortfallMessage.isEmpty {
+                        Text(result.shortfallMessage)
+                            .font(.callout)
+                            .foregroundStyle(palette.statusWarning)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(palette.statusWarning.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
                 }
 
                 ForEach(result.sections) { section in

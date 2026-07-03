@@ -49,8 +49,7 @@ struct HistoryView: View {
                 .buttonStyle(.bordered)
                 .disabled(viewModel.isBusy)
             Button("Rafraîchir") { Task { await viewModel.refresh() } }
-                .buttonStyle(.borderedProminent)
-                .tint(palette.accentPrimary)
+                .buttonStyle(.bordered)
                 .disabled(viewModel.isBusy)
         }
     }

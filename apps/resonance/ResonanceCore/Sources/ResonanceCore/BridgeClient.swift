@@ -444,7 +444,9 @@ public enum BridgePayloadBuilder {
             sections: sections,
             averageScore: averageScore,
             providerID: providerID,
-            historySessionID: payload["history_session_id"]?.stringValue ?? ""
+            historySessionID: payload["history_session_id"]?.stringValue ?? "",
+            targetTrackCount: generation["target_track_count"]?.intValue,
+            shortfallMessage: generation["shortfall_message"]?.stringValue ?? ""
         )
     }
 

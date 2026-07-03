@@ -56,7 +56,7 @@ struct SessionDetailView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(palette.textSecondary)
             Text("Requête : \(detail.generationRequest.isEmpty ? "indisponible" : "enregistrée")")
-            Text("Preview : \(detail.generationResult.isEmpty ? "indisponible" : "enregistrée")")
+                Text("Aperçu : \(detail.generationResult.isEmpty ? "indisponible" : "enregistré")")
             Text("Import : \(detail.importResult.isEmpty ? "non exécuté" : "rapport enregistré")")
             if !detail.summary.jsonReportPath.isEmpty {
                 Text("Rapport JSON : \(detail.summary.jsonReportPath)")

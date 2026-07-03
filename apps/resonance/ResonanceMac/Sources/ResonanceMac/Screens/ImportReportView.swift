@@ -4,8 +4,15 @@ import SwiftUI
 
 struct ImportReportView: View {
     let report: ImportResultState
+    let onRetryTrack: ((Int) -> Void)?
     let onClose: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
+
+    init(report: ImportResultState, onRetryTrack: ((Int) -> Void)? = nil, onClose: @escaping () -> Void) {
+        self.report = report
+        self.onRetryTrack = onRetryTrack
+        self.onClose = onClose
+    }
 
     var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
@@ -37,8 +44,12 @@ struct ImportReportView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Détail")
                             .font(.headline)
-                        ForEach(report.outcomes) { outcome in
-                            ImportOutcomeRow(outcome: outcome, palette: palette)
+                        ForEach(Array(report.outcomes.enumerated()), id: \.element.id) { index, outcome in
+                            ImportOutcomeRow(
+                                outcome: outcome,
+                                palette: palette,
+                                onRetry: canRetry(outcome) ? { onRetryTrack?(index) } : nil
+                            )
                         }
                     }
                 }
@@ -49,6 +60,8 @@ struct ImportReportView: View {
                     }
                     .buttonStyle(.bordered)
 
+                    Spacer()
+
                     Button("Fermer", action: onClose)
                         .buttonStyle(.borderedProminent)
                         .tint(palette.accentPrimary)
@@ -56,5 +69,9 @@ struct ImportReportView: View {
             }
             .padding(24)
         }
+    }
+
+    private func canRetry(_ outcome: ImportTrackOutcome) -> Bool {
+        onRetryTrack != nil && (outcome.status == .notFound || outcome.status == .error)
     }
 }

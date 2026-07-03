@@ -45,7 +45,7 @@ final class HistoryViewModel: ObservableObject {
     }
 
     var reimportActionDescription: String {
-        "Recrée la playlist dans Apple Music à partir de la preview enregistrée (mêmes morceaux/sections)."
+        "Recrée la playlist dans Apple Music à partir de l'aperçu enregistré (mêmes morceaux/sections)."
     }
 
     var exportActionDescription: String {
@@ -71,7 +71,7 @@ final class HistoryViewModel: ObservableObject {
     var reimportDisabledReason: String? {
         guard selectedDetail != nil else { return "Sélectionne une session." }
         if canReimportSelectedSession { return nil }
-        return "Preview indisponible — réimport impossible pour cette session."
+        return "Aperçu indisponible — réimport impossible pour cette session."
     }
 
     func refresh() async {

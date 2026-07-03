@@ -65,7 +65,7 @@ public enum PlaylistGenerationValidator {
         return ValidationResult(errors: [
             ValidationError(
                 field: "seeds",
-                message: "Au moins une graine (artiste/morceau) ou un mot-clé est requis."
+                message: "Au moins une inspiration (artiste/morceau) ou un mot-clé est requis."
             ),
         ])
     }

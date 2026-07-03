@@ -22,7 +22,7 @@ struct HomeView: View {
                     }
 
                     card(title: "Par où commencer", palette: palette) {
-                        Text("Ouvre Nouvelle Playlist, saisis un nom et une graine musicale, puis génère et importe dans Apple Music.")
+                        Text("Ouvre Nouvelle Playlist, saisis un nom et une inspiration musicale, puis génère et importe dans Apple Music.")
                             .font(.callout)
                             .foregroundStyle(palette.textSecondary)
                     }

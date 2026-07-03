@@ -21,16 +21,46 @@ final class ImportViewModel: ObservableObject {
     private let service: any PlaylistImportServing
     private var importSessionID: String?
     private var manualPollTask: Task<Void, Never>?
+    private var importedGeneration: PlaylistGenerationResult?
 
     init(service: any PlaylistImportServing = MockPlaylistImportService()) {
         self.service = service
     }
 
     func importPlaylist(_ generationResult: PlaylistGenerationResult) async {
+        importedGeneration = generationResult
         beginImport(playlistName: generationResult.playlistName, totalTracks: generationResult.trackCount)
 
         do {
             let result = try await service.importPlaylist(generationResult, onEvent: importEventHandler)
+            await flushPendingImportEvents()
+            finishImport(with: result)
+        } catch let error as PlaylistImportError {
+            failImport(error)
+        } catch {
+            failImport(error)
+        }
+    }
+
+    func retryImportTrack(at index: Int) async {
+        guard let importedGeneration else {
+            screenState = .failed("Impossible de réessayer : playlist source introuvable.")
+            return
+        }
+        beginImport(playlistName: importedGeneration.playlistName, totalTracks: 1)
+        mutateProgress { snapshot in
+            snapshot.currentStep = "Nouvelle tentative pour un morceau…"
+            snapshot.totalTracks = importedGeneration.trackCount
+        }
+        screenState = .importing
+
+        do {
+            let result = try await service.retryImportTracks(
+                importedGeneration,
+                trackIndices: [index],
+                onEvent: importEventHandler
+            )
+            await flushPendingImportEvents()
             finishImport(with: result)
         } catch let error as PlaylistImportError {
             failImport(error)
@@ -70,8 +100,9 @@ final class ImportViewModel: ObservableObject {
         progress = ImportProgressSnapshot()
         manualPrompt = nil
         manualPollStatus = ""
-        report = nil
         importSessionID = nil
+        report = nil
+        importedGeneration = nil
         architectErrorDetail = nil
     }
 
@@ -358,7 +389,7 @@ final class ImportViewModel: ObservableObject {
         switch phase {
         case .resolving: return "Résolution des morceaux dans Apple Music…"
         case .acquiring: return "Acquisition catalogue…"
-        case .delivering: return "Ajout à la playlist Apple Music…"
+        case .delivering: return "Synchronisation avec Music.app…"
         case .waitingForManualAcquisition: return "En attente d'ajout manuel"
         default: return "Import en cours…"
         }

@@ -119,6 +119,28 @@ class JsonRpcEngineBridge(EngineBridge):
             yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
             return
 
+        if request.command == BridgeCommand.RETRY_IMPORT_TRACKS:
+            if self.backend is None or not hasattr(self.backend, "retry_import_tracks_stream"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de réessai d'import non configuré.")
+            yield started_event(request.id, command=request.command.value).to_dict()
+            final_result: ImportPlaylistResult | None = None
+            playlist = _playlist_from_params(request.params)
+            track_indices = [int(value) for value in request.params.get("track_indices", [])]
+            for item in self.backend.retry_import_tracks_stream(
+                playlist,
+                track_indices=track_indices,
+                request_id=request.id,
+            ):
+                if isinstance(item, BridgeEvent):
+                    yield item.to_dict()
+                else:
+                    final_result = item
+            if final_result is None:
+                raise BridgeError(BridgeErrorCode.ENGINE_ERROR, "Réessai terminé sans résultat.")
+            yield completed_event(request.id, summary=final_result.to_dict()).to_dict()
+            yield BridgeResponse(id=request.id, ok=True, result=final_result.to_dict()).to_dict()
+            return
+
         if request.command == BridgeCommand.DIAGNOSTICS:
             result = self._diagnostics()
             yield BridgeResponse(id=request.id, ok=True, result=result.to_dict()).to_dict()

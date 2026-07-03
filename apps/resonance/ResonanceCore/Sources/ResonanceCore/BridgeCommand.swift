@@ -15,6 +15,7 @@ public enum BridgeCommand: String, Codable, Sendable {
     case exportHistorySession = "export_history_session"
     case autocompleteSearch = "autocomplete_search"
     case probeManualAcquisition = "probe_manual_acquisition"
+    case retryImportTracks = "retry_import_tracks"
 }
 
 public enum BridgeEventType: String, Codable, Sendable {

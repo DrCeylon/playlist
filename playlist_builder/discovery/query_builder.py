@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from playlist_builder.discovery.fulfillment import max_discovery_queries_for
 from playlist_builder.discovery.models import DiscoveryQuery
 from playlist_builder.planning.models import ConstraintKind, PlaylistRequest
-
-MAX_DISCOVERY_QUERIES = 12
 
 
 def build_discovery_queries(request: PlaylistRequest) -> list[DiscoveryQuery]:
     """Translate PlaylistRequest into catalog/search queries."""
 
     request.validate()
+    query_limit = max_discovery_queries_for(request)
     queries: list[DiscoveryQuery] = []
 
     for seed in request.seeds:
@@ -37,7 +37,7 @@ def build_discovery_queries(request: PlaylistRequest) -> list[DiscoveryQuery]:
             )
 
     deduped = _dedupe_queries(queries)
-    return _limit_queries(deduped)
+    return _limit_queries(deduped, query_limit)
 
 
 def _dedupe_queries(queries: list[DiscoveryQuery]) -> list[DiscoveryQuery]:
@@ -52,7 +52,7 @@ def _dedupe_queries(queries: list[DiscoveryQuery]) -> list[DiscoveryQuery]:
     return list(by_term.values())
 
 
-def _limit_queries(queries: list[DiscoveryQuery]) -> list[DiscoveryQuery]:
-    if len(queries) <= MAX_DISCOVERY_QUERIES:
+def _limit_queries(queries: list[DiscoveryQuery], limit: int) -> list[DiscoveryQuery]:
+    if len(queries) <= limit:
         return queries
-    return sorted(queries, key=lambda query: query.weight, reverse=True)[:MAX_DISCOVERY_QUERIES]
+    return sorted(queries, key=lambda query: query.weight, reverse=True)[:limit]

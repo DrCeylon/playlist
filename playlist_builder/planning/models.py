@@ -160,7 +160,19 @@ class GeneratedPlaylist:
     candidates: tuple[CandidateTrack, ...]
     rejected: tuple[CandidateTrack, ...] = ()
     suggestions: tuple[CandidateTrack, ...] = ()
+    shortfall_message: str = ""
+    discovery_passes: int = 1
 
     @property
     def tracks(self) -> list[TrackRef]:
         return [candidate.track for candidate in self.candidates]
+
+    @property
+    def target_track_count(self) -> int:
+        from playlist_builder.planning.planner import PlaylistPlanner
+
+        return PlaylistPlanner._target_count(self.request)
+
+    @property
+    def is_short(self) -> bool:
+        return len(self.candidates) < self.target_track_count

@@ -22,6 +22,8 @@ from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionInt
 from playlist_builder.app.bridge_runtime.mapping import track_add_results_to_import_state
 from playlist_builder.ui.shared.dto.enums import ImportPhase, ImportTrackStatus
 
+RESOLVE_BATCH_SIZE = 5
+
 
 def _track_key(index: int, artist: str, title: str) -> str:
     return f"{index}:{artist.strip().casefold()}:{title.strip().casefold()}"
@@ -158,210 +160,236 @@ def stream_import_playlist(
     skipped_count = 0
     not_found_count = 0
     error_count = 0
-    for index in range(total):
-        track, section_name = rows[index]
-        artist_name = track.artist.display_name
-        title_name = track.title
-        label = f"{artist_name} — {title_name}"
-        if checkpoint is not None and index < start_index:
-            outcomes.append((resolver.resolve(track, section=section_name), section_name))
-            continue
-        yield _emit_track_progress(
-            request_id,
-            track_index=index,
-            total_tracks=total,
-            artist=artist_name,
-            title=title_name,
-            section=section_name,
-            step="searching",
-            status=ImportTrackStatus.PENDING.value,
-            message="Recherche…",
-            added_count=added_count,
-            skipped_count=skipped_count,
-            not_found_count=not_found_count,
-            error_count=error_count,
-        )
-        yield progress_event(
-            request_id,
-            phase=ImportPhase.RESOLVING.value,
-            processed_tracks=index,
-            total_tracks=total,
-            current_track_label=label,
-            import_session_id=session_id,
-            added_count=added_count,
-            skipped_count=skipped_count,
-            not_found_count=not_found_count,
-            error_count=error_count,
-        )
-        yield _emit_track_progress(
-            request_id,
-            track_index=index,
-            total_tracks=total,
-            artist=artist_name,
-            title=title_name,
-            section=section_name,
-            step="resolving",
-            status=ImportTrackStatus.PENDING.value,
-            message="Résolution…",
-            added_count=added_count,
-            skipped_count=skipped_count,
-            not_found_count=not_found_count,
-            error_count=error_count,
-        )
-        yield diagnostic_event(
-            request_id,
-            phase="resolve",
-            message=f"Résolution du morceau : {label}",
-        )
-        _import_log(f"resolve {index + 1}/{total}: {label}")
-        try:
-            outcome = resolver.resolve(track, section=section_name)
-        except ManualAcquisitionInterrupted as pause:
-            session_store.save(
-                ImportSessionCheckpoint(
-                    session_id=session_id,
-                    playlist=playlist,
-                    next_index=index,
-                    request_id=request_id,
-                    sync=sync,
-                    write_json_diagnostics=write_json_diagnostics,
+    index = start_index
+    while index < total:
+        batch_end = min(index + RESOLVE_BATCH_SIZE, total)
+        batch_rows = rows[index:batch_end]
+        batch_inputs: list[tuple[int, object, str]] = []
+        for offset, (track, section_name) in enumerate(batch_rows):
+            track_index = index + offset
+            if checkpoint is not None and track_index < start_index:
+                outcomes.append((resolver.resolve(track, section=section_name), section_name))
+                continue
+            batch_inputs.append((track_index, track, section_name))
+
+        if batch_inputs:
+            for track_index, track, section_name in batch_inputs:
+                artist_name = track.artist.display_name
+                title_name = track.title
+                yield _emit_track_progress(
+                    request_id,
+                    track_index=track_index,
+                    total_tracks=total,
+                    artist=artist_name,
+                    title=title_name,
+                    section=section_name,
+                    step="searching",
+                    status=ImportTrackStatus.PENDING.value,
+                    message="Recherche…",
+                    added_count=added_count,
+                    skipped_count=skipped_count,
+                    not_found_count=not_found_count,
+                    error_count=error_count,
                 )
-            )
-            yield manual_acquisition_required_event(
-                request_id,
-                token=pause.token,
-                artist=pause.artist,
-                title=pause.title,
-                instructions=pause.instructions,
-                catalog_label=pause.catalog_label,
-                catalog_url=pause.catalog_url,
-                album=pause.album,
-                import_session_id=session_id,
-            )
-            yield _emit_track_progress(
-                request_id,
-                track_index=index,
-                total_tracks=total,
-                artist=pause.artist,
-                title=pause.title,
-                section=section_name,
-                step="acquiring",
-                status=ImportTrackStatus.ACQUIRING.value,
-                message="Acquisition manuelle requise",
-                album=pause.album,
-                catalog_url=pause.catalog_url,
-                added_count=added_count,
-                skipped_count=skipped_count,
-                not_found_count=not_found_count,
-                error_count=error_count,
-            )
-            from playlist_builder.ui.shared.dto.import_state import ImportResultState, ImportTrackOutcome
-            from playlist_builder.ui.shared.dto.enums import ImportTrackStatus
 
-            import_state = ImportResultState(
-                playlist_name=playlist.name,
-                outcomes=(
-                    ImportTrackOutcome(
-                        pause.artist,
-                        pause.title,
-                        section_name,
-                        ImportTrackStatus.ACQUIRING,
-                        pause.instructions,
+            try:
+                resolved_batch = resolver.resolve_batch(
+                    [(track, section_name) for _, track, section_name in batch_inputs]
+                )
+            except ManualAcquisitionInterrupted as pause:
+                track_index = next(
+                    (
+                        idx
+                        for idx, track, _section in batch_inputs
+                        if track.artist.display_name == pause.artist and track.title == pause.title
                     ),
-                ),
-                phase=ImportPhase.WAITING_FOR_MANUAL_ACQUISITION,
-            )
-            yield ImportPlaylistResult(import_result=import_state)
-            return
+                    batch_inputs[0][0],
+                )
+                _, _track, section_name = next(item for item in batch_inputs if item[0] == track_index)
+                session_store.save(
+                    ImportSessionCheckpoint(
+                        session_id=session_id,
+                        playlist=playlist,
+                        next_index=track_index,
+                        request_id=request_id,
+                        sync=sync,
+                        write_json_diagnostics=write_json_diagnostics,
+                    )
+                )
+                yield manual_acquisition_required_event(
+                    request_id,
+                    token=pause.token,
+                    artist=pause.artist,
+                    title=pause.title,
+                    instructions=pause.instructions,
+                    catalog_label=pause.catalog_label,
+                    catalog_url=pause.catalog_url,
+                    album=pause.album,
+                    import_session_id=session_id,
+                )
+                yield _emit_track_progress(
+                    request_id,
+                    track_index=track_index,
+                    total_tracks=total,
+                    artist=pause.artist,
+                    title=pause.title,
+                    section=section_name,
+                    step="acquiring",
+                    status=ImportTrackStatus.ACQUIRING.value,
+                    message="Acquisition manuelle requise",
+                    album=pause.album,
+                    catalog_url=pause.catalog_url,
+                    added_count=added_count,
+                    skipped_count=skipped_count,
+                    not_found_count=not_found_count,
+                    error_count=error_count,
+                )
+                from playlist_builder.ui.shared.dto.import_state import ImportResultState, ImportTrackOutcome
 
-        track_status = ImportTrackStatus.PENDING
-        track_message = "Résolu"
-        if outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
-            not_found_count += 1
-            track_status = ImportTrackStatus.NOT_FOUND
-            track_message = outcome.error or "Introuvable dans Apple Music"
-        elif outcome.status == AppleMusicResolutionStatus.ERROR:
-            error_count += 1
-            track_status = ImportTrackStatus.ERROR
-            track_message = outcome.error or "Erreur de résolution"
-        elif outcome.cache_hit:
-            track_message = "Trouvé (cache)"
-        elif outcome.catalog_acquired:
-            yield _emit_track_progress(
-                request_id,
-                track_index=index,
-                total_tracks=total,
-                artist=artist_name,
-                title=title_name,
-                section=section_name,
-                step="acquiring",
-                status=ImportTrackStatus.PENDING.value,
-                message="Acquisition catalogue…",
-                added_count=added_count,
-                skipped_count=skipped_count,
-                not_found_count=not_found_count,
-                error_count=error_count,
-            )
-            track_message = "Acquis depuis le catalogue"
+                import_state = ImportResultState(
+                    playlist_name=playlist.name,
+                    outcomes=(
+                        ImportTrackOutcome(
+                            pause.artist,
+                            pause.title,
+                            section_name,
+                            ImportTrackStatus.ACQUIRING,
+                            pause.instructions,
+                        ),
+                    ),
+                    phase=ImportPhase.WAITING_FOR_MANUAL_ACQUISITION,
+                )
+                yield ImportPlaylistResult(import_result=import_state)
+                return
 
-        yield _emit_track_progress(
-            request_id,
-            track_index=index,
-            total_tracks=total,
-            artist=artist_name,
-            title=title_name,
-            section=section_name,
-            step="completed",
-            status=track_status.value,
-            message=track_message,
-            added_count=added_count,
-            skipped_count=skipped_count,
-            not_found_count=not_found_count,
-            error_count=error_count,
-        )
+            for (track_index, track, section_name), outcome in zip(
+                batch_inputs, resolved_batch, strict=True
+            ):
+                artist_name = track.artist.display_name
+                title_name = track.title
+                label = f"{artist_name} — {title_name}"
+                yield progress_event(
+                    request_id,
+                    phase=ImportPhase.RESOLVING.value,
+                    processed_tracks=track_index,
+                    total_tracks=total,
+                    current_track_label=label,
+                    import_session_id=session_id,
+                    added_count=added_count,
+                    skipped_count=skipped_count,
+                    not_found_count=not_found_count,
+                    error_count=error_count,
+                )
+                yield _emit_track_progress(
+                    request_id,
+                    track_index=track_index,
+                    total_tracks=total,
+                    artist=artist_name,
+                    title=title_name,
+                    section=section_name,
+                    step="resolving",
+                    status=ImportTrackStatus.PENDING.value,
+                    message="Résolution…",
+                    added_count=added_count,
+                    skipped_count=skipped_count,
+                    not_found_count=not_found_count,
+                    error_count=error_count,
+                )
+                yield diagnostic_event(
+                    request_id,
+                    phase="resolve",
+                    message=f"Résolution du morceau : {label}",
+                )
+                _import_log(f"resolve {track_index + 1}/{total}: {label}")
 
-        if outcome.cache_hit:
-            yield diagnostic_event(
-                request_id,
-                phase="cache_hit",
-                message=f"Cache IdentityCache : {label}",
-                artist=artist_name,
-                title=title_name,
-            )
-        elif outcome.catalog_acquired:
-            yield diagnostic_event(
-                request_id,
-                phase="catalog_lookup",
-                message=f"Acquisition catalogue : {label}",
-                artist=artist_name,
-                title=title_name,
-            )
-        elif outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
-            yield diagnostic_event(
-                request_id,
-                phase="catalog_lookup",
-                message=outcome.error or f"Introuvable : {label}",
-                artist=artist_name,
-                title=title_name,
-            )
-        outcomes.append((outcome, section_name))
-        yield progress_event(
-            request_id,
-            phase=ImportPhase.RESOLVING.value,
-            processed_tracks=index + 1,
-            total_tracks=total,
-            current_track_label=label,
-            import_session_id=session_id,
-            added_count=added_count,
-            skipped_count=skipped_count,
-            not_found_count=not_found_count,
-            error_count=error_count,
-        )
+                track_status = ImportTrackStatus.PENDING
+                track_message = "Résolu"
+                if outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
+                    not_found_count += 1
+                    track_status = ImportTrackStatus.NOT_FOUND
+                    track_message = outcome.error or "Introuvable dans Apple Music"
+                elif outcome.status == AppleMusicResolutionStatus.ERROR:
+                    error_count += 1
+                    track_status = ImportTrackStatus.ERROR
+                    track_message = outcome.error or "Erreur de résolution"
+                elif outcome.cache_hit:
+                    track_message = "Trouvé (cache)"
+                elif outcome.catalog_acquired:
+                    yield _emit_track_progress(
+                        request_id,
+                        track_index=track_index,
+                        total_tracks=total,
+                        artist=artist_name,
+                        title=title_name,
+                        section=section_name,
+                        step="acquiring",
+                        status=ImportTrackStatus.PENDING.value,
+                        message="Acquisition catalogue…",
+                        added_count=added_count,
+                        skipped_count=skipped_count,
+                        not_found_count=not_found_count,
+                        error_count=error_count,
+                    )
+                    track_message = "Acquis depuis le catalogue"
+
+                yield _emit_track_progress(
+                    request_id,
+                    track_index=track_index,
+                    total_tracks=total,
+                    artist=artist_name,
+                    title=title_name,
+                    section=section_name,
+                    step="completed",
+                    status=track_status.value,
+                    message=track_message,
+                    added_count=added_count,
+                    skipped_count=skipped_count,
+                    not_found_count=not_found_count,
+                    error_count=error_count,
+                )
+                if outcome.cache_hit:
+                    yield diagnostic_event(
+                        request_id,
+                        phase="cache_hit",
+                        message=f"Cache IdentityCache : {label}",
+                        artist=artist_name,
+                        title=title_name,
+                    )
+                elif outcome.catalog_acquired:
+                    yield diagnostic_event(
+                        request_id,
+                        phase="catalog_lookup",
+                        message=f"Acquisition catalogue : {label}",
+                        artist=artist_name,
+                        title=title_name,
+                    )
+                elif outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
+                    yield diagnostic_event(
+                        request_id,
+                        phase="catalog_lookup",
+                        message=outcome.error or f"Introuvable : {label}",
+                        artist=artist_name,
+                        title=title_name,
+                    )
+                outcomes.append((outcome, section_name))
+                yield progress_event(
+                    request_id,
+                    phase=ImportPhase.RESOLVING.value,
+                    processed_tracks=track_index + 1,
+                    total_tracks=total,
+                    current_track_label=label,
+                    import_session_id=session_id,
+                    added_count=added_count,
+                    skipped_count=skipped_count,
+                    not_found_count=not_found_count,
+                    error_count=error_count,
+                )
+        index = batch_end
 
     yield progress_event(
         request_id,
         phase=ImportPhase.DELIVERING.value,
-        processed_tracks=total,
+        processed_tracks=0,
         total_tracks=total,
         playlist_name=playlist.name,
         import_session_id=session_id,

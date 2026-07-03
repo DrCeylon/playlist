@@ -70,7 +70,15 @@ class PlaylistGenerationResult:
     sections: tuple[GeneratedSectionPreview, ...] = ()
     average_score: float = 0.0
     provider_id: ProviderId = ProviderId.APPLE_MUSIC
+    target_track_count: int | None = None
+    shortfall_message: str = ""
 
     @property
     def track_count(self) -> int:
         return sum(len(section.tracks) for section in self.sections)
+
+    @property
+    def is_short(self) -> bool:
+        if self.target_track_count is None:
+            return False
+        return self.track_count < self.target_track_count

@@ -5,6 +5,7 @@ import SwiftUI
 struct ImportOutcomeRow: View {
     let outcome: ImportTrackOutcome
     let palette: ThemePalette
+    var onRetry: (() -> Void)?
     @State private var showsDetail = false
     @State private var copiedLabel: String?
 
@@ -52,6 +53,11 @@ struct ImportOutcomeRow: View {
                 if outcome.status == .acquiring || outcome.status == .notFound || outcome.status == .error {
                     actionButton("Ouvrir dans Music", systemImage: "music.note") {
                         openInMusic()
+                    }
+                }
+                if let onRetry {
+                    actionButton("Réessayer", systemImage: "arrow.clockwise") {
+                        onRetry()
                     }
                 }
                 if !outcome.message.isEmpty {

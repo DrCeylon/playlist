@@ -45,7 +45,9 @@ struct PlaylistBuilderView: View {
                 )
             case .report:
                 if let report = importViewModel.report {
-                    ImportReportView(report: report) {
+                    ImportReportView(report: report, onRetryTrack: { index in
+                        Task { await importViewModel.retryImportTrack(at: index) }
+                    }) {
                         importViewModel.reset()
                         viewModel.backToEditing()
                         syncDraftFromViewModel()
@@ -187,6 +189,7 @@ private struct PlaylistBuilderFormView: View {
                 )
                 ExclusionsSection(
                     viewModel: viewModel,
+                    smartInputEngines: smartInputEngines,
                     palette: palette,
                     isExpanded: $showExclusions,
                     onPushDraft: onPushDraft
@@ -291,7 +294,7 @@ private struct EssentialFieldsSection: View {
             NativeFormTextField(title: "Nom de la playlist", text: $draftName)
 
             SmartAutocompleteField(
-                title: "Artiste seed",
+                title: "Artiste d'inspiration",
                 placeholder: "Rechercher un artiste…",
                 engineHolder: smartInputEngines.artistHolder,
                 palette: palette,
@@ -313,7 +316,7 @@ private struct EssentialFieldsSection: View {
             )
 
             SmartAutocompleteField(
-                title: "Morceau seed",
+                title: "Morceau d'inspiration",
                 placeholder: "Rechercher un morceau…",
                 engineHolder: smartInputEngines.trackHolder,
                 palette: palette,
@@ -361,7 +364,7 @@ private struct AdvancedOptionsSection: View {
                 NativeFormTextField(title: "Durée cible (min)", text: $draftDuration)
                 EnergyProfilePicker(selection: $viewModel.energyProfile)
                 if let provider = viewModel.selectedProvider {
-                    LabeledContent("Provider", value: provider.displayName)
+                    LabeledContent("Source musicale", value: provider.displayName)
                 }
             }
             .padding(.top, 12)
@@ -385,13 +388,19 @@ private struct EnergyProfilePicker: View {
 
 private struct ExclusionsSection: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
+    @ObservedObject var smartInputEngines: SmartInputFormEngines
     let palette: ThemePalette
     @Binding var isExpanded: Bool
     let onPushDraft: () -> Void
 
     var body: some View {
         DisclosureGroup("Exclusions", isExpanded: $isExpanded) {
-            ExclusionsList(viewModel: viewModel, palette: palette, onPushDraft: onPushDraft)
+            ExclusionsList(
+                viewModel: viewModel,
+                smartInputEngines: smartInputEngines,
+                palette: palette,
+                onPushDraft: onPushDraft
+            )
                 .padding(.top, 12)
         }
         .font(.headline)
@@ -401,6 +410,7 @@ private struct ExclusionsSection: View {
 
 private struct ExclusionsList: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
+    @ObservedObject var smartInputEngines: SmartInputFormEngines
     let palette: ThemePalette
     let onPushDraft: () -> Void
 
@@ -413,6 +423,8 @@ private struct ExclusionsList: View {
                 ExclusionEditorRow(
                     rule: binding(for: rule),
                     palette: palette,
+                    autocompleteService: smartInputEngines.autocompleteService,
+                    seedArtistName: viewModel.seedArtist?.displayName ?? "",
                     onRemove: { viewModel.removeExclusion(rule) }
                 )
             }
@@ -452,7 +464,7 @@ private struct GenerateFooterSection: View {
                 Text("Génération")
                     .font(.headline)
                 if !canGenerateFromDrafts {
-                    Text("Complète le nom et une graine ou des mots-clés pour activer Générer.")
+                    Text("Complète le nom et une inspiration ou des mots-clés pour activer Générer.")
                         .font(.caption)
                         .foregroundStyle(palette.textTertiary)
                 }
@@ -460,6 +472,7 @@ private struct GenerateFooterSection: View {
             Spacer()
             GenerateButton(
                 viewModel: viewModel,
+                palette: palette,
                 canGenerateFromDrafts: canGenerateFromDrafts,
                 onCommitDraft: onCommitDraft,
                 onPushDraft: onPushDraft
@@ -470,6 +483,7 @@ private struct GenerateFooterSection: View {
 
 private struct GenerateButton: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
+    let palette: ThemePalette
     let canGenerateFromDrafts: Bool
     let onCommitDraft: () -> Void
     let onPushDraft: () -> Void
@@ -482,6 +496,8 @@ private struct GenerateButton: View {
         } label: {
             GenerateButtonLabel(isGenerating: viewModel.screenState == .generating)
         }
+        .buttonStyle(.borderedProminent)
+        .tint(palette.accentPrimary)
         .disabled(!canGenerateFromDrafts || viewModel.screenState == .generating)
     }
 }
@@ -550,6 +566,8 @@ private struct ImportFailureView: View {
 private struct ExclusionEditorRow: View {
     @Binding var rule: ExclusionRule
     let palette: ThemePalette
+    let autocompleteService: any AutocompleteServing
+    let seedArtistName: String
     let onRemove: () -> Void
 
     var body: some View {
@@ -567,8 +585,12 @@ private struct ExclusionEditorRow: View {
                 }
                 .buttonStyle(.borderless)
             }
-            AppKitTextField(placeholder: "Valeur", text: $rule.value)
-                .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+            ExclusionAutocompleteField(
+                rule: $rule,
+                palette: palette,
+                autocompleteService: autocompleteService,
+                seedArtistName: seedArtistName
+            )
         }
     }
 }
