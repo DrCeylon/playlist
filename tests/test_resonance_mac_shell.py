@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import platform
 import re
 import shutil
 import subprocess
@@ -57,6 +58,7 @@ SWIFT_UI_ROOTS = (
 HEX_COLOR_PATTERN = re.compile(r"#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?")
 
 SWIFT_AVAILABLE = shutil.which("swift") is not None
+DARWIN = platform.system() == "Darwin"
 
 
 def _file_hash(path: Path) -> str:
@@ -106,7 +108,7 @@ def test_swift_ui_views_have_no_hardcoded_hex_colors():
     assert offenders == []
 
 
-@pytest.mark.skipif(not SWIFT_AVAILABLE, reason="Swift toolchain not available")
+@pytest.mark.skipif(not SWIFT_AVAILABLE or not DARWIN, reason="Swift package build requires macOS")
 def test_swift_package_build_and_tests():
     result = subprocess.run(
         ["bash", str(RESONANCE_ROOT / "scripts" / "build.sh")],

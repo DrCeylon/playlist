@@ -79,15 +79,28 @@
 | `app/bridge_runtime/` | Runtime moteur ↔ bridge (Phase 4.6) |
 | `cli/engine_bridge.py` | Point d'entrée stdin/stdout pour Resonance |
 
-→ [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance)
+→ [Phase 4 — Interface Resonance](Phase-4-Interface-Resonance) · [Smart Input Framework](Smart-Input-Framework)
+
+### Smart Input (Phase 5.1)
+
+| Couche | Rôle |
+|--------|------|
+| `ResonanceCore/SmartInput/` | `AutocompleteEngine`, refs canoniques, cache, bridge contracts |
+| `playlist_builder/ui/shared/autocomplete/` | Registres genre/mot-clé locaux |
+| `playlist_builder/app/use_cases/autocomplete_search.py` | Use case + iTunes multi-résultats |
+| Bridge `autocomplete_search` | Commande JSON-lines provider-neutral |
+
+L'UI ne parle jamais à Apple Music directement — tout passe par le bridge.
+
+→ [Phase 5.1 — Smart Input](Phase-5-1-Smart-Input)
 
 ### App macOS `apps/resonance/`
 
 | Target Swift | Rôle |
 |--------------|------|
-| `ResonanceCore` | Miroir DTO + validation + contrats bridge |
+| `ResonanceCore` | Miroir DTO + validation + contrats bridge + **Smart Input** (`ArtistRef`, `TrackRef`, `AutocompleteEngine`) |
 | `ResonanceDesign` | `ThemeManager`, tokens JSON |
-| `ResonanceMac` | Shell SwiftUI (sidebar, Accueil, Paramètres, Builder) |
+| `ResonanceMac` | Shell SwiftUI — sidebar, Builder, import, historique, Smart Input UI |
 
 ```bash
 cd apps/resonance && ./scripts/build.sh && swift run ResonanceMac
@@ -127,8 +140,8 @@ Profils d'énergie : `chill`, `steady`, `rising`, `party`, `max_from_start`, `ra
 ## Tests
 
 ```bash
-python3 -m pytest -q                    # tout le repo (~270 tests)
-cd apps/resonance && ./scripts/build.sh  # Swift (macOS)
+python3 -m pytest -q                    # tout le repo (~318 tests)
+cd apps/resonance && ./scripts/build.sh  # Swift (macOS uniquement)
 ```
 
 Couverture :
