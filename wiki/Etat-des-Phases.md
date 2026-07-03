@@ -22,13 +22,13 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 
 | PR | Branche | Sujet | Statut |
 |----|---------|-------|--------|
-| [#35](https://github.com/DrCeylon/playlist/pull/35) | `cursor/track-autocomplete-artist-filter-ef21` | Filtre morceaux par artiste sélectionné | Brouillon |
 | [#36](https://github.com/DrCeylon/playlist/pull/36) | `cursor/phase-5-1-1-import-ux-ef21` | UX import Apple Music (progression live, Music deep links) | Brouillon |
 
 ## Récemment mergées
 
 | PR | Sujet | Merge |
 |----|-------|-------|
+| [#35](https://github.com/DrCeylon/playlist/pull/35) | Filtre autocomplete morceaux par artiste | Juillet 2026 |
 | [#34](https://github.com/DrCeylon/playlist/pull/34) | Icône Dock 1024×1024 transparente | Juillet 2026 |
 | [#37](https://github.com/DrCeylon/playlist/pull/37) | Maintenance dépôt post Phase 5.1 | Juillet 2026 |
 
