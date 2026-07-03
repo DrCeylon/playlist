@@ -10,11 +10,60 @@ from playlist_builder.integration.apple_music.resolver import AppleMusicResoluti
 from playlist_builder.integration.compat import track_results_aligned_with_playlist
 from playlist_builder.ui.bridge.commands import ImportPlaylistResult
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
-from playlist_builder.ui.bridge.events import BridgeEvent, diagnostic_event, manual_acquisition_required_event, progress_event
+from playlist_builder.ui.bridge.events import (
+    BridgeEvent,
+    diagnostic_event,
+    manual_acquisition_required_event,
+    progress_event,
+    track_progress_event,
+)
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionCheckpoint, ImportSessionStore, new_session_id
 from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionInterrupted
 from playlist_builder.app.bridge_runtime.mapping import track_add_results_to_import_state
-from playlist_builder.ui.shared.dto.enums import ImportPhase
+from playlist_builder.ui.shared.dto.enums import ImportPhase, ImportTrackStatus
+
+
+def _track_key(index: int, artist: str, title: str) -> str:
+    return f"{index}:{artist.strip().casefold()}:{title.strip().casefold()}"
+
+
+def _emit_track_progress(
+    request_id: str,
+    *,
+    track_index: int,
+    total_tracks: int,
+    artist: str,
+    title: str,
+    section: str,
+    step: str,
+    status: str,
+    message: str = "",
+    album: str = "",
+    catalog_url: str = "",
+    added_count: int = 0,
+    skipped_count: int = 0,
+    not_found_count: int = 0,
+    error_count: int = 0,
+) -> BridgeEvent:
+    return track_progress_event(
+        request_id,
+        track_key=_track_key(track_index, artist, title),
+        track_index=track_index,
+        total_tracks=total_tracks,
+        artist=artist,
+        title=title,
+        section=section,
+        step=step,
+        status=status,
+        message=message,
+        album=album,
+        catalog_url=catalog_url,
+        is_current=True,
+        added_count=added_count,
+        skipped_count=skipped_count,
+        not_found_count=not_found_count,
+        error_count=error_count,
+    )
 
 
 def _import_log(message: str) -> None:
@@ -105,12 +154,33 @@ def stream_import_playlist(
     )
 
     outcomes: list = []
+    added_count = 0
+    skipped_count = 0
+    not_found_count = 0
+    error_count = 0
     for index in range(total):
         track, section_name = rows[index]
-        label = f"{track.artist.display_name} — {track.title}"
+        artist_name = track.artist.display_name
+        title_name = track.title
+        label = f"{artist_name} — {title_name}"
         if checkpoint is not None and index < start_index:
             outcomes.append((resolver.resolve(track, section=section_name), section_name))
             continue
+        yield _emit_track_progress(
+            request_id,
+            track_index=index,
+            total_tracks=total,
+            artist=artist_name,
+            title=title_name,
+            section=section_name,
+            step="searching",
+            status=ImportTrackStatus.PENDING.value,
+            message="Recherche…",
+            added_count=added_count,
+            skipped_count=skipped_count,
+            not_found_count=not_found_count,
+            error_count=error_count,
+        )
         yield progress_event(
             request_id,
             phase=ImportPhase.RESOLVING.value,
@@ -118,6 +188,25 @@ def stream_import_playlist(
             total_tracks=total,
             current_track_label=label,
             import_session_id=session_id,
+            added_count=added_count,
+            skipped_count=skipped_count,
+            not_found_count=not_found_count,
+            error_count=error_count,
+        )
+        yield _emit_track_progress(
+            request_id,
+            track_index=index,
+            total_tracks=total,
+            artist=artist_name,
+            title=title_name,
+            section=section_name,
+            step="resolving",
+            status=ImportTrackStatus.PENDING.value,
+            message="Résolution…",
+            added_count=added_count,
+            skipped_count=skipped_count,
+            not_found_count=not_found_count,
+            error_count=error_count,
         )
         yield diagnostic_event(
             request_id,
@@ -145,7 +234,26 @@ def stream_import_playlist(
                 title=pause.title,
                 instructions=pause.instructions,
                 catalog_label=pause.catalog_label,
+                catalog_url=pause.catalog_url,
+                album=pause.album,
                 import_session_id=session_id,
+            )
+            yield _emit_track_progress(
+                request_id,
+                track_index=index,
+                total_tracks=total,
+                artist=pause.artist,
+                title=pause.title,
+                section=section_name,
+                step="acquiring",
+                status=ImportTrackStatus.ACQUIRING.value,
+                message="Acquisition manuelle requise",
+                album=pause.album,
+                catalog_url=pause.catalog_url,
+                added_count=added_count,
+                skipped_count=skipped_count,
+                not_found_count=not_found_count,
+                error_count=error_count,
             )
             from playlist_builder.ui.shared.dto.import_state import ImportResultState, ImportTrackOutcome
             from playlist_builder.ui.shared.dto.enums import ImportTrackStatus
@@ -166,31 +274,89 @@ def stream_import_playlist(
             yield ImportPlaylistResult(import_result=import_state)
             return
 
+        track_status = ImportTrackStatus.PENDING
+        track_message = "Résolu"
+        if outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
+            not_found_count += 1
+            track_status = ImportTrackStatus.NOT_FOUND
+            track_message = outcome.error or "Introuvable dans Apple Music"
+        elif outcome.status == AppleMusicResolutionStatus.ERROR:
+            error_count += 1
+            track_status = ImportTrackStatus.ERROR
+            track_message = outcome.error or "Erreur de résolution"
+        elif outcome.cache_hit:
+            track_message = "Trouvé (cache)"
+        elif outcome.catalog_acquired:
+            yield _emit_track_progress(
+                request_id,
+                track_index=index,
+                total_tracks=total,
+                artist=artist_name,
+                title=title_name,
+                section=section_name,
+                step="acquiring",
+                status=ImportTrackStatus.PENDING.value,
+                message="Acquisition catalogue…",
+                added_count=added_count,
+                skipped_count=skipped_count,
+                not_found_count=not_found_count,
+                error_count=error_count,
+            )
+            track_message = "Acquis depuis le catalogue"
+
+        yield _emit_track_progress(
+            request_id,
+            track_index=index,
+            total_tracks=total,
+            artist=artist_name,
+            title=title_name,
+            section=section_name,
+            step="completed",
+            status=track_status.value,
+            message=track_message,
+            added_count=added_count,
+            skipped_count=skipped_count,
+            not_found_count=not_found_count,
+            error_count=error_count,
+        )
+
         if outcome.cache_hit:
             yield diagnostic_event(
                 request_id,
                 phase="cache_hit",
                 message=f"Cache IdentityCache : {label}",
-                artist=track.artist.display_name,
-                title=track.title,
+                artist=artist_name,
+                title=title_name,
             )
         elif outcome.catalog_acquired:
             yield diagnostic_event(
                 request_id,
                 phase="catalog_lookup",
                 message=f"Acquisition catalogue : {label}",
-                artist=track.artist.display_name,
-                title=track.title,
+                artist=artist_name,
+                title=title_name,
             )
         elif outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
             yield diagnostic_event(
                 request_id,
                 phase="catalog_lookup",
                 message=outcome.error or f"Introuvable : {label}",
-                artist=track.artist.display_name,
-                title=track.title,
+                artist=artist_name,
+                title=title_name,
             )
         outcomes.append((outcome, section_name))
+        yield progress_event(
+            request_id,
+            phase=ImportPhase.RESOLVING.value,
+            processed_tracks=index + 1,
+            total_tracks=total,
+            current_track_label=label,
+            import_session_id=session_id,
+            added_count=added_count,
+            skipped_count=skipped_count,
+            not_found_count=not_found_count,
+            error_count=error_count,
+        )
 
     yield progress_event(
         request_id,
@@ -199,6 +365,10 @@ def stream_import_playlist(
         total_tracks=total,
         playlist_name=playlist.name,
         import_session_id=session_id,
+        added_count=added_count,
+        skipped_count=skipped_count,
+        not_found_count=not_found_count,
+        error_count=error_count,
     )
 
     yield diagnostic_event(
@@ -224,7 +394,60 @@ def stream_import_playlist(
     )
 
     aligned = track_results_aligned_with_playlist(playlist.tracks, report)
-    added_count = sum(1 for item in aligned if item.status == TrackAddStatus.ADDED)
+    added_count = 0
+    skipped_count = 0
+    not_found_count = 0
+    error_count = 0
+    for index, item in enumerate(aligned):
+        track = item.track
+        if item.status == TrackAddStatus.ADDED:
+            added_count += 1
+            step_status = ImportTrackStatus.ADDED
+            message = "Ajouté"
+        elif item.status == TrackAddStatus.SKIPPED:
+            skipped_count += 1
+            step_status = ImportTrackStatus.SKIPPED
+            message = item.error or "Déjà présent"
+        elif item.status == TrackAddStatus.NOT_FOUND:
+            not_found_count += 1
+            step_status = ImportTrackStatus.NOT_FOUND
+            message = item.error or "Introuvable"
+        else:
+            error_count += 1
+            step_status = ImportTrackStatus.ERROR
+            message = item.error or "Erreur"
+        yield _emit_track_progress(
+            request_id,
+            track_index=index,
+            total_tracks=total,
+            artist=track.artist,
+            title=track.title,
+            section=track.section,
+            step="adding" if step_status == ImportTrackStatus.ADDED else "completed",
+            status=step_status.value,
+            message=message,
+            added_count=added_count,
+            skipped_count=skipped_count,
+            not_found_count=not_found_count,
+            error_count=error_count,
+        )
+        if step_status == ImportTrackStatus.ADDED:
+            yield _emit_track_progress(
+                request_id,
+                track_index=index,
+                total_tracks=total,
+                artist=track.artist,
+                title=track.title,
+                section=track.section,
+                step="completed",
+                status=step_status.value,
+                message=message,
+                added_count=added_count,
+                skipped_count=skipped_count,
+                not_found_count=not_found_count,
+                error_count=error_count,
+            )
+
     if added_count > 0:
         yield diagnostic_event(
             request_id,

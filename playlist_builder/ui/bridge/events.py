@@ -16,6 +16,7 @@ class BridgeEventType(StrEnum):
     COMPLETED = "completed"
     ERROR = "error"
     MANUAL_ACQUISITION_REQUIRED = "manual_acquisition_required"
+    TRACK_PROGRESS = "track_progress"
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +65,8 @@ def manual_acquisition_required_event(
     title: str,
     instructions: str,
     catalog_label: str = "",
+    catalog_url: str = "",
+    album: str = "",
     import_session_id: str = "",
 ) -> BridgeEvent:
     payload: dict[str, Any] = {
@@ -72,6 +75,8 @@ def manual_acquisition_required_event(
         "title": title,
         "instructions": instructions,
         "catalog_label": catalog_label,
+        "catalog_url": catalog_url,
+        "album": album,
     }
     if import_session_id:
         payload["import_session_id"] = import_session_id
@@ -80,6 +85,10 @@ def manual_acquisition_required_event(
         event=BridgeEventType.MANUAL_ACQUISITION_REQUIRED,
         payload=payload,
     )
+
+
+def track_progress_event(request_id: str, **fields: Any) -> BridgeEvent:
+    return BridgeEvent(id=request_id, event=BridgeEventType.TRACK_PROGRESS, payload=dict(fields))
 
 
 def error_event(request_id: str, *, code: str, message: str) -> BridgeEvent:

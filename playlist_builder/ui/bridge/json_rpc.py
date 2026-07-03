@@ -93,9 +93,29 @@ class JsonRpcEngineBridge(EngineBridge):
             return
 
         if request.command == BridgeCommand.CONTINUE_MANUAL_ACQUISITION:
-            if self.backend is None or not hasattr(self.backend, "continue_manual_acquisition"):
+            if self.backend is None or not hasattr(self.backend, "continue_manual_acquisition_stream"):
                 raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'import non configuré.")
-            result = self.backend.continue_manual_acquisition(request.params)
+            yield started_event(request.id, command=request.command.value).to_dict()
+            final_result: ImportPlaylistResult | None = None
+            for item in self.backend.continue_manual_acquisition_stream(request.params):
+                if isinstance(item, BridgeEvent):
+                    yield item.to_dict()
+                else:
+                    final_result = item
+            if final_result is None:
+                raise BridgeError(BridgeErrorCode.ENGINE_ERROR, "Reprise d'import sans résultat.")
+            yield completed_event(request.id, summary=final_result.to_dict()).to_dict()
+            yield BridgeResponse(
+                id=request.id,
+                ok=True,
+                result={"acknowledged": True, "import": final_result.to_dict()["import"]},
+            ).to_dict()
+            return
+
+        if request.command == BridgeCommand.PROBE_MANUAL_ACQUISITION:
+            if self.backend is None or not hasattr(self.backend, "probe_manual_acquisition"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'import non configuré.")
+            result = self.backend.probe_manual_acquisition(request.params)
             yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
             return
 

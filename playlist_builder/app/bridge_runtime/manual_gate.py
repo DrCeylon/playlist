@@ -15,6 +15,8 @@ class ManualAcquisitionInterrupted(Exception):
     artist: str
     title: str
     catalog_label: str = ""
+    catalog_url: str = ""
+    album: str = ""
 
 
 class ManualAcquisitionGate:
@@ -49,6 +51,10 @@ class ManualAcquisitionGate:
         artist = track.artist.display_name if track.artist else ""
         title = track.title
         catalog_label = catalog_candidate.track.label
+        album = catalog_candidate.track.album.title if catalog_candidate.track.album else ""
+        from playlist_builder.integration.apple_music.catalog_ids import catalog_url_from_candidate
+
+        catalog_url = catalog_url_from_candidate(catalog_candidate)
         instructions = (
             "Acquisition manuelle requise dans Music.app.\n"
             f"{detail}\n"
@@ -62,4 +68,6 @@ class ManualAcquisitionGate:
             artist=artist,
             title=title,
             catalog_label=catalog_label,
+            catalog_url=catalog_url,
+            album=album,
         )

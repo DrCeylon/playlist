@@ -146,6 +146,27 @@ class AppleMusicResolver:
             outcome = self._resolve_track(track, legacy, list(library_candidates))
             outcomes[index] = outcome
 
+    def probe_library_presence(
+        self,
+        track: CanonicalTrack,
+        *,
+        section: str = "Playlist",
+    ) -> bool:
+        """Read-only library check used while waiting for manual acquisition."""
+        cached = self._identity_cache.get(track, self._provider_id)
+        if cached is not None:
+            return True
+        legacy = legacy_track_from_canonical(track, section=section)
+        try:
+            candidate_groups = self._applescript.collect_candidates_batch([legacy])
+        except RuntimeError:
+            return False
+        if not candidate_groups or not candidate_groups[0]:
+            return False
+        resolution_candidates = resolution_candidates_from_apple_music_tracks(list(candidate_groups[0]))
+        decision = select_best_resolution(legacy, resolution_candidates)
+        return decision.selected is not None
+
     def _resolve_track(
         self,
         track: CanonicalTrack,

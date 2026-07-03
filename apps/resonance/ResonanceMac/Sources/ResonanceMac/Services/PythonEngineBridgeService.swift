@@ -241,6 +241,18 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return try BridgePayloadBuilder.importResult(from: ["import": .object(importObject)])
     }
 
+    public func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+        guard let transport else {
+            throw PlaylistImportError.bridgeUnavailable
+        }
+        let (response, _) = try await transport.send(
+            command: .probeManualAcquisition,
+            params: ["import_session_id": .string(importSessionID)],
+            onEvent: { _ in }
+        )
+        return response.result["found"]?.boolValue ?? false
+    }
+
     public func fetchDiagnostics() async throws -> DiagnosticsSnapshot {
         guard let transport else {
             throw DiagnosticsServiceError.bridgeUnavailable

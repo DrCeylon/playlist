@@ -50,6 +50,10 @@ final class ImportViewModelTests: XCTestCase {
             func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
                 ImportResultState(playlistName: "Demo", phase: .completed)
             }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+                false
+            }
         }
 
         let viewModel = ImportViewModel(service: ManualImportService())
@@ -76,6 +80,10 @@ final class ImportViewModelTests: XCTestCase {
             func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
                 throw PlaylistImportError.invalidResponse
             }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+                false
+            }
         }
 
         let viewModel = ImportViewModel(service: FailingImportService())
@@ -89,6 +97,49 @@ final class ImportViewModelTests: XCTestCase {
             XCTFail("Expected failed import state")
         }
         XCTAssertNotNil(viewModel.architectErrorDetail)
+    }
+
+    func testTrackProgressUpdatesActivities() async {
+        final class TrackProgressImportService: PlaylistImportServing {
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                onEvent(
+                    BridgeEventMessage(
+                        id: "import-1",
+                        event: .trackProgress,
+                        payload: [
+                            "track_key": .string("0:kygo:firestone"),
+                            "track_index": .number(0),
+                            "artist": .string("Kygo"),
+                            "title": .string("Firestone"),
+                            "step": .string("searching"),
+                            "status": .string("pending"),
+                            "message": .string("Recherche…"),
+                            "is_current": .bool(true),
+                        ]
+                    )
+                )
+                return ImportResultState(playlistName: result.playlistName, phase: .completed)
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                ImportResultState(playlistName: "Demo", phase: .completed)
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+                false
+            }
+        }
+
+        let viewModel = ImportViewModel(service: TrackProgressImportService())
+        await viewModel.importPlaylist(
+            PlaylistGenerationResult(playlistName: "Demo", sections: [], averageScore: 0)
+        )
+        XCTAssertEqual(viewModel.progress.activities.count, 1)
+        XCTAssertEqual(viewModel.progress.activities[0].title, "Firestone")
+        XCTAssertEqual(viewModel.progress.currentStep, "Recherche…")
     }
 
     func testDiagnosticsRingBufferLimitsGrowth() async {
@@ -115,6 +166,10 @@ final class ImportViewModelTests: XCTestCase {
 
             func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
                 ImportResultState(playlistName: "Demo", phase: .completed)
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+                false
             }
         }
 

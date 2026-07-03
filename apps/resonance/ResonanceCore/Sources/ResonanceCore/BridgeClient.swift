@@ -399,7 +399,9 @@ public enum BridgePayloadBuilder {
                 title: item["title"]?.stringValue ?? "",
                 section: item["section"]?.stringValue ?? "",
                 status: ImportTrackStatus(rawValue: item["status"]?.stringValue ?? "") ?? .error,
-                message: item["message"]?.stringValue ?? ""
+                message: item["message"]?.stringValue ?? "",
+                album: item["album"]?.stringValue ?? "",
+                catalogURL: item["catalog_url"]?.stringValue ?? ""
             )
         }
         let historySessionID = payload["history_session_id"]?.stringValue ?? ""

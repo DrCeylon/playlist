@@ -42,6 +42,7 @@ class BridgeCommand(StrEnum):
     REPLAY_GENERATION = "replay_generation"
     EXPORT_HISTORY_SESSION = "export_history_session"
     AUTOCOMPLETE_SEARCH = "autocomplete_search"
+    PROBE_MANUAL_ACQUISITION = "probe_manual_acquisition"
 
 
 @dataclass(frozen=True, slots=True)

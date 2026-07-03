@@ -14,11 +14,13 @@ final class ImportViewModel: ObservableObject {
     @Published var screenState: ScreenState = .idle
     @Published var progress = ImportProgressSnapshot()
     @Published var manualPrompt: ManualAcquisitionPrompt?
+    @Published var manualPollStatus = ""
     @Published var report: ImportResultState?
     @Published var architectErrorDetail: String?
 
     private let service: any PlaylistImportServing
     private var importSessionID: String?
+    private var manualPollTask: Task<Void, Never>?
 
     init(service: any PlaylistImportServing = MockPlaylistImportService()) {
         self.service = service
@@ -38,6 +40,7 @@ final class ImportViewModel: ObservableObject {
     }
 
     func confirmManualAcquisition() async {
+        stopManualPolling()
         guard let importSessionID else {
             screenState = .failed("Session d'import introuvable.")
             return
@@ -62,9 +65,11 @@ final class ImportViewModel: ObservableObject {
     }
 
     func reset() {
+        stopManualPolling()
         screenState = .idle
         progress = ImportProgressSnapshot()
         manualPrompt = nil
+        manualPollStatus = ""
         report = nil
         importSessionID = nil
         architectErrorDetail = nil
@@ -79,9 +84,11 @@ final class ImportViewModel: ObservableObject {
     }
 
     private func beginImport(playlistName: String, totalTracks: Int) {
+        stopManualPolling()
         screenState = .importing
         architectErrorDetail = nil
         manualPrompt = nil
+        manualPollStatus = ""
         importSessionID = nil
         report = nil
         progress = ImportProgressSnapshot(
@@ -97,8 +104,10 @@ final class ImportViewModel: ObservableObject {
         if result.phase == .waitingForManualAcquisition {
             screenState = .waitingForManualAcquisition
             report = result
+            startManualPolling()
             return
         }
+        stopManualPolling()
         mutateProgress { snapshot in
             snapshot.addedCount = result.addedCount
             snapshot.skippedCount = result.skippedCount
@@ -112,11 +121,13 @@ final class ImportViewModel: ObservableObject {
     }
 
     private func failImport(_ error: PlaylistImportError) {
+        stopManualPolling()
         architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         screenState = .failed(ImportErrorHumanizer.message(for: error))
     }
 
     private func failImport(_ error: Error) {
+        stopManualPolling()
         architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         screenState = .failed(ImportErrorHumanizer.userMessage(for: error))
     }
@@ -152,11 +163,27 @@ final class ImportViewModel: ObservableObject {
             if let sessionID = event.payload["import_session_id"]?.stringValue {
                 importSessionID = sessionID
             }
+        case .trackProgress:
+            guard let activity = parseTrackActivity(from: event.payload) else { return }
+            mutateProgress { snapshot in
+                applyTrackActivity(activity, to: &snapshot)
+                snapshot.currentTrackLabel = activity.displayLabel
+                if !activity.message.isEmpty {
+                    snapshot.currentStep = activity.message
+                } else {
+                    snapshot.currentStep = ImportTrackActivityFormatter.stepLabel(activity.step, status: activity.status)
+                }
+                snapshot.addedCount = event.payload["added_count"]?.intValue ?? snapshot.addedCount
+                snapshot.skippedCount = event.payload["skipped_count"]?.intValue ?? snapshot.skippedCount
+                snapshot.notFoundCount = event.payload["not_found_count"]?.intValue ?? snapshot.notFoundCount
+                snapshot.errorCount = event.payload["error_count"]?.intValue ?? snapshot.errorCount
+                snapshot.processedTracks = max(snapshot.processedTracks, activity.trackIndex + (activity.step == .completed ? 1 : 0))
+                snapshot.lastActivityAt = .now
+            }
         case .diagnostic:
             guard let message = event.payload["message"]?.stringValue else { return }
             mutateProgress { snapshot in
                 snapshot.currentStep = message
-                updateRunningCounts(from: message, snapshot: &snapshot)
                 if shouldSurfaceDiagnostic(message) {
                     appendDiagnostic(message, to: &snapshot)
                 }
@@ -178,16 +205,100 @@ final class ImportViewModel: ObservableObject {
                 artist: event.payload["artist"]?.stringValue ?? "",
                 title: event.payload["title"]?.stringValue ?? "",
                 instructions: event.payload["instructions"]?.stringValue ?? "",
-                catalogLabel: event.payload["catalog_label"]?.stringValue ?? ""
+                catalogLabel: event.payload["catalog_label"]?.stringValue ?? "",
+                album: event.payload["album"]?.stringValue ?? "",
+                catalogURL: event.payload["catalog_url"]?.stringValue ?? ""
             )
             mutateProgress { snapshot in
                 snapshot.currentStep = "En attente d'ajout manuel dans Music.app"
                 snapshot.lastActivityAt = .now
             }
             screenState = .waitingForManualAcquisition
+            openMusicForManualPrompt()
+            startManualPolling()
         default:
             break
         }
+    }
+
+    private func startManualPolling() {
+        manualPollTask?.cancel()
+        guard importSessionID != nil else { return }
+        manualPollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                await self.probeManualAcquisition()
+            }
+        }
+    }
+
+    private func stopManualPolling() {
+        manualPollTask?.cancel()
+        manualPollTask = nil
+    }
+
+    private func probeManualAcquisition() async {
+        guard let importSessionID, screenState == .waitingForManualAcquisition else { return }
+        do {
+            let found = try await service.probeManualAcquisition(importSessionID: importSessionID)
+            if found {
+                manualPollStatus = "Morceau détecté — reprise automatique…"
+                await confirmManualAcquisition()
+            } else {
+                manualPollStatus = "Vérification bibliothèque… morceau pas encore visible."
+            }
+        } catch {
+            manualPollStatus = "Vérification bibliothèque indisponible."
+        }
+    }
+
+    private func openMusicForManualPrompt() {
+        guard let manualPrompt else { return }
+        if !manualPrompt.catalogURL.isEmpty {
+            MusicAppLink.openURLString(manualPrompt.catalogURL)
+            return
+        }
+        MusicAppLink.openSearch(
+            artist: manualPrompt.artist,
+            title: manualPrompt.title,
+            album: manualPrompt.album
+        )
+    }
+
+    private func parseTrackActivity(from payload: BridgeJSONObject) -> ImportTrackActivity? {
+        guard let trackKey = payload["track_key"]?.stringValue else { return nil }
+        let trackIndex = payload["track_index"]?.intValue ?? 0
+        return ImportTrackActivity(
+            trackKey: trackKey,
+            trackIndex: trackIndex,
+            artist: payload["artist"]?.stringValue ?? "",
+            title: payload["title"]?.stringValue ?? "",
+            album: payload["album"]?.stringValue ?? "",
+            section: payload["section"]?.stringValue ?? "",
+            step: ImportTrackStep(rawValue: payload["step"]?.stringValue ?? "") ?? .pending,
+            status: ImportTrackStatus(rawValue: payload["status"]?.stringValue ?? "") ?? .pending,
+            message: payload["message"]?.stringValue ?? "",
+            catalogURL: payload["catalog_url"]?.stringValue ?? "",
+            isCurrent: payload["is_current"]?.boolValue ?? true
+        )
+    }
+
+    private func applyTrackActivity(_ activity: ImportTrackActivity, to snapshot: inout ImportProgressSnapshot) {
+        var activities = snapshot.activities.map { item in
+            var updated = item
+            updated.isCurrent = false
+            return updated
+        }
+        if let index = activities.firstIndex(where: { $0.trackKey == activity.trackKey }) {
+            activities[index] = activity
+        } else {
+            activities.append(activity)
+        }
+        if activities.count > ImportProgressSnapshot.maxVisibleActivities {
+            activities.removeFirst(activities.count - ImportProgressSnapshot.maxVisibleActivities)
+        }
+        snapshot.activities = activities
     }
 
     private func mutateProgress(_ block: (inout ImportProgressSnapshot) -> Void) {
@@ -231,13 +342,6 @@ final class ImportViewModel: ObservableObject {
             || lowered.contains("deliver")
             || lowered.contains("introuvable")
             || lowered.contains("cache")
-    }
-
-    private func updateRunningCounts(from message: String, snapshot: inout ImportProgressSnapshot) {
-        let lowered = message.lowercased()
-        if lowered.contains("introuvable") || lowered.contains("not found") {
-            snapshot.notFoundCount += 1
-        }
     }
 
     private func startedMessage(from payload: BridgeJSONObject) -> String {

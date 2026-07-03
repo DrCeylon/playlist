@@ -14,6 +14,7 @@ public enum BridgeCommand: String, Codable, Sendable {
     case replayGeneration = "replay_generation"
     case exportHistorySession = "export_history_session"
     case autocompleteSearch = "autocomplete_search"
+    case probeManualAcquisition = "probe_manual_acquisition"
 }
 
 public enum BridgeEventType: String, Codable, Sendable {
@@ -23,4 +24,5 @@ public enum BridgeEventType: String, Codable, Sendable {
     case completed
     case error
     case manualAcquisitionRequired = "manual_acquisition_required"
+    case trackProgress = "track_progress"
 }
