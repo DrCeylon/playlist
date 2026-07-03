@@ -304,9 +304,36 @@ Aucun changement du contrat `PlaylistGenerationRequest` côté moteur — migrat
 
 | Couche | Fichiers | Couverture |
 |--------|----------|------------|
-| ResonanceCoreTests | `AutocompleteEngineTests`, `AutocompleteCacheTests` | debounce, cache TTL, highlight |
-| ResonanceMacTests | `SmartInputIntegrationTests` | mapping VM, keyboard |
+| ResonanceCoreTests | `AutocompleteEngineTests`, `AutocompleteCacheTests`, `BridgeClientTests` | debounce, cache TTL, highlight, bridge parsing |
+| ResonanceMacTests | `PlaylistBuilderViewModelTests`, `BridgeClientTests` (service) | mapping VM, transport |
 | Python | `test_autocomplete_bridge.py`, `test_itunes_multi_search.py` | bridge, mapper, iTunes mock |
+
+## Choix finaux (post-validation macOS)
+
+### Tests & encapsulation
+
+- **`dispatchStreamingLine`** reste `internal` à `BridgeClient` — détail du streaming pendant `send()`. Les tests de parsing utilisent l'API publique **`parseConversation`**. Les tests de callback live sont dans **`ResonanceCoreTests`** via `@testable import ResonanceCore`.
+- **`LockedBox`** (`SendableTestCapture.swift`) pour les captures dans les closures `@Sendable` — pas de mutation de variables locales capturées (Swift 6).
+- **`AutocompleteEngine.session`** en `private(set)` — les tests appellent `updateQuery` + attente async plutôt que de muter l'état interne.
+
+### Modèles & providers
+
+- **`AutocompleteCache`** : clé d'entité via `String(describing: entity.id)` pour rester générique sur `Identifiable`.
+- **`InMemoryRecentSearchProvider`** : `final class` (pas `struct`) car stockage mutable sous `NSLock`.
+
+### Swift Package Manager
+
+```swift
+.executableTarget(
+    name: "ResonanceMac",
+    path: "ResonanceMac",
+    exclude: ["Tests", "Resources/Info.plist", "Resources/AppIcon.iconset"],
+    sources: ["Sources/ResonanceMac"],
+    resources: [.copy("Resources/Assets")]
+)
+```
+
+`exclude` **avant** `sources` (exigence SPM). Supprime l'avertissement « 27 unhandled files ».
 
 ## Évolutions futures (hors 5.1)
 
@@ -321,7 +348,7 @@ Aucun changement du contrat `PlaylistGenerationRequest` côté moteur — migrat
 |------|--------|
 | Refs canoniques | `ResonanceCore/SmartInput/CanonicalRefs.swift` |
 | Moteur | `ResonanceCore/SmartInput/AutocompleteEngine.swift` |
-| Bridge Swift | `ResonanceCore/AutocompleteBridgeContracts.swift` |
+| Bridge Swift | `ResonanceCore/SmartInput/AutocompleteBridgeContracts.swift` |
 | UI champ | `ResonanceMac/Components/SmartAutocompleteField.swift` |
 | Tags | `ResonanceMac/Components/KeywordTagField.swift` |
 | Python DTO | `playlist_builder/ui/shared/dto/autocomplete.py` |
