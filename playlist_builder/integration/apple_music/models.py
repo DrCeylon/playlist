@@ -95,3 +95,17 @@ class AppleITunesSearchHit:
         if value is None:
             return ""
         return str(value)
+
+    @property
+    def collection_artist_id(self) -> str:
+        value = self.raw.get("collectionArtistId")
+        if value is None:
+            return ""
+        return str(value)
+
+    @property
+    def amg_artist_id(self) -> str:
+        value = self.raw.get("amgArtistId")
+        if value is None:
+            return ""
+        return str(value)

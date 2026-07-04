@@ -38,6 +38,15 @@ private struct PlaylistBuilderScreen: View {
         _workflow = ObservedObject(wrappedValue: workflow)
     }
 
+    private var isImportWorkflowVisible: Bool {
+        switch importViewModel.screenState {
+        case .importing, .waitingForManualAcquisition, .report, .failed:
+            return true
+        case .idle:
+            return false
+        }
+    }
+
     var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
 
@@ -49,6 +58,7 @@ private struct PlaylistBuilderScreen: View {
                     manualPrompt: importViewModel.manualPrompt,
                     manualPollStatus: importViewModel.manualPollStatus,
                     architectErrorDetail: importViewModel.architectErrorDetail,
+                    embeddedInPanel: true,
                     onConfirmManual: {
                         Task { await importViewModel.confirmManualAcquisition() }
                     }
@@ -77,10 +87,14 @@ private struct PlaylistBuilderScreen: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
-            InspirationArtworkBackdrop(
-                artworkURL: effectiveArtworkURL,
-                palette: palette
-            )
+            if isImportWorkflowVisible {
+                palette.backgroundPrimary
+            } else {
+                InspirationArtworkBackdrop(
+                    artworkURL: effectiveArtworkURL,
+                    palette: palette
+                )
+            }
         }
         .navigationTitle("Nouvelle Playlist")
         .onAppear {
@@ -462,6 +476,7 @@ private struct ExclusionsList: View {
                     palette: palette,
                     autocompleteService: smartInputEngines.autocompleteService,
                     seedArtistName: viewModel.seedArtist?.displayName ?? "",
+                    seedArtistID: viewModel.seedArtist?.id ?? "",
                     onRemove: { viewModel.removeExclusion(rule) }
                 )
             }
@@ -617,6 +632,7 @@ private struct ExclusionEditorRow: View {
     let palette: ThemePalette
     let autocompleteService: any AutocompleteServing
     let seedArtistName: String
+    let seedArtistID: String
     let onRemove: () -> Void
 
     var body: some View {
@@ -638,7 +654,8 @@ private struct ExclusionEditorRow: View {
                 rule: $rule,
                 palette: palette,
                 autocompleteService: autocompleteService,
-                seedArtistName: seedArtistName
+                seedArtistName: seedArtistName,
+                seedArtistID: seedArtistID
             )
         }
     }

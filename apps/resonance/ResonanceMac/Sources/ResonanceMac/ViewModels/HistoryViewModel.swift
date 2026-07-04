@@ -109,7 +109,11 @@ final class HistoryViewModel: ObservableObject {
         }
     }
 
-    func delete(session: SessionHistorySummary) async {
+    func delete(session: SessionHistorySummary, isProtected: (SessionHistorySummary) -> Bool = { _ in false }) async {
+        if isProtected(session) {
+            actionFeedback = .failure("Impossible de supprimer la session en cours — processus actif.")
+            return
+        }
         do {
             let deleted = try await service.deleteHistorySession(sessionID: session.sessionID)
             if deleted {
@@ -126,8 +130,34 @@ final class HistoryViewModel: ObservableObject {
         }
     }
 
-    func clearAll() async {
+    func clearAll(preservingSessionID: String? = nil) async {
         guard !isBusy else { return }
+
+        let preservedID = preservingSessionID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !preservedID.isEmpty {
+            let deletable = sessions.filter { $0.sessionID != preservedID }
+            guard !deletable.isEmpty else {
+                actionFeedback = .failure("Aucune autre session à supprimer — la session active est conservée.")
+                return
+            }
+
+            do {
+                for session in deletable {
+                    _ = try await service.deleteHistorySession(sessionID: session.sessionID)
+                }
+                sessions = sessions.filter { $0.sessionID == preservedID }
+                if selectedDetail?.summary.sessionID != preservedID {
+                    selectedDetail = nil
+                }
+                actionFeedback = .success(
+                    "Historique partiellement vidé — la session active «\(sessions.first?.playlistName ?? preservedID)» est conservée."
+                )
+            } catch {
+                actionFeedback = .failure("Nettoyage partiel impossible.")
+            }
+            return
+        }
+
         do {
             let cleared = try await service.clearHistory()
             if cleared {

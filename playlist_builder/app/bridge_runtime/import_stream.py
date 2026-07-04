@@ -75,6 +75,14 @@ def _import_log(message: str) -> None:
     print(f"resonance-import: {message}", file=sys.stderr, flush=True)
 
 
+def _elapsed_ms(started_at: float) -> int:
+    return int((time.perf_counter() - started_at) * 1000)
+
+
+def _timed_message(started_at: float, message: str) -> str:
+    return f"[+{_elapsed_ms(started_at)} ms] {message}"
+
+
 def stream_import_playlist(
     context: AppContext,
     playlist: PlaylistDefinition,
@@ -122,29 +130,35 @@ def stream_import_playlist(
     canonical = canonical_playlist_from_legacy(playlist)
     rows = _flatten_rows(canonical)
     total = len(rows)
+    import_started_at = time.perf_counter()
 
     yield diagnostic_event(
         request_id,
         phase="import_start",
-        message=f"Commande import_playlist reçue — {total} morceau(x) à traiter",
+        message=_timed_message(import_started_at, f"Commande import_playlist reçue — {total} morceau(x) à traiter"),
     )
     _import_log(f"playlist={playlist.name!r} tracks={total} history_session pending")
     yield diagnostic_event(
         request_id,
         phase="music_app",
-        message="Connexion à Music.app via AppleScript…",
+        message=_timed_message(import_started_at, "Connexion à Music.app via AppleScript…"),
     )
     _import_log("Music.app ensure_running")
+    music_app_started = time.perf_counter()
     try:
         applescript.ensure_running(activate=False)
     except RuntimeError as exc:
         _import_log(f"Music.app ensure_running failed: {exc}")
         raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
-    _import_log("Music.app ensure_running OK")
+    music_app_ms = int((time.perf_counter() - music_app_started) * 1000)
+    _import_log(f"Music.app ensure_running OK ({music_app_ms} ms)")
     yield diagnostic_event(
         request_id,
         phase="music_app",
-        message="Music.app lancé en arrière-plan (sans activer la fenêtre)",
+        message=_timed_message(
+            import_started_at,
+            f"Music.app lancé en arrière-plan ({music_app_ms} ms, sans activer la fenêtre)",
+        ),
     )
 
     resolve_phase_started = time.perf_counter()
@@ -393,7 +407,10 @@ def stream_import_playlist(
     yield diagnostic_event(
         request_id,
         phase="resolve",
-        message=f"Résolution terminée en {resolve_ms} ms pour {total} morceau(x)",
+        message=_timed_message(
+            import_started_at,
+            f"Résolution terminée en {resolve_ms} ms pour {total} morceau(x)",
+        ),
     )
 
     yield progress_event(
@@ -466,7 +483,10 @@ def stream_import_playlist(
     yield diagnostic_event(
         request_id,
         phase="delivering",
-        message=f"Synchronisation Music.app terminée en {delivery_ms} ms",
+        message=_timed_message(
+            import_started_at,
+            f"Synchronisation Music.app terminée en {delivery_ms} ms",
+        ),
     )
 
     aligned = track_results_aligned_with_playlist(playlist.tracks, report)

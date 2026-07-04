@@ -12,11 +12,12 @@ struct AppShellView: View {
         NavigationSplitView {
             SidebarView(selection: $selection)
         } detail: {
-            VStack(spacing: 0) {
-                workflowBanner
-                detailView
-                    .focusSection()
-            }
+            detailView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    workflowBanner
+                }
+                .focusSection()
         }
         .navigationSplitViewStyle(.balanced)
         .onAppear {
@@ -43,8 +44,9 @@ struct AppShellView: View {
                 onDismiss: { workflow.dismissBanner() }
             )
             .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 4)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
+            .background(palette.backgroundPrimary.opacity(0.98))
         }
     }
 

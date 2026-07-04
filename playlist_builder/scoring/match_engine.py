@@ -66,6 +66,28 @@ def artist_name_matches(wanted_artist: str, candidate_artist: str) -> bool:
     return wanted_artist_norm in artist_norm or artist_norm in wanted_artist_norm
 
 
+def artist_name_exact_matches(wanted_artist: str, candidate_artist: str) -> bool:
+    wanted_artist_norm = normalize_text(wanted_artist)
+    artist_norm = normalize_text(candidate_artist)
+    if not wanted_artist_norm:
+        return True
+    if not artist_norm:
+        return False
+    return wanted_artist_norm == artist_norm
+
+
+def artist_id_matches(wanted_artist_id: str, *candidate_ids: str) -> bool:
+    wanted = wanted_artist_id.strip()
+    if not wanted:
+        return True
+    normalized_wanted = wanted.casefold()
+    for candidate in candidate_ids:
+        value = candidate.strip()
+        if value and value.casefold() == normalized_wanted:
+            return True
+    return False
+
+
 def score_fuzzy_match(wanted_artist: str, wanted_title: str, candidate_artist: str, candidate_title: str) -> int:
     title_similarity = similarity_ratio(wanted_title, candidate_title)
     title_tokens = token_overlap(wanted_title, candidate_title)

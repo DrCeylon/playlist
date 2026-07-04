@@ -187,12 +187,15 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                         id: "import-local",
                         event: .diagnostic,
                         payload: [
-                            "message": .string("Lancement process Python bridge dans \(workingDirectory)"),
+                            "message": .string(
+                                "Démarrage process Python bridge (nouveau processus par commande) dans \(workingDirectory)"
+                            ),
                         ]
                     )
                 )
             }
 
+            let bridgeStarted = Date()
             let (response, _) = try await transport.send(
                 command: .importPlaylist,
                 params: [
@@ -205,6 +208,16 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                 onDiagnostic: { line in
                     bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
                 }
+            )
+            let bridgeMS = max(0, Int(Date().timeIntervalSince(bridgeStarted) * 1000))
+            onEvent(
+                BridgeEventMessage(
+                    id: "import-local",
+                    event: .diagnostic,
+                    payload: [
+                        "message": .string("[+\(bridgeMS) ms] Bridge Python handshake terminé"),
+                    ]
+                )
             )
             if let importState = try? BridgePayloadBuilder.importResult(from: response.result),
                importState.phase == .waitingForManualAcquisition {

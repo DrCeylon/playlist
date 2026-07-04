@@ -17,6 +17,7 @@ final class ImportViewModel: ObservableObject {
     @Published var manualPollStatus = ""
     @Published var report: ImportResultState?
     @Published var architectErrorDetail: String?
+    @Published private(set) var activeHistorySessionID: String = ""
 
     private let service: any PlaylistImportServing
     private var importSessionID: String?
@@ -31,7 +32,11 @@ final class ImportViewModel: ObservableObject {
 
     func importPlaylist(_ generationResult: PlaylistGenerationResult) async {
         importedGeneration = generationResult
-        beginImport(playlistName: generationResult.playlistName, totalTracks: generationResult.trackCount)
+        beginImport(
+            playlistName: generationResult.playlistName,
+            totalTracks: generationResult.trackCount,
+            historySessionID: generationResult.historySessionID
+        )
 
         do {
             let result = try await service.importPlaylist(generationResult, onEvent: importEventHandler)
@@ -49,7 +54,11 @@ final class ImportViewModel: ObservableObject {
             screenState = .failed("Impossible de réessayer : playlist source introuvable.")
             return
         }
-        beginImport(playlistName: importedGeneration.playlistName, totalTracks: 1)
+        beginImport(
+            playlistName: importedGeneration.playlistName,
+            totalTracks: 1,
+            historySessionID: importedGeneration.historySessionID
+        )
         mutateProgress { snapshot in
             snapshot.currentStep = "Nouvelle tentative pour un morceau…"
             snapshot.totalTracks = importedGeneration.trackCount
@@ -116,6 +125,7 @@ final class ImportViewModel: ObservableObject {
         report = nil
         importedGeneration = nil
         architectErrorDetail = nil
+        activeHistorySessionID = ""
     }
 
     private var importEventHandler: @Sendable (BridgeEventMessage) -> Void {
@@ -126,9 +136,10 @@ final class ImportViewModel: ObservableObject {
         }
     }
 
-    private func beginImport(playlistName: String, totalTracks: Int) {
+    private func beginImport(playlistName: String, totalTracks: Int, historySessionID: String = "") {
         stopManualPolling()
         activeImportToken = UUID()
+        activeHistorySessionID = historySessionID
         screenState = .importing
         architectErrorDetail = nil
         manualPrompt = nil
@@ -388,6 +399,7 @@ final class ImportViewModel: ObservableObject {
             || lowered.contains("cache")
             || lowered.contains(" ms")
             || lowered.contains("lot ")
+            || lowered.contains("[+")
     }
 
     private func startedMessage(from payload: BridgeJSONObject) -> String {

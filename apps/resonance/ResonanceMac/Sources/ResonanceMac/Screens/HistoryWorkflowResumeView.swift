@@ -24,6 +24,7 @@ struct HistoryWorkflowResumeView: View {
     let onExport: () -> Void
     let onConfirmManual: () -> Void
     let onDismissLiveImport: () -> Void
+    let onOpenNewPlaylist: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var workflow: AppWorkflowCoordinator
 
@@ -73,6 +74,7 @@ struct HistoryWorkflowResumeView: View {
                     unavailablePanel(
                         playlistName: playlistName,
                         hasRequest: hasRequest,
+                        status: detail?.summary.status,
                         palette: palette
                     )
                 }
@@ -230,13 +232,14 @@ struct HistoryWorkflowResumeView: View {
     private func unavailablePanel(
         playlistName: String,
         hasRequest: Bool,
+        status: SessionHistoryStatus?,
         palette: ThemePalette
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Aperçu indisponible", systemImage: "music.note.list")
                 .font(.headline)
                 .foregroundStyle(palette.statusWarning)
-            Text("La session «\(playlistName)» n'a pas d'aperçu enregistré exploitable.")
+            Text(unavailableReason(for: status, playlistName: playlistName))
                 .foregroundStyle(palette.textSecondary)
             if hasRequest {
                 Button("Modifier le formulaire", action: onEditForm)
@@ -245,7 +248,12 @@ struct HistoryWorkflowResumeView: View {
                     .disabled(isBusy)
                     .opacity(isBusy ? 0.55 : 1)
             } else {
-                Text("La requête originale n'est pas disponible pour cette session.")
+                Button("Ouvrir Nouvelle Playlist", action: onOpenNewPlaylist)
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accentPrimary)
+                    .disabled(isBusy)
+                    .opacity(isBusy ? 0.55 : 1)
+                Text("La requête originale n'est pas disponible — recréez la playlist manuellement.")
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
             }
@@ -253,6 +261,11 @@ struct HistoryWorkflowResumeView: View {
         .padding(16)
         .background(palette.backgroundSecondary)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func unavailableReason(for status: SessionHistoryStatus?, playlistName: String) -> String {
+        let statusLabel = status.map { SessionHistoryDisplay.statusLabel(for: $0) } ?? "inconnue"
+        return "La session «\(playlistName)» (\(statusLabel)) n'a pas d'aperçu enregistré exploitable pour reprendre directement l'import ou la génération."
     }
 
     @ViewBuilder

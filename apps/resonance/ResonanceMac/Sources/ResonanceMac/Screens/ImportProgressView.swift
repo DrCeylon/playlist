@@ -77,8 +77,13 @@ struct ImportProgressView: View {
                 )
             }
         }
-        .padding(embeddedInPanel ? 0 : 24)
+        .padding(embeddedInPanel ? 16 : 24)
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background {
+            if embeddedInPanel {
+                palette.backgroundPrimary
+            }
+        }
     }
 
     @ViewBuilder

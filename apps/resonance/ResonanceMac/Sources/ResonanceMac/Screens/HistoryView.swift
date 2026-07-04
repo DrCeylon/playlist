@@ -32,17 +32,34 @@ struct HistoryView: View {
             await viewModel.refresh()
         }
         .confirmationDialog(
-            "Vider tout l'historique ?",
+            clearHistoryDialogTitle,
             isPresented: $showClearConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Vider l'historique", role: .destructive) {
-                Task { await viewModel.clearAll() }
+            Button(clearHistoryConfirmLabel, role: .destructive) {
+                Task {
+                    await viewModel.clearAll(preservingSessionID: workflow.activeHistorySessionID)
+                }
             }
             Button("Annuler", role: .cancel) {}
         } message: {
-            Text("Cette action supprime toutes les sessions locales enregistrées par Resonance.")
+            Text(clearHistoryDialogMessage)
         }
+    }
+
+    private var clearHistoryDialogTitle: String {
+        workflow.isProcessRunning ? "Vider l'historique (session active conservée) ?" : "Vider tout l'historique ?"
+    }
+
+    private var clearHistoryConfirmLabel: String {
+        workflow.isProcessRunning ? "Vider les autres sessions" : "Vider l'historique"
+    }
+
+    private var clearHistoryDialogMessage: String {
+        if workflow.isProcessRunning {
+            return "Un processus est en cours. Seules les autres sessions seront supprimées — la session active restera visible jusqu'à la fin du workflow."
+        }
+        return "Cette action supprime toutes les sessions locales enregistrées par Resonance."
     }
 
     private func header(palette: ThemePalette) -> some View {
@@ -56,6 +73,11 @@ struct HistoryView: View {
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isBusy)
                     .opacity(viewModel.isBusy ? 0.55 : 1)
+                if workflow.isProcessRunning {
+                    Text("Processus en cours — la session active sera conservée")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.statusWarning)
+                }
                 Button("Rafraîchir") { Task { await viewModel.refresh() } }
                     .buttonStyle(.borderedProminent)
                     .tint(palette.accentPrimary)
@@ -123,7 +145,15 @@ struct HistoryView: View {
                             .listRowSeparatorTint(palette.borderSubtle)
                             .onTapGesture { Task { await viewModel.select(session: session) } }
                             .contextMenu {
-                                Button("Supprimer") { Task { await viewModel.delete(session: session) } }
+                                Button("Supprimer") {
+                                    Task {
+                                        await viewModel.delete(
+                                            session: session,
+                                            isProtected: workflow.isProtectedHistorySession
+                                        )
+                                    }
+                                }
+                                .disabled(workflow.isProtectedHistorySession(session))
                             }
                     }
                     .listStyle(.inset(alternatesRowBackgrounds: false))
@@ -166,6 +196,10 @@ struct HistoryView: View {
                         },
                         onDismissLiveImport: {
                             workflow.importWorkflow.reset()
+                        },
+                        onOpenNewPlaylist: {
+                            workflow.activeRoute = .newPlaylist
+                            selection = .newPlaylist
                         }
                     )
                 }

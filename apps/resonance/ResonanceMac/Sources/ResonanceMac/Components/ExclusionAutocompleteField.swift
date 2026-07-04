@@ -7,6 +7,7 @@ struct ExclusionAutocompleteField: View {
     let palette: ThemePalette
     let autocompleteService: any AutocompleteServing
     let seedArtistName: String
+    let seedArtistID: String
 
     @StateObject private var artistHolder: AutocompleteEngineHolder<BridgeArtistSuggestionProvider>
     @StateObject private var trackHolder: AutocompleteEngineHolder<BridgeTrackSuggestionProvider>
@@ -16,12 +17,14 @@ struct ExclusionAutocompleteField: View {
         rule: Binding<ExclusionRule>,
         palette: ThemePalette,
         autocompleteService: any AutocompleteServing,
-        seedArtistName: String = ""
+        seedArtistName: String = "",
+        seedArtistID: String = ""
     ) {
         _rule = rule
         self.palette = palette
         self.autocompleteService = autocompleteService
         self.seedArtistName = seedArtistName
+        self.seedArtistID = seedArtistID
         _artistHolder = StateObject(
             wrappedValue: AutocompleteEngineHolder(
                 engine: AutocompleteEngine(
@@ -121,8 +124,10 @@ struct ExclusionAutocompleteField: View {
                 artistHolder.engine.updateQuery(value)
             }
         case .track:
-            if !seedArtistName.isEmpty {
-                trackHolder.engine.setContext(AutocompleteContext(artistName: seedArtistName))
+            if !seedArtistName.isEmpty || !seedArtistID.isEmpty {
+                trackHolder.engine.setContext(
+                    AutocompleteContext(artistName: seedArtistName, artistID: seedArtistID)
+                )
             }
             if value.isEmpty {
                 trackHolder.engine.clearSelection()

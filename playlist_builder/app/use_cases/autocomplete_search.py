@@ -40,6 +40,11 @@ class AutocompleteSearchUseCase:
             if request.provider_id != ProviderId.APPLE_MUSIC:
                 return AutocompleteResponse()
             artist_name = request.context.artist_name if request.context else ""
-            return self._apple_autocomplete.search_tracks(request, artist_name=artist_name)
+            artist_id = request.context.artist_id if request.context else ""
+            return self._apple_autocomplete.search_tracks(
+                request,
+                artist_name=artist_name,
+                artist_id=artist_id,
+            )
 
         return AutocompleteResponse()

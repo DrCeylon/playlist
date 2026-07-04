@@ -70,8 +70,32 @@ final class AppWorkflowCoordinator: ObservableObject {
         isProcessRunning ? "Processus en cours" : nil
     }
 
+    var activeHistorySessionID: String? {
+        let importSessionID = importWorkflow.activeHistorySessionID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !importSessionID.isEmpty {
+            return importSessionID
+        }
+        let previewSessionID = playlistBuilder.previewResult?.historySessionID
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if isProcessRunning, !previewSessionID.isEmpty {
+            return previewSessionID
+        }
+        return nil
+    }
+
+    func isProtectedHistorySession(_ session: SessionHistorySummary) -> Bool {
+        guard isProcessRunning else { return false }
+        if let activeID = activeHistorySessionID, activeID == session.sessionID {
+            return true
+        }
+        return matchesActivePlaylist(session.playlistName)
+    }
+
     func isManagingSession(_ detail: SessionHistoryDetail) -> Bool {
-        matchesActivePlaylist(detail.summary.playlistName)
+        if let activeID = activeHistorySessionID, activeID == detail.summary.sessionID {
+            return isProcessRunning
+        }
+        return matchesActivePlaylist(detail.summary.playlistName)
     }
 
     func matchesActivePlaylist(_ playlistName: String) -> Bool {

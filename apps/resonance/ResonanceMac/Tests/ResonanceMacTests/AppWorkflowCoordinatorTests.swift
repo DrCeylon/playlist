@@ -70,10 +70,11 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         )
         coordinator.importWorkflow.screenState = .importing
         coordinator.importWorkflow.progress.playlistName = "Live Session"
+        coordinator.importWorkflow.activeHistorySessionID = "hist-live"
 
         let detail = SessionHistoryDetail(
             summary: SessionHistorySummary(
-                sessionID: "s1",
+                sessionID: "hist-live",
                 startedAtISO: "2026-07-01",
                 finishedAtISO: "2026-07-01",
                 playlistName: "Live Session",
@@ -91,6 +92,18 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         )
 
         XCTAssertTrue(coordinator.isManagingSession(detail))
+        XCTAssertTrue(coordinator.isProtectedHistorySession(detail.summary))
+    }
+
+    func testActiveHistorySessionIDComesFromImportWorkflow() {
+        let coordinator = AppWorkflowCoordinator(
+            generationService: MockPlaylistGenerationService(),
+            importService: MockPlaylistImportService()
+        )
+        coordinator.importWorkflow.activeHistorySessionID = "hist-import"
+        coordinator.importWorkflow.screenState = .importing
+
+        XCTAssertEqual(coordinator.activeHistorySessionID, "hist-import")
     }
 
     func testStartImportSetsActiveRouteToNewPlaylist() async {

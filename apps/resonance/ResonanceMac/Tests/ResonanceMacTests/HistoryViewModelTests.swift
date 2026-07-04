@@ -88,6 +88,39 @@ final class HistoryViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.editRequestForSelectedSession()?.name, "Demo")
     }
 
+    func testClearAllPreservesActiveSession() async {
+        let service = MultiSessionHistoryService()
+        let viewModel = HistoryViewModel(service: service)
+        await viewModel.refresh()
+        XCTAssertEqual(viewModel.sessions.count, 2)
+
+        await viewModel.clearAll(preservingSessionID: "hist-active")
+
+        XCTAssertEqual(viewModel.sessions.count, 1)
+        XCTAssertEqual(viewModel.sessions.first?.sessionID, "hist-active")
+        if case .success(let message) = viewModel.actionFeedback {
+            XCTAssertTrue(message.contains("conservée"))
+        } else {
+            XCTFail("Expected partial clear success feedback")
+        }
+    }
+
+    func testDeleteProtectedSessionShowsFailure() async {
+        let service = MultiSessionHistoryService()
+        let viewModel = HistoryViewModel(service: service)
+        await viewModel.refresh()
+        let active = viewModel.sessions.first { $0.sessionID == "hist-active" }!
+
+        await viewModel.delete(session: active, isProtected: { $0.sessionID == "hist-active" })
+
+        if case .failure(let message) = viewModel.actionFeedback {
+            XCTAssertTrue(message.contains("processus actif"))
+        } else {
+            XCTFail("Expected protected delete failure")
+        }
+        XCTAssertEqual(viewModel.sessions.count, 2)
+    }
+
     func testExportShowsSuccessFeedback() async {
         let service = StubHistoryService()
         let viewModel = HistoryViewModel(service: service)
@@ -102,6 +135,53 @@ final class HistoryViewModelTests: XCTestCase {
             XCTFail("Expected export feedback")
         }
     }
+}
+
+private struct MultiSessionHistoryService: SessionHistoryServing {
+    func listHistory() async throws -> [SessionHistorySummary] {
+        [
+            SessionHistorySummary(
+                sessionID: "hist-active",
+                startedAtISO: "2026-07-02T08:00:00",
+                finishedAtISO: "2026-07-02T08:01:00",
+                playlistName: "Active Import",
+                providerID: .appleMusic,
+                status: .generated,
+                trackCount: 5,
+                addedCount: 0,
+                skippedCount: 0,
+                notFoundCount: 0,
+                errorCount: 0,
+                durationMS: 1000,
+                textReportPath: "",
+                jsonReportPath: ""
+            ),
+            SessionHistorySummary(
+                sessionID: "hist-old",
+                startedAtISO: "2026-07-01T08:00:00",
+                finishedAtISO: "2026-07-01T08:01:00",
+                playlistName: "Old Session",
+                providerID: .appleMusic,
+                status: .imported,
+                trackCount: 3,
+                addedCount: 3,
+                skippedCount: 0,
+                notFoundCount: 0,
+                errorCount: 0,
+                durationMS: 900,
+                textReportPath: "",
+                jsonReportPath: ""
+            ),
+        ]
+    }
+
+    func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? { nil }
+    func deleteHistorySession(sessionID: String) async throws -> Bool { true }
+    func clearHistory() async throws -> Bool { true }
+    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult {
+        throw NSError(domain: "test", code: 1)
+    }
+    func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
 }
 
 private struct StubHistoryService: SessionHistoryServing {
