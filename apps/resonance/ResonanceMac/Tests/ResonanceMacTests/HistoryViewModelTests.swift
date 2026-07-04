@@ -75,11 +75,16 @@ final class HistoryViewModelTests: XCTestCase {
         let viewModel = HistoryViewModel(service: service, importService: StubImportService())
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
+        XCTAssertFalse(viewModel.canReimportSelectedSession)
+        let expectedMessage = viewModel.reimportDisabledReason
+        XCTAssertNotNil(expectedMessage)
         await viewModel.reimportSelected()
         if case .failure(let message) = viewModel.actionFeedback {
-            XCTAssertTrue(message.contains("Preview indisponible") || message.contains("Données insuffisantes"))
+            XCTAssertEqual(message, expectedMessage)
+            XCTAssertTrue(message.contains("Aperçu indisponible"))
+            XCTAssertFalse(message.contains("Preview"))
         } else {
-            XCTFail("Expected reimport failure feedback")
+            XCTFail("Expected reimport failure feedback, got \(viewModel.actionFeedback)")
         }
     }
 
