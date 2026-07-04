@@ -39,53 +39,53 @@ final class HistoryViewModelTests: XCTestCase {
         }
     }
 
-    func testSessionDetailMappingAndReplayAction() async {
+    func testResumeContentShowsPreviewForGeneratedSession() async {
         let service = StubHistoryService()
         let viewModel = HistoryViewModel(service: service)
         await viewModel.refresh()
-        guard let session = viewModel.sessions.first else {
-            XCTFail("Expected one session")
-            return
-        }
-        await viewModel.select(session: session)
-        XCTAssertEqual(viewModel.selectedDetail?.summary.sessionID, session.sessionID)
-        await viewModel.replayGeneration()
-        if case .success(let message) = viewModel.actionFeedback {
-            XCTAssertTrue(message.contains("Relance OK"))
+        await viewModel.select(session: viewModel.sessions.first!)
+        if case .preview(let result) = viewModel.resumeContent {
+            XCTAssertEqual(result.playlistName, "Demo")
         } else {
-            XCTFail("Expected replay success feedback")
+            XCTFail("Expected preview resume content")
         }
     }
 
-    func testReplayWithoutRequestShowsClearFailure() async {
-        let service = StubHistoryService(generationRequest: [:])
+    func testResumeContentShowsImportReportForImportedSession() async {
+        let service = StubHistoryService(
+            status: .imported,
+            importResult: StubHistoryService.sampleImportResult
+        )
         let viewModel = HistoryViewModel(service: service)
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
-        await viewModel.replayGeneration()
-        if case .failure(let message) = viewModel.actionFeedback {
-            XCTAssertTrue(message.contains("Requête indisponible"))
+        if case .importReport(let report) = viewModel.resumeContent {
+            XCTAssertEqual(report.playlistName, "Demo")
+            XCTAssertEqual(report.addedCount, 3)
         } else {
-            XCTFail("Expected replay failure feedback")
+            XCTFail("Expected import report resume content")
         }
     }
 
-    func testReimportWithoutPreviewShowsClearFailure() async {
+    func testResumeContentUnavailableWithoutPreview() async {
         let service = StubHistoryService(generationResult: [:])
-        let viewModel = HistoryViewModel(service: service, importService: StubImportService())
+        let viewModel = HistoryViewModel(service: service)
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
-        XCTAssertFalse(viewModel.canReimportSelectedSession)
-        let expectedMessage = viewModel.reimportDisabledReason
-        XCTAssertNotNil(expectedMessage)
-        await viewModel.reimportSelected()
-        if case .failure(let message) = viewModel.actionFeedback {
-            XCTAssertEqual(message, expectedMessage)
-            XCTAssertTrue(message.contains("Aperçu indisponible"))
-            XCTAssertFalse(message.contains("Preview"))
+        if case .unavailable(let hasRequest, let playlistName) = viewModel.resumeContent {
+            XCTAssertTrue(hasRequest)
+            XCTAssertEqual(playlistName, "Demo")
         } else {
-            XCTFail("Expected reimport failure feedback, got \(viewModel.actionFeedback)")
+            XCTFail("Expected unavailable resume content")
         }
+    }
+
+    func testEditRequestForSelectedSession() async {
+        let service = StubHistoryService()
+        let viewModel = HistoryViewModel(service: service)
+        await viewModel.refresh()
+        await viewModel.select(session: viewModel.sessions.first!)
+        XCTAssertEqual(viewModel.editRequestForSelectedSession()?.name, "Demo")
     }
 
     func testExportShowsSuccessFeedback() async {
@@ -105,6 +105,33 @@ final class HistoryViewModelTests: XCTestCase {
 }
 
 private struct StubHistoryService: SessionHistoryServing {
+    static let sampleImportResult: BridgeJSONObject = [
+        "playlist_name": .string("Demo"),
+        "phase": .string("completed"),
+        "outcomes": .array([
+            .object([
+                "artist": .string("Artist A"),
+                "title": .string("Track 1"),
+                "status": .string("added"),
+            ]),
+            .object([
+                "artist": .string("Artist B"),
+                "title": .string("Track 2"),
+                "status": .string("added"),
+            ]),
+            .object([
+                "artist": .string("Artist C"),
+                "title": .string("Track 3"),
+                "status": .string("added"),
+            ]),
+            .object([
+                "artist": .string("Artist D"),
+                "title": .string("Track 4"),
+                "status": .string("not_found"),
+            ]),
+        ]),
+    ]
+
     var generationRequest: BridgeJSONObject = ["name": .string("Demo")]
     var generationResult: BridgeJSONObject = [
         "playlist_name": .string("Demo"),
@@ -112,6 +139,25 @@ private struct StubHistoryService: SessionHistoryServing {
         "average_score": .number(0.8),
         "provider_id": .string("apple_music"),
     ]
+    var importResult: BridgeJSONObject = [:]
+    var status: SessionHistoryStatus = .generated
+
+    init(
+        generationRequest: BridgeJSONObject = ["name": .string("Demo")],
+        generationResult: BridgeJSONObject = [
+            "playlist_name": .string("Demo"),
+            "sections": .array([]),
+            "average_score": .number(0.8),
+            "provider_id": .string("apple_music"),
+        ],
+        status: SessionHistoryStatus = .generated,
+        importResult: BridgeJSONObject = [:]
+    ) {
+        self.generationRequest = generationRequest
+        self.generationResult = generationResult
+        self.status = status
+        self.importResult = importResult
+    }
 
     func listHistory() async throws -> [SessionHistorySummary] {
         [
@@ -121,7 +167,7 @@ private struct StubHistoryService: SessionHistoryServing {
                 finishedAtISO: "2026-07-02T08:01:00",
                 playlistName: "Demo",
                 providerID: .appleMusic,
-                status: .generated,
+                status: status,
                 trackCount: 5,
                 addedCount: 0,
                 skippedCount: 0,
@@ -142,18 +188,19 @@ private struct StubHistoryService: SessionHistoryServing {
                 finishedAtISO: "2026-07-02T08:01:00",
                 playlistName: "Demo",
                 providerID: .appleMusic,
-                status: .generated,
+                status: status,
                 trackCount: 5,
-                addedCount: 0,
+                addedCount: status == .imported ? 3 : 0,
                 skippedCount: 0,
-                notFoundCount: 0,
+                notFoundCount: status == .imported ? 1 : 0,
                 errorCount: 0,
                 durationMS: 1000,
                 textReportPath: "",
                 jsonReportPath: ""
             ),
             generationRequest: generationRequest,
-            generationResult: generationResult
+            generationResult: generationResult,
+            importResult: importResult
         )
     }
 
@@ -169,23 +216,10 @@ private struct StubHistoryService: SessionHistoryServing {
             sessionID: sessionID,
             playlistName: "Demo",
             providerID: .appleMusic,
-            status: .generated,
+            status: status,
             textReportPath: "",
             jsonReportPath: ""
         )
-    }
-}
-
-private struct StubImportService: PlaylistImportServing {
-    func importPlaylist(
-        _ result: PlaylistGenerationResult,
-        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
-    ) async throws -> ImportResultState {
-        ImportResultState(playlistName: result.playlistName, phase: .completed)
-    }
-
-    func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
-        throw PlaylistImportError.bridgeUnavailable
     }
 }
 

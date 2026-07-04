@@ -4,10 +4,16 @@ import SwiftUI
 
 struct HistoryView: View {
     @StateObject private var viewModel: HistoryViewModel
+    @Binding var selection: SidebarItem?
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var workflow: AppWorkflowCoordinator
     @State private var showClearConfirmation = false
 
-    init(service: any SessionHistoryServing = PythonEngineBridgeService()) {
+    init(
+        selection: Binding<SidebarItem?>,
+        service: any SessionHistoryServing = PythonEngineBridgeService()
+    ) {
+        _selection = selection
         _viewModel = StateObject(wrappedValue: HistoryViewModel(service: service))
     }
 
@@ -40,17 +46,25 @@ struct HistoryView: View {
     }
 
     private func header(palette: ThemePalette) -> some View {
-        HStack {
-            Text("Sessions locales")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Spacer()
-            Button("Vider") { showClearConfirmation = true }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isBusy)
-            Button("Rafraîchir") { Task { await viewModel.refresh() } }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isBusy)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Sessions locales")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary)
+                Spacer()
+                Button("Vider") { showClearConfirmation = true }
+                    .buttonStyle(.bordered)
+                    .disabled(viewModel.isBusy)
+                    .opacity(viewModel.isBusy ? 0.55 : 1)
+                Button("Rafraîchir") { Task { await viewModel.refresh() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accentPrimary)
+                    .disabled(viewModel.isBusy)
+                    .opacity(viewModel.isBusy ? 0.55 : 1)
+            }
+            Text("Retrouve tes playlists et reprends le workflow là où tu t'étais arrêté.")
+                .font(.callout)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -99,7 +113,7 @@ struct HistoryView: View {
             Text(message).foregroundStyle(palette.statusWarning)
         case .ready:
             if viewModel.sessions.isEmpty {
-                Text("Aucune session pour le moment.")
+                Text("Aucune session pour le moment. Génère une playlist pour commencer.")
                     .foregroundStyle(palette.textSecondary)
             } else {
                 HStack(alignment: .top, spacing: 16) {
@@ -118,19 +132,29 @@ struct HistoryView: View {
                     .frame(minWidth: 360)
                     .focusEffectDisabled()
 
-                    SessionDetailView(
+                    HistoryWorkflowResumeView(
                         detail: viewModel.selectedDetail,
-                        canReplay: viewModel.canReplaySelectedSession,
-                        canReimport: viewModel.canReimportSelectedSession,
-                        isBusy: viewModel.isBusy,
-                        replayDescription: viewModel.replayActionDescription,
-                        reimportDescription: viewModel.reimportActionDescription,
-                        exportDescription: viewModel.exportActionDescription,
-                        replayDisabledReason: viewModel.replayDisabledReason,
-                        reimportDisabledReason: viewModel.reimportDisabledReason,
-                        onReplay: { Task { await viewModel.replayGeneration() } },
-                        onReimport: { Task { await viewModel.reimportSelected() } },
-                        onExport: { Task { await viewModel.exportSelection() } }
+                        resumeContent: viewModel.resumeContent,
+                        isBusy: viewModel.isBusy || !workflow.canStartProcess(),
+                        onEditForm: {
+                            if let request = viewModel.editRequestForSelectedSession() {
+                                workflow.requestEditFromHistory(request, selection: $selection)
+                            }
+                        },
+                        onImport: { result in
+                            Task {
+                                await workflow.startImport(
+                                    from: result,
+                                    selection: $selection
+                                )
+                            }
+                        },
+                        onRetryTrack: { index in
+                            Task { await viewModel.retryImportTrack(at: index) }
+                        },
+                        onExport: {
+                            Task { await viewModel.exportSelection() }
+                        }
                     )
                 }
             }
@@ -145,28 +169,18 @@ struct HistoryView: View {
             Text("\(session.startedAtISO) · \(session.providerID.rawValue)")
                 .font(.caption)
                 .foregroundStyle(palette.textTertiary)
-            Text(badgeLabel(for: session))
+            Text(SessionHistoryDisplay.statusLabel(for: session.status))
                 .font(.caption.weight(.medium))
-                .foregroundStyle(badgeColor(for: session, palette: palette))
-            Text("+\(session.addedCount) · skip \(session.skippedCount) · nf \(session.notFoundCount) · err \(session.errorCount)")
-                .font(.caption2.monospaced())
-                .foregroundStyle(palette.textTertiary)
+                .foregroundStyle(statusColor(for: session.status, palette: palette))
+            Text(SessionHistoryDisplay.rowSubtitle(for: session))
+                .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
         }
         .contentShape(Rectangle())
     }
 
-    private func badgeLabel(for session: SessionHistorySummary) -> String {
-        switch session.status {
-        case .generated: return "generated"
-        case .imported: return "imported"
-        case .partialSuccess: return "partial"
-        case .failed: return "failed"
-        case .waitingForManualAcquisition: return "manual"
-        }
-    }
-
-    private func badgeColor(for session: SessionHistorySummary, palette: ThemePalette) -> Color {
-        switch session.status {
+    private func statusColor(for status: SessionHistoryStatus, palette: ThemePalette) -> Color {
+        switch status {
         case .generated: return palette.accentPrimary
         case .imported: return palette.statusSuccess
         case .partialSuccess, .waitingForManualAcquisition: return palette.statusWarning

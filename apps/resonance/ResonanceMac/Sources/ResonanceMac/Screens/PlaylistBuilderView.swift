@@ -3,9 +3,24 @@ import ResonanceDesign
 import SwiftUI
 
 struct PlaylistBuilderView: View {
-    @StateObject private var viewModel: PlaylistBuilderViewModel
-    @StateObject private var importViewModel: ImportViewModel
-    @StateObject private var smartInputEngines: SmartInputFormEngines
+    @Binding var selection: SidebarItem?
+    @EnvironmentObject private var workflow: AppWorkflowCoordinator
+
+    init(selection: Binding<SidebarItem?>) {
+        _selection = selection
+    }
+
+    var body: some View {
+        PlaylistBuilderScreen(selection: $selection, workflow: workflow)
+    }
+}
+
+private struct PlaylistBuilderScreen: View {
+    @Binding var selection: SidebarItem?
+    @ObservedObject var viewModel: PlaylistBuilderViewModel
+    @ObservedObject var importViewModel: ImportViewModel
+    @ObservedObject var smartInputEngines: SmartInputFormEngines
+    @ObservedObject var workflow: AppWorkflowCoordinator
     @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var draftName = ""
@@ -15,17 +30,12 @@ struct PlaylistBuilderView: View {
     @State private var showAdvancedOptions = false
     @State private var showExclusions = false
 
-    init(
-        generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
-        importService: any PlaylistImportServing = PythonEngineBridgeService(),
-        autocompleteService: (any AutocompleteServing)? = nil
-    ) {
-        let resolvedAutocomplete: any AutocompleteServing = autocompleteService
-            ?? (generationService as? AutocompleteServing)
-            ?? MockAutocompleteService()
-        _viewModel = StateObject(wrappedValue: PlaylistBuilderViewModel(service: generationService))
-        _importViewModel = StateObject(wrappedValue: ImportViewModel(service: importService))
-        _smartInputEngines = StateObject(wrappedValue: SmartInputFormEngines(autocompleteService: resolvedAutocomplete))
+    init(selection: Binding<SidebarItem?>, workflow: AppWorkflowCoordinator) {
+        _selection = selection
+        _viewModel = ObservedObject(wrappedValue: workflow.playlistBuilder)
+        _importViewModel = ObservedObject(wrappedValue: workflow.importWorkflow)
+        _smartInputEngines = ObservedObject(wrappedValue: workflow.smartInputEngines)
+        _workflow = ObservedObject(wrappedValue: workflow)
     }
 
     var body: some View {
@@ -74,6 +84,7 @@ struct PlaylistBuilderView: View {
         }
         .navigationTitle("Nouvelle Playlist")
         .onAppear {
+            workflow.applyPendingEditIfNeeded()
             syncDraftFromViewModel()
             pushDraftToViewModel()
             viewModel.validateForm()
@@ -98,6 +109,9 @@ struct PlaylistBuilderView: View {
                         syncDraftFromViewModel()
                     },
                     onImport: {
+                        guard workflow.canStartProcess() else { return }
+                        workflow.activeRoute = .newPlaylist
+                        selection = .newPlaylist
                         Task { await importViewModel.importPlaylist(result) }
                     }
                 )
@@ -115,8 +129,17 @@ struct PlaylistBuilderView: View {
                 showExclusions: $showExclusions,
                 validationErrors: viewModel.validationErrors,
                 bridgeFallbackMessage: viewModel.bridgeFallbackMessage,
+                canStartProcess: workflow.canStartProcess(),
                 onCommitDraft: commitDraftAndValidate,
-                onPushDraft: pushDraftToViewModel
+                onPushDraft: pushDraftToViewModel,
+                onGenerate: {
+                    guard workflow.canStartProcess() else { return }
+                    workflow.activeRoute = .newPlaylist
+                    selection = .newPlaylist
+                    commitDraftAndValidate()
+                    pushDraftToViewModel()
+                    Task { await viewModel.generate() }
+                }
             )
         }
     }
@@ -158,9 +181,11 @@ private struct PlaylistBuilderFormView: View {
     @Binding var showExclusions: Bool
     let validationErrors: [ValidationError]
     let bridgeFallbackMessage: String?
+    let canStartProcess: Bool
 
     let onCommitDraft: () -> Void
     let onPushDraft: () -> Void
+    let onGenerate: () -> Void
 
     private var draftsLookComplete: Bool {
         let trimmedName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -212,8 +237,8 @@ private struct PlaylistBuilderFormView: View {
                     viewModel: viewModel,
                     palette: palette,
                     canGenerateFromDrafts: draftsLookComplete,
-                    onPushDraft: onPushDraft,
-                    onCommitDraft: onCommitDraft
+                    canStartProcess: canStartProcess,
+                    onGenerate: onGenerate
                 )
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
@@ -460,8 +485,8 @@ private struct GenerateFooterSection: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
     let palette: ThemePalette
     let canGenerateFromDrafts: Bool
-    let onPushDraft: () -> Void
-    let onCommitDraft: () -> Void
+    let canStartProcess: Bool
+    let onGenerate: () -> Void
 
     var body: some View {
         HStack(alignment: .center) {
@@ -472,6 +497,10 @@ private struct GenerateFooterSection: View {
                     Text("Complète le nom et une inspiration ou des mots-clés pour activer Générer.")
                         .font(.caption)
                         .foregroundStyle(palette.textTertiary)
+                } else if !canStartProcess {
+                    Text("Un autre processus est en cours — consulte le bandeau en haut de l'app.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textTertiary)
                 }
             }
             Spacer()
@@ -479,8 +508,8 @@ private struct GenerateFooterSection: View {
                 viewModel: viewModel,
                 palette: palette,
                 canGenerateFromDrafts: canGenerateFromDrafts,
-                onCommitDraft: onCommitDraft,
-                onPushDraft: onPushDraft
+                canStartProcess: canStartProcess,
+                onGenerate: onGenerate
             )
         }
     }
@@ -490,20 +519,21 @@ private struct GenerateButton: View {
     @ObservedObject var viewModel: PlaylistBuilderViewModel
     let palette: ThemePalette
     let canGenerateFromDrafts: Bool
-    let onCommitDraft: () -> Void
-    let onPushDraft: () -> Void
+    let canStartProcess: Bool
+    let onGenerate: () -> Void
+
+    private var isDisabled: Bool {
+        !canGenerateFromDrafts || viewModel.screenState == .generating || !canStartProcess
+    }
 
     var body: some View {
-        Button {
-            onCommitDraft()
-            onPushDraft()
-            Task { await viewModel.generate() }
-        } label: {
+        Button(action: onGenerate) {
             GenerateButtonLabel(isGenerating: viewModel.screenState == .generating)
         }
         .buttonStyle(.borderedProminent)
         .tint(palette.accentPrimary)
-        .disabled(!canGenerateFromDrafts || viewModel.screenState == .generating)
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.55 : 1)
     }
 }
 

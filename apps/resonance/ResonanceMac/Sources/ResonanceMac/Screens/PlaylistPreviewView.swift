@@ -5,9 +5,24 @@ import SwiftUI
 struct PlaylistPreviewView: View {
     let result: PlaylistGenerationResult
     let previewSourceLabel: String
+    let actionsDisabled: Bool
     let onEdit: () -> Void
     let onImport: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
+
+    init(
+        result: PlaylistGenerationResult,
+        previewSourceLabel: String,
+        actionsDisabled: Bool = false,
+        onEdit: @escaping () -> Void,
+        onImport: @escaping () -> Void
+    ) {
+        self.result = result
+        self.previewSourceLabel = previewSourceLabel
+        self.actionsDisabled = actionsDisabled
+        self.onEdit = onEdit
+        self.onImport = onImport
+    }
 
     var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
@@ -67,12 +82,16 @@ struct PlaylistPreviewView: View {
                 HStack {
                     Button("Modifier le formulaire", action: onEdit)
                         .buttonStyle(.bordered)
+                        .disabled(actionsDisabled)
+                        .opacity(actionsDisabled ? 0.55 : 1)
                     Spacer()
                     Button(action: onImport) {
                         Label("Importer dans Apple Music", systemImage: "square.and.arrow.down")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(palette.accentPrimary)
+                    .disabled(actionsDisabled)
+                    .opacity(actionsDisabled ? 0.55 : 1)
                 }
             }
             .padding(24)

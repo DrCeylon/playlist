@@ -4,12 +4,19 @@ import SwiftUI
 
 struct ImportReportView: View {
     let report: ImportResultState
+    let showsDismissButton: Bool
     let onRetryTrack: ((Int) -> Void)?
     let onClose: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
 
-    init(report: ImportResultState, onRetryTrack: ((Int) -> Void)? = nil, onClose: @escaping () -> Void) {
+    init(
+        report: ImportResultState,
+        showsDismissButton: Bool = true,
+        onRetryTrack: ((Int) -> Void)? = nil,
+        onClose: @escaping () -> Void
+    ) {
         self.report = report
+        self.showsDismissButton = showsDismissButton
         self.onRetryTrack = onRetryTrack
         self.onClose = onClose
     }
@@ -62,9 +69,11 @@ struct ImportReportView: View {
 
                     Spacer()
 
-                    Button("Fermer", action: onClose)
-                        .buttonStyle(.borderedProminent)
-                        .tint(palette.accentPrimary)
+                    if showsDismissButton {
+                        Button("Fermer", action: onClose)
+                            .buttonStyle(.borderedProminent)
+                            .tint(palette.accentPrimary)
+                    }
                 }
             }
             .padding(24)

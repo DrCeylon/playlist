@@ -113,4 +113,33 @@ final class PlaylistBuilderViewModelTests: XCTestCase {
         viewModel.validateForm()
         XCTAssertTrue(viewModel.canGenerate)
     }
+
+    func testLoadFromHistoryRestoresFormFields() {
+        let viewModel = PlaylistBuilderViewModel()
+        let request = PlaylistGenerationRequest(
+            name: "Historique Demo",
+            providerID: .appleMusic,
+            seeds: [SeedReference(artist: "Daft Punk", title: "One More Time")],
+            keywords: ["house", "disco"],
+            description: "Soirée",
+            targetTrackCount: 30,
+            targetDurationMinutes: 90,
+            energyCurve: EnergyCurveOption(profile: .party),
+            exclusions: [ExclusionRule(kind: .artist, value: "Skrillex", reason: "Trop agressif")],
+            playlistTheme: "house, disco"
+        )
+
+        viewModel.loadFromHistory(request)
+
+        XCTAssertEqual(viewModel.name, "Historique Demo")
+        XCTAssertEqual(viewModel.seedArtist?.displayName, "Daft Punk")
+        XCTAssertEqual(viewModel.seedTrack?.title, "One More Time")
+        XCTAssertEqual(viewModel.keywords.map(\.label), ["house", "disco"])
+        XCTAssertEqual(viewModel.targetTrackCountText, "30")
+        XCTAssertEqual(viewModel.targetDurationText, "90")
+        XCTAssertEqual(viewModel.energyProfile, .party)
+        XCTAssertEqual(viewModel.exclusions.count, 1)
+        XCTAssertEqual(viewModel.screenState, .editing)
+        XCTAssertNil(viewModel.previewResult)
+    }
 }
