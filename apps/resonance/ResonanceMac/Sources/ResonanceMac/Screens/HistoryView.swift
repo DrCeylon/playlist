@@ -138,15 +138,14 @@ struct HistoryView: View {
                         isBusy: viewModel.isBusy || !workflow.canStartProcess(),
                         onEditForm: {
                             if let request = viewModel.editRequestForSelectedSession() {
-                                workflow.requestEditFromHistory(request, selection: $selection)
+                                workflow.requestEditFromHistory(request)
+                                selection = workflow.activeRoute
                             }
                         },
                         onImport: { result in
                             Task {
-                                await workflow.startImport(
-                                    from: result,
-                                    selection: $selection
-                                )
+                                await workflow.startImport(from: result)
+                                selection = workflow.activeRoute
                             }
                         },
                         onRetryTrack: { index in

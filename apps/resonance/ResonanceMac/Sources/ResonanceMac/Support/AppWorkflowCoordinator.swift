@@ -1,7 +1,6 @@
 import Combine
 import Foundation
 import ResonanceCore
-import SwiftUI
 
 @MainActor
 final class AppWorkflowCoordinator: ObservableObject {
@@ -66,29 +65,15 @@ final class AppWorkflowCoordinator: ObservableObject {
         !isProcessRunning
     }
 
-    func openActiveWorkflow(selection: Binding<SidebarItem?>) {
-        selection.wrappedValue = activeRoute
-    }
-
-    func requestEditFromHistory(_ request: PlaylistGenerationRequest, selection: Binding<SidebarItem?>) {
+    func requestEditFromHistory(_ request: PlaylistGenerationRequest) {
         pendingEditRequest = request
         activeRoute = .newPlaylist
-        selection.wrappedValue = .newPlaylist
     }
 
-    func startImport(
-        from generation: PlaylistGenerationResult,
-        selection: Binding<SidebarItem?>
-    ) async {
+    func startImport(from generation: PlaylistGenerationResult) async {
         guard canStartProcess() else { return }
         activeRoute = .newPlaylist
-        selection.wrappedValue = .newPlaylist
         await importWorkflow.importPlaylist(generation)
-    }
-
-    func beginGeneration(selection: Binding<SidebarItem?>) {
-        activeRoute = .newPlaylist
-        selection.wrappedValue = .newPlaylist
     }
 
     func applyPendingEditIfNeeded() {

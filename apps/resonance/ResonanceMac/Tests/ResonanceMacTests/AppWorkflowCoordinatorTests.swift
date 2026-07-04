@@ -26,7 +26,7 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.canStartProcess())
     }
 
-    func testLoadFromHistoryViaPendingEditRequest() {
+    func testRequestEditFromHistoryLoadsBuilderOnApply() {
         let coordinator = AppWorkflowCoordinator(
             generationService: MockPlaylistGenerationService(),
             importService: MockPlaylistImportService()
@@ -44,15 +44,30 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
             playlistTheme: "chill"
         )
 
-        var selection: SidebarItem? = .history
-        coordinator.requestEditFromHistory(
-            request,
-            selection: Binding(get: { selection }, set: { selection = $0 })
-        )
+        coordinator.requestEditFromHistory(request)
+        XCTAssertEqual(coordinator.activeRoute, .newPlaylist)
         coordinator.applyPendingEditIfNeeded()
 
         XCTAssertEqual(coordinator.playlistBuilder.name, "Pending")
-        XCTAssertEqual(selection, .newPlaylist)
         XCTAssertEqual(coordinator.activeRoute, .newPlaylist)
+        XCTAssertNil(coordinator.pendingEditRequest)
+    }
+
+    func testStartImportSetsActiveRouteToNewPlaylist() async {
+        let coordinator = AppWorkflowCoordinator(
+            generationService: MockPlaylistGenerationService(),
+            importService: MockPlaylistImportService()
+        )
+        let generation = PlaylistGenerationResult(
+            playlistName: "Import Demo",
+            sections: [],
+            averageScore: 0.8,
+            providerID: .appleMusic
+        )
+
+        await coordinator.startImport(from: generation)
+
+        XCTAssertEqual(coordinator.activeRoute, .newPlaylist)
+        XCTAssertEqual(coordinator.importWorkflow.screenState, .report)
     }
 }

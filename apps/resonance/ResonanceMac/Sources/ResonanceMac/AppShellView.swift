@@ -39,7 +39,7 @@ struct AppShellView: View {
             WorkflowBannerView(
                 presentation: banner,
                 palette: palette,
-                onTap: { workflow.openActiveWorkflow(selection: $selection) },
+                onTap: { selection = workflow.activeRoute },
                 onDismiss: { workflow.dismissBanner() }
             )
             .padding(.horizontal, 16)
