@@ -79,6 +79,7 @@ final class BridgeClientTests: XCTestCase {
         )
         XCTAssertEqual(result.playlistName, "Demo")
         XCTAssertEqual(result.trackCount, 1)
-        XCTAssertEqual(await transport.lastCommand, .generatePlaylist)
+        let lastCommand = await transport.lastCommand
+        XCTAssertEqual(lastCommand, .generatePlaylist)
     }
 }
