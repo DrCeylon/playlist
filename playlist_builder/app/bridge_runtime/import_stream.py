@@ -411,6 +411,12 @@ def stream_import_playlist(
         _import_log("sync_playlist starting")
         report = import_service.delivery.sync_playlist(canonical, [item[0] for item in outcomes])
         _import_log("sync_playlist finished")
+    except ValueError as exc:
+        _import_log(f"sync_playlist alignment failed: {exc}")
+        raise BridgeError(
+            BridgeErrorCode.ENGINE_ERROR,
+            "Impossible de finaliser l'import : les morceaux résolus ne correspondent pas à la playlist. Relance l'import ou régénère la playlist.",
+        ) from exc
     except RuntimeError as exc:
         _import_log(f"delivery failed: {exc}")
         raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc

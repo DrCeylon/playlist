@@ -21,6 +21,9 @@ final class AppWorkflowCoordinator: ObservableObject {
         let kind: ProcessKind
         let playlistName: String
         let step: String
+        let detail: String
+        let progressLabel: String
+        let progressRatio: Double?
     }
 
     @Published private(set) var banner: BannerPresentation?
@@ -133,28 +136,42 @@ final class AppWorkflowCoordinator: ObservableObject {
                 phase: .inProgress,
                 kind: .importProcess,
                 playlistName: playlistName,
-                step: progress.currentStep.isEmpty ? "Import en cours…" : progress.currentStep
+                step: progress.currentStep.isEmpty ? "Import en cours…" : progress.currentStep,
+                detail: importDetail(from: progress),
+                progressLabel: importProgressLabel(from: progress),
+                progressRatio: progress.totalTracks > 0 ? progress.progressRatio : nil
             )
         case .waitingForManualAcquisition:
             banner = BannerPresentation(
                 phase: .inProgress,
                 kind: .importProcess,
                 playlistName: playlistName,
-                step: "Ajout manuel requis dans Music.app"
+                step: "Ajout manuel requis dans Music.app",
+                detail: progress.currentTrackLabel.isEmpty
+                    ? "Un morceau doit être ajouté manuellement à la bibliothèque."
+                    : progress.currentTrackLabel,
+                progressLabel: importProgressLabel(from: progress),
+                progressRatio: progress.totalTracks > 0 ? progress.progressRatio : nil
             )
         case .report:
             banner = BannerPresentation(
                 phase: .completed,
                 kind: .importProcess,
                 playlistName: playlistName,
-                step: "Import terminé — touche pour voir le rapport"
+                step: "Import terminé — touche pour voir le rapport",
+                detail: importSummary(from: report),
+                progressLabel: "",
+                progressRatio: 1
             )
         case .failed(let message):
             banner = BannerPresentation(
                 phase: .failed,
                 kind: .importProcess,
                 playlistName: playlistName,
-                step: message
+                step: ImportErrorHumanizer.humanizeBridgeMessage(message),
+                detail: progress.currentTrackLabel,
+                progressLabel: importProgressLabel(from: progress),
+                progressRatio: nil
             )
         case .idle:
             if importWorkflow.screenState == .idle {
@@ -177,14 +194,20 @@ final class AppWorkflowCoordinator: ObservableObject {
                 phase: .inProgress,
                 kind: .generation,
                 playlistName: playlistName,
-                step: "Génération en cours…"
+                step: "Génération en cours…",
+                detail: "Le moteur Python compose la playlist.",
+                progressLabel: "",
+                progressRatio: nil
             )
         case .preview:
             banner = BannerPresentation(
                 phase: .completed,
                 kind: .generation,
                 playlistName: playlistName,
-                step: "Aperçu prêt — touche pour reprendre"
+                step: "Aperçu prêt — touche pour reprendre",
+                detail: preview.map { "\($0.trackCount) morceau(x) · score moyen \(String(format: "%.2f", $0.averageScore))" } ?? "",
+                progressLabel: "",
+                progressRatio: 1
             )
         case .editing:
             if playlistBuilder.screenState == .editing, importWorkflow.screenState == .idle {
@@ -212,5 +235,25 @@ final class AppWorkflowCoordinator: ObservableObject {
     private func clearGenerationBannerIfNeeded() {
         guard banner?.kind == .generation else { return }
         banner = nil
+    }
+
+    private func importProgressLabel(from progress: ImportProgressSnapshot) -> String {
+        guard progress.totalTracks > 0 else { return "" }
+        if progress.phase == .delivering {
+            return "Étape 2/2 · \(progress.addedCount + progress.skippedCount + progress.notFoundCount + progress.errorCount)/\(progress.totalTracks) synchronisé(s)"
+        }
+        return "Étape 1/2 · \(progress.processedTracks)/\(progress.totalTracks) morceau(x)"
+    }
+
+    private func importDetail(from progress: ImportProgressSnapshot) -> String {
+        if !progress.currentTrackLabel.isEmpty {
+            return progress.currentTrackLabel
+        }
+        return progress.phaseLabel
+    }
+
+    private func importSummary(from report: ImportResultState?) -> String {
+        guard let report else { return "" }
+        return "+\(report.addedCount) ajouté(s) · \(report.notFoundCount) introuvable(s) · \(report.errorCount) erreur(s)"
     }
 }

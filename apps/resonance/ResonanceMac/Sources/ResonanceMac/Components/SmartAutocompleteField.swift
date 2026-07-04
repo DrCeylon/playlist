@@ -173,6 +173,7 @@ struct SmartAutocompleteField<Provider: SuggestionProvider>: View where Provider
 final class AutocompleteEngineHolder<Provider: SuggestionProvider>: ObservableObject where Provider.Entity: CanonicalEntity & Codable {
     let engine: AutocompleteEngine<Provider>
     @Published var queryText = ""
+    @Published private(set) var selectedArtworkURL: URL?
 
     init(engine: AutocompleteEngine<Provider>) {
         self.engine = engine
@@ -181,6 +182,13 @@ final class AutocompleteEngineHolder<Provider: SuggestionProvider>: ObservableOb
 
     func syncText() {
         queryText = engine.selection.query
+        if let artist = engine.selection.selected as? ArtistRef {
+            selectedArtworkURL = artist.artworkURL
+        } else if let track = engine.selection.selected as? TrackRef {
+            selectedArtworkURL = track.artworkURL
+        } else {
+            selectedArtworkURL = nil
+        }
     }
 }
 

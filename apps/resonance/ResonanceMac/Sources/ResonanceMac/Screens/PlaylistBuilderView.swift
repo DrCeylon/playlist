@@ -78,7 +78,7 @@ private struct PlaylistBuilderScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background {
             InspirationArtworkBackdrop(
-                artworkURL: viewModel.inspirationArtworkURL,
+                artworkURL: effectiveArtworkURL,
                 palette: palette
             )
         }
@@ -94,6 +94,12 @@ private struct PlaylistBuilderScreen: View {
                 syncDraftFromViewModel()
             }
         }
+    }
+
+    private var effectiveArtworkURL: URL? {
+        smartInputEngines.trackHolder.selectedArtworkURL
+            ?? smartInputEngines.artistHolder.selectedArtworkURL
+            ?? viewModel.inspirationArtworkURL
     }
 
     @ViewBuilder
@@ -229,6 +235,7 @@ private struct PlaylistBuilderFormView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .scrollIndicators(.visible)
+        .scrollContentBackground(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
@@ -242,7 +249,7 @@ private struct PlaylistBuilderFormView: View {
                 )
                 .padding(.horizontal, 24)
                 .padding(.vertical, 16)
-                .background(palette.backgroundPrimary)
+                .background(palette.backgroundPrimary.opacity(0.82))
             }
         }
         .onChange(of: viewModel.energyProfile) { _, _ in

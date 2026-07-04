@@ -61,20 +61,23 @@ struct ImportReportView: View {
                     }
                 }
 
-                HStack(spacing: 10) {
+                HStack(alignment: .center, spacing: 10) {
                     Button("Ouvrir Music.app") {
                         MusicAppLink.openApp()
                     }
                     .buttonStyle(.bordered)
+                    .controlSize(.regular)
 
-                    Spacer()
+                    Spacer(minLength: 0)
 
                     if showsDismissButton {
                         Button("Fermer", action: onClose)
                             .buttonStyle(.borderedProminent)
                             .tint(palette.accentPrimary)
+                            .controlSize(.regular)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(24)
         }

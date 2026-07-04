@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 
 from playlist_builder.canonical.enums import ImportStatus
@@ -19,6 +20,7 @@ from playlist_builder.integration.apple_music.resolver import (
 )
 
 BATCH_SIZE = 25
+logger = logging.getLogger(__name__)
 
 
 class AppleMusicDelivery:
@@ -206,14 +208,36 @@ def _flatten_playlist_with_outcomes(
     outcomes: list[AppleMusicResolutionOutcome],
 ) -> list[tuple[AppleMusicResolutionOutcome, str]]:
     flat_sections: list[str] = []
+    flat_tracks: list = []
     for section in playlist.sections:
-        for _track in section.tracks:
+        for track in section.tracks:
             flat_sections.append(section.name)
+            flat_tracks.append(track)
 
-    if len(flat_sections) != len(outcomes):
-        raise ValueError("Resolution outcomes do not match playlist track count.")
+    expected = len(flat_sections)
+    received = len(outcomes)
+    aligned_outcomes = list(outcomes)
+    if received != expected:
+        logger.error(
+            "Resolution outcomes count mismatch for playlist %r: outcomes=%d tracks=%d",
+            playlist.name,
+            received,
+            expected,
+        )
+        if received < expected:
+            for index in range(received, expected):
+                aligned_outcomes.append(
+                    AppleMusicResolutionOutcome(
+                        track=flat_tracks[index],
+                        persistent_id="",
+                        status=AppleMusicResolutionStatus.ERROR,
+                        error="Résolution manquante pour ce morceau.",
+                    )
+                )
+        else:
+            aligned_outcomes = aligned_outcomes[:expected]
 
-    return list(zip(outcomes, flat_sections, strict=True))
+    return list(zip(aligned_outcomes, flat_sections, strict=True))
 
 
 def _result_from_outcome(outcome: AppleMusicResolutionOutcome, section_name: str) -> CanonicalImportResult:

@@ -75,7 +75,7 @@ struct PlaylistPreviewView: View {
                         }
                     }
                     .padding(16)
-                    .background(palette.backgroundSecondary)
+                    .background(palette.backgroundSecondary.opacity(0.88))
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
