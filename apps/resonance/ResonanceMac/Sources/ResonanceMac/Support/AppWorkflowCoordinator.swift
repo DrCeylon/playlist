@@ -126,7 +126,6 @@ final class AppWorkflowCoordinator: ObservableObject {
     private func bindWorkflowObservation() {
         importWorkflow.$screenState
             .combineLatest(importWorkflow.$progress, importWorkflow.$report)
-            .receive(on: RunLoop.main)
             .sink { [weak self] state, progress, report in
                 self?.syncBannerFromImport(state: state, progress: progress, report: report)
             }
@@ -134,11 +133,21 @@ final class AppWorkflowCoordinator: ObservableObject {
 
         playlistBuilder.$screenState
             .combineLatest(playlistBuilder.$previewResult, playlistBuilder.$name)
-            .receive(on: RunLoop.main)
             .sink { [weak self] state, preview, name in
                 self?.syncBannerFromBuilder(state: state, preview: preview, name: name)
             }
             .store(in: &cancellables)
+
+        syncBannerFromImport(
+            state: importWorkflow.screenState,
+            progress: importWorkflow.progress,
+            report: importWorkflow.report
+        )
+        syncBannerFromBuilder(
+            state: playlistBuilder.screenState,
+            preview: playlistBuilder.previewResult,
+            name: playlistBuilder.name
+        )
     }
 
     private func syncBannerFromImport(
