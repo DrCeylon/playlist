@@ -1,4 +1,5 @@
 import AppKit
+import ResonanceDesign
 import SwiftUI
 
 enum ArtworkPaletteExtractor {
