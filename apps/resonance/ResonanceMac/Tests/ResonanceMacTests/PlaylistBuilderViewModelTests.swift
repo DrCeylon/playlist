@@ -69,6 +69,27 @@ final class PlaylistBuilderViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.canGenerate)
     }
 
+    func testInspirationArtworkURLPrefersTrackArtwork() {
+        let viewModel = PlaylistBuilderViewModel()
+        let artistURL = URL(string: "https://example.com/artist.jpg")
+        let trackURL = URL(string: "https://example.com/track.jpg")
+
+        viewModel.seedArtist = ArtistRef(
+            id: "kygo",
+            displayName: "Kygo",
+            artworkURL: artistURL
+        )
+        XCTAssertEqual(viewModel.inspirationArtworkURL, artistURL)
+
+        viewModel.seedTrack = TrackRef(
+            id: "firestone",
+            title: "Firestone",
+            artistName: "Kygo",
+            artworkURL: trackURL
+        )
+        XCTAssertEqual(viewModel.inspirationArtworkURL, trackURL)
+    }
+
     func testCanonicalRefsUpdatePublishedProperties() {
         let viewModel = PlaylistBuilderViewModel()
         let artist = ArtistRef(id: "kygo", displayName: "Kygo")

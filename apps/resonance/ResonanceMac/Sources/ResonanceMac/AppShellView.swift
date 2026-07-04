@@ -4,6 +4,8 @@ import SwiftUI
 
 struct AppShellView: View {
     @State private var selection: SidebarItem? = .home
+    @EnvironmentObject private var themeManager: ThemeManager
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         NavigationSplitView {
@@ -13,6 +15,12 @@ struct AppShellView: View {
                 .focusSection()
         }
         .navigationSplitViewStyle(.balanced)
+        .onAppear {
+            themeManager.updateColorScheme(colorScheme)
+        }
+        .onChange(of: colorScheme) { _, newValue in
+            themeManager.updateColorScheme(newValue)
+        }
     }
 
     @ViewBuilder

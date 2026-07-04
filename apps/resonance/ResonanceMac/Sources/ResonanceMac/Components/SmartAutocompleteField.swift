@@ -251,13 +251,33 @@ private struct ArtworkThumbnail: View {
     let palette: ThemePalette
 
     var body: some View {
+        Group {
+            if let url {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
+            }
+        }
+        .frame(width: 36, height: 36)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
+    private var placeholder: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(palette.backgroundSecondary)
             Image(systemName: "music.note")
                 .foregroundStyle(palette.textTertiary)
         }
-        .frame(width: 36, height: 36)
     }
 }
 

@@ -66,7 +66,12 @@ struct PlaylistBuilderView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(palette.backgroundPrimary)
+        .background {
+            InspirationArtworkBackdrop(
+                artworkURL: viewModel.inspirationArtworkURL,
+                palette: palette
+            )
+        }
         .navigationTitle("Nouvelle Playlist")
         .onAppear {
             syncDraftFromViewModel()

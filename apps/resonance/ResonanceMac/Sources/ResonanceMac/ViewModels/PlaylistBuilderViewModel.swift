@@ -45,6 +45,10 @@ final class PlaylistBuilderViewModel: ObservableObject {
         seedArtist != nil || seedTrack != nil || !keywords.isEmpty
     }
 
+    var inspirationArtworkURL: URL? {
+        seedTrack?.artworkURL ?? seedArtist?.artworkURL
+    }
+
     func buildRequest() -> PlaylistGenerationRequest {
         let keywordLabels = keywords.map(\.label)
 
