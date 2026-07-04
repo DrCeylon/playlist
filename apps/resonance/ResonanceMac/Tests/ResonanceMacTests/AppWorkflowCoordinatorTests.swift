@@ -63,14 +63,24 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.processBlockingLabel, "Processus en cours")
     }
 
-    func testIsManagingSessionMatchesActiveImportPlaylist() {
+    func testIsManagingSessionMatchesActiveImportPlaylist() async {
+        let importService = ControllableImportService()
         let coordinator = AppWorkflowCoordinator(
             generationService: MockPlaylistGenerationService(),
-            importService: MockPlaylistImportService()
+            importService: importService
         )
-        coordinator.importWorkflow.screenState = .importing
-        coordinator.importWorkflow.progress.playlistName = "Live Session"
-        coordinator.importWorkflow.activeHistorySessionID = "hist-live"
+        let generation = PlaylistGenerationResult(
+            playlistName: "Live Session",
+            sections: [],
+            averageScore: 0.8,
+            providerID: .appleMusic,
+            historySessionID: "hist-live"
+        )
+
+        let importTask = Task {
+            await coordinator.startImport(from: generation)
+        }
+        await importService.waitUntilImportStarted()
 
         let detail = SessionHistoryDetail(
             summary: SessionHistorySummary(
@@ -91,19 +101,38 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
             )
         )
 
+        XCTAssertEqual(coordinator.activeHistorySessionID, "hist-live")
         XCTAssertTrue(coordinator.isManagingSession(detail))
         XCTAssertTrue(coordinator.isProtectedHistorySession(detail.summary))
+
+        importService.finish(with: ImportResultState(playlistName: "Live Session", outcomes: [], phase: .completed))
+        _ = await importTask.result
     }
 
-    func testActiveHistorySessionIDComesFromImportWorkflow() {
+    func testActiveHistorySessionIDComesFromImportWorkflow() async {
+        let importService = ControllableImportService()
         let coordinator = AppWorkflowCoordinator(
             generationService: MockPlaylistGenerationService(),
-            importService: MockPlaylistImportService()
+            importService: importService
         )
-        coordinator.importWorkflow.activeHistorySessionID = "hist-import"
-        coordinator.importWorkflow.screenState = .importing
+        let generation = PlaylistGenerationResult(
+            playlistName: "Import Demo",
+            sections: [],
+            averageScore: 0.8,
+            providerID: .appleMusic,
+            historySessionID: "hist-import"
+        )
+
+        let importTask = Task {
+            await coordinator.startImport(from: generation)
+        }
+        await importService.waitUntilImportStarted()
 
         XCTAssertEqual(coordinator.activeHistorySessionID, "hist-import")
+        XCTAssertEqual(coordinator.importWorkflow.activeHistorySessionID, "hist-import")
+
+        importService.finish(with: ImportResultState(playlistName: "Import Demo", outcomes: [], phase: .completed))
+        _ = await importTask.result
     }
 
     func testStartImportSetsActiveRouteToNewPlaylist() async {
@@ -137,5 +166,68 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(coordinator.banner?.substeps.count, 2)
         XCTAssertEqual(coordinator.banner?.playlistName, "Diagnostics Demo")
+    }
+}
+
+@MainActor
+private final class ControllableImportService: PlaylistImportServing, @unchecked Sendable {
+    private var resumeImport: ((Result<ImportResultState, Error>) -> Void)?
+    private var importHasStarted = false
+    private var startedWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func waitUntilImportStarted() async {
+        if importHasStarted { return }
+        await withCheckedContinuation { continuation in
+            if importHasStarted {
+                continuation.resume()
+            } else {
+                startedWaiters.append(continuation)
+            }
+        }
+    }
+
+    private func signalImportStarted() {
+        importHasStarted = true
+        for waiter in startedWaiters {
+            waiter.resume()
+        }
+        startedWaiters.removeAll()
+    }
+
+    func importPlaylist(
+        _ result: PlaylistGenerationResult,
+        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+    ) async throws -> ImportResultState {
+        onEvent(
+            BridgeEventMessage(
+                id: "controllable-import",
+                event: .progress,
+                payload: [
+                    "phase": .string(ImportPhase.resolving.rawValue),
+                    "total_tracks": .number(Double(result.trackCount)),
+                    "processed_tracks": .number(0),
+                ]
+            )
+        )
+        signalImportStarted()
+
+        return try await withCheckedThrowingContinuation { continuation in
+            resumeImport = { continuation.resume(with: $0) }
+        }
+    }
+
+    func finish(with result: ImportResultState) {
+        resumeImport?(.success(result))
+        resumeImport = nil
+    }
+
+    func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+        _ = importSessionID
+        throw PlaylistImportError.bridgeUnavailable
+    }
+
+    func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+        _ = importSessionID
+        return false
     }
 }
