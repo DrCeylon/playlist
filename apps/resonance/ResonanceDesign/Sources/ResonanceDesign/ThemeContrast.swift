@@ -3,6 +3,8 @@ import Foundation
 public enum ThemeContrast {
     /// WCAG 2.x contrast ratio for normal text (AA).
     public static let minimumContrastRatio: Double = 4.5
+    /// WCAG 2.x contrast ratio for large text / non-critical UI labels (AA).
+    public static let minimumLargeTextContrastRatio: Double = 3.0
 
     public static func relativeLuminance(hex: String) -> Double? {
         guard let rgba = parseRGBA(hex: hex) else { return nil }
@@ -33,6 +35,13 @@ public enum ThemeContrast {
             return false
         }
         return ratio >= minimumContrastRatio
+    }
+
+    public static func hasLargeTextContrast(foregroundHex: String, backgroundHex: String) -> Bool {
+        guard let ratio = contrastRatio(foregroundHex: foregroundHex, backgroundHex: backgroundHex) else {
+            return false
+        }
+        return ratio >= minimumLargeTextContrastRatio
     }
 
     /// WCAG 2.x relative luminance for sRGB hex colors (`#RRGGBB` or `#RRGGBBAA`).

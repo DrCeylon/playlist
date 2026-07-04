@@ -115,7 +115,21 @@ class AppleMusicResolver:
         if pending:
             self._resolve_pending(outcomes, pending)
 
-        return [outcome for outcome in outcomes if outcome is not None]
+        filled: list[AppleMusicResolutionOutcome] = []
+        for index, (track, _section) in enumerate(rows):
+            outcome = outcomes[index]
+            if outcome is None:
+                filled.append(
+                    AppleMusicResolutionOutcome(
+                        track=track,
+                        persistent_id=None,
+                        status=AppleMusicResolutionStatus.ERROR,
+                        error="Résolution incomplète pour ce morceau.",
+                    )
+                )
+            else:
+                filled.append(outcome)
+        return filled
 
     def _resolve_pending(
         self,
@@ -336,7 +350,7 @@ class AppleMusicResolver:
     ) -> list[AppleMusicTrack]:
         for attempt in range(1, max_attempts + 1):
             if show_progress:
-                self._applescript.ensure_running()
+                self._applescript.ensure_running(activate=False)
             candidates = self._refresh_library_candidates(legacy, catalog_candidate)
             if candidates:
                 if show_progress and attempt > 1:

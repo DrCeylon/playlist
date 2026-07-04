@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Iterator
 
 from playlist_builder.app.factory import AppContext
@@ -135,7 +136,7 @@ def stream_import_playlist(
     )
     _import_log("Music.app ensure_running")
     try:
-        applescript.ensure_running()
+        applescript.ensure_running(activate=False)
     except RuntimeError as exc:
         _import_log(f"Music.app ensure_running failed: {exc}")
         raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
@@ -143,8 +144,10 @@ def stream_import_playlist(
     yield diagnostic_event(
         request_id,
         phase="music_app",
-        message="Music.app accessible",
+        message="Music.app lancé en arrière-plan (sans activer la fenêtre)",
     )
+
+    resolve_phase_started = time.perf_counter()
 
     yield progress_event(
         request_id,
@@ -386,6 +389,13 @@ def stream_import_playlist(
                 )
         index = batch_end
 
+    resolve_ms = int((time.perf_counter() - resolve_phase_started) * 1000)
+    yield diagnostic_event(
+        request_id,
+        phase="resolve",
+        message=f"Résolution terminée en {resolve_ms} ms pour {total} morceau(x)",
+    )
+
     yield progress_event(
         request_id,
         phase=ImportPhase.DELIVERING.value,
@@ -406,10 +416,20 @@ def stream_import_playlist(
     )
     _import_log(f"ensure_playlist name={playlist.name!r}")
 
+    delivery_started = time.perf_counter()
+    delivery_progress_events: list[tuple[int, int]] = []
+
+    def on_delivery_batch(current_batch: int, total_batches: int) -> None:
+        delivery_progress_events.append((current_batch, total_batches))
+
     try:
         import_service.delivery.ensure_playlist(playlist.name)
         _import_log("sync_playlist starting")
-        report = import_service.delivery.sync_playlist(canonical, [item[0] for item in outcomes])
+        report = import_service.delivery.sync_playlist(
+            canonical,
+            [item[0] for item in outcomes],
+            on_delivery_batch=on_delivery_batch,
+        )
         _import_log("sync_playlist finished")
     except ValueError as exc:
         _import_log(f"sync_playlist alignment failed: {exc}")
@@ -421,10 +441,32 @@ def stream_import_playlist(
         _import_log(f"delivery failed: {exc}")
         raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
 
+    for batch_index, batch_count in delivery_progress_events:
+        processed = min(total, max(1, int(total * (0.7 + 0.3 * batch_index / max(batch_count, 1)))))
+        yield progress_event(
+            request_id,
+            phase=ImportPhase.DELIVERING.value,
+            processed_tracks=processed,
+            total_tracks=total,
+            playlist_name=playlist.name,
+            import_session_id=session_id,
+            current_track_label=f"Ajout Music.app — lot {batch_index}/{batch_count}",
+            added_count=added_count,
+            skipped_count=skipped_count,
+            not_found_count=not_found_count,
+            error_count=error_count,
+        )
+        yield diagnostic_event(
+            request_id,
+            phase="delivering",
+            message=f"Ajout Music.app — lot {batch_index}/{batch_count}",
+        )
+
+    delivery_ms = int((time.perf_counter() - delivery_started) * 1000)
     yield diagnostic_event(
         request_id,
         phase="delivering",
-        message="Playlist synchronisée dans Music.app",
+        message=f"Synchronisation Music.app terminée en {delivery_ms} ms",
     )
 
     aligned = track_results_aligned_with_playlist(playlist.tracks, report)
@@ -489,16 +531,31 @@ def stream_import_playlist(
             message=f"Confirmation Music.app : {added_count} morceau(x) visible(s) dans la playlist",
         )
     if write_json_diagnostics:
-        from pathlib import Path
+        try:
+            from pathlib import Path
 
-        from playlist_builder.reports.import_diagnostics import write_import_diagnostics
-        from playlist_builder.reports.playlist import write_playlist_report
+            from playlist_builder.reports.import_diagnostics import write_import_diagnostics
+            from playlist_builder.reports.playlist import write_playlist_report
 
-        write_playlist_report(playlist.name, aligned, Path("reports"))
-        write_import_diagnostics(playlist.name, report, aligned, Path("reports"))
+            write_playlist_report(playlist.name, aligned, Path("reports"))
+            write_import_diagnostics(playlist.name, report, aligned, Path("reports"))
+        except OSError as exc:
+            _import_log(f"report write failed: {exc}")
+            yield diagnostic_event(
+                request_id,
+                phase="delivering",
+                message="Import terminé — écriture des rapports locaux impossible.",
+            )
 
-    context.gateway.flush_caches(flush_catalog_cache=context.settings.use_catalog_cache)
-    session_store.delete(session_id)
+    try:
+        context.gateway.flush_caches(flush_catalog_cache=context.settings.use_catalog_cache)
+    except Exception as exc:
+        _import_log(f"cache flush failed: {exc}")
+
+    try:
+        session_store.delete(session_id)
+    except OSError as exc:
+        _import_log(f"session cleanup failed: {exc}")
     phase = _final_phase(aligned)
     import_state = track_add_results_to_import_state(playlist.name, aligned, phase=phase)
     yield ImportPlaylistResult(import_result=import_state)

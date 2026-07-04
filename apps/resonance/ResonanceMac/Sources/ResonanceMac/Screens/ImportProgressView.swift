@@ -7,66 +7,95 @@ struct ImportProgressView: View {
     let manualPrompt: ManualAcquisitionPrompt?
     let manualPollStatus: String
     let architectErrorDetail: String?
+    let embeddedInPanel: Bool
     let onConfirmManual: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
+
+    init(
+        progress: ImportProgressSnapshot,
+        manualPrompt: ManualAcquisitionPrompt?,
+        manualPollStatus: String,
+        architectErrorDetail: String?,
+        embeddedInPanel: Bool = false,
+        onConfirmManual: @escaping () -> Void
+    ) {
+        self.progress = progress
+        self.manualPrompt = manualPrompt
+        self.manualPollStatus = manualPollStatus
+        self.architectErrorDetail = architectErrorDetail
+        self.embeddedInPanel = embeddedInPanel
+        self.onConfirmManual = onConfirmManual
+    }
 
     var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
 
-        BoundedScrollScreen {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Import Apple Music")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(palette.textPrimary)
-
-                progressHeader(palette: palette)
-
-                if !progress.activities.isEmpty {
-                    activityFeed(palette: palette)
+        Group {
+            if embeddedInPanel {
+                content(palette: palette)
+            } else {
+                BoundedScrollScreen {
+                    content(palette: palette)
                 }
-
-                if let manualPrompt {
-                    ManualAcquisitionCard(
-                        prompt: manualPrompt,
-                        trackPositionLabel: trackPositionLabel,
-                        pollStatus: manualPollStatus,
-                        palette: palette,
-                        onConfirmManual: onConfirmManual
-                    )
-                }
-
-                if !progress.diagnostics.isEmpty {
-                    diagnosticsSection(palette: palette)
-                }
-
-                if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
-                    SelectableText(
-                        text: architectErrorDetail,
-                        font: .caption2.monospaced(),
-                        foreground: palette.textTertiary
-                    )
-                }
+                .themedSurfaceCard(fill: palette.surface.opacity(0.98), border: palette.borderSubtle)
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+    }
+
+    @ViewBuilder
+    private func content(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Import Apple Music")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(palette.textPrimary)
+
+            progressHeader(palette: palette)
+
+            if !progress.activities.isEmpty {
+                activityFeed(palette: palette)
+            }
+
+            if let manualPrompt {
+                ManualAcquisitionCard(
+                    prompt: manualPrompt,
+                    trackPositionLabel: trackPositionLabel,
+                    pollStatus: manualPollStatus,
+                    palette: palette,
+                    onConfirmManual: onConfirmManual
+                )
+            }
+
+            if !progress.diagnostics.isEmpty {
+                diagnosticsSection(palette: palette)
+            }
+
+            if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
+                SelectableText(
+                    text: architectErrorDetail,
+                    font: .caption2.monospaced(),
+                    foreground: palette.textSecondary
+                )
+            }
+        }
+        .padding(embeddedInPanel ? 0 : 24)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
     private func progressHeader(palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            ProgressView(value: progress.progressRatio)
+            ProgressView(value: max(0.02, progress.progressRatio))
                 .tint(palette.accentPrimary)
                 .animation(.easeInOut(duration: 0.25), value: progress.progressRatio)
 
             Text(progress.phaseLabel)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.textSecondary)
+                .foregroundStyle(palette.textPrimary)
 
             if !progress.remainingTracksLabel.isEmpty {
                 Text(progress.remainingTracksLabel)
                     .font(.caption)
-                    .foregroundStyle(palette.textTertiary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             HStack(spacing: 8) {
@@ -74,7 +103,7 @@ struct ImportProgressView: View {
                     .controlSize(.small)
                 Text(activityLabel)
                     .font(.caption)
-                    .foregroundStyle(palette.textTertiary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             if !progress.currentStep.isEmpty {
@@ -113,10 +142,13 @@ struct ImportProgressView: View {
                 SelectableText(
                     text: progress.cancellationNote,
                     font: .caption,
-                    foreground: palette.textTertiary
+                    foreground: palette.textSecondary
                 )
             }
         }
+        .padding(16)
+        .background(palette.backgroundSecondary.opacity(embeddedInPanel ? 0.72 : 0.94))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     @ViewBuilder
@@ -124,14 +156,14 @@ struct ImportProgressView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Progression morceau par morceau")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.textSecondary)
+                .foregroundStyle(palette.textPrimary)
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(progress.activities) { activity in
                     ImportTrackActivityRow(activity: activity, palette: palette)
                 }
             }
             .padding(12)
-            .background(palette.backgroundSecondary)
+            .background(palette.backgroundSecondary.opacity(0.94))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
@@ -155,17 +187,20 @@ struct ImportProgressView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Dernières étapes")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.textSecondary)
+                .foregroundStyle(palette.textPrimary)
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(progress.diagnostics, id: \.self) { line in
                     SelectableText(
                         text: line,
                         font: .caption,
-                        foreground: palette.textTertiary,
-                        lineLimit: 2
+                        foreground: palette.textSecondary,
+                        lineLimit: 3
                     )
                 }
             }
+            .padding(12)
+            .background(palette.backgroundSecondary.opacity(0.94))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
     }
 

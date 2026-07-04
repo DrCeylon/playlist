@@ -135,7 +135,8 @@ struct HistoryView: View {
                     HistoryWorkflowResumeView(
                         detail: viewModel.selectedDetail,
                         resumeContent: viewModel.resumeContent,
-                        isBusy: viewModel.isBusy || !workflow.canStartProcess(),
+                        isBusy: historyActionsDisabled,
+                        actionsDisabledReason: historyActionsDisabledReason,
                         onEditForm: {
                             if let request = viewModel.editRequestForSelectedSession() {
                                 workflow.requestEditFromHistory(request)
@@ -151,8 +152,20 @@ struct HistoryView: View {
                         onRetryTrack: { index in
                             Task { await viewModel.retryImportTrack(at: index) }
                         },
+                        onRetryImport: { result in
+                            Task {
+                                await workflow.startImport(from: result)
+                                selection = workflow.activeRoute
+                            }
+                        },
                         onExport: {
                             Task { await viewModel.exportSelection() }
+                        },
+                        onConfirmManual: {
+                            Task { await workflow.importWorkflow.confirmManualAcquisition() }
+                        },
+                        onDismissLiveImport: {
+                            workflow.importWorkflow.reset()
                         }
                     )
                 }
@@ -176,6 +189,24 @@ struct HistoryView: View {
                 .foregroundStyle(palette.textSecondary)
         }
         .contentShape(Rectangle())
+    }
+
+    private var isManagingSelectedSession: Bool {
+        guard let detail = viewModel.selectedDetail else { return false }
+        return workflow.isManagingSession(detail)
+    }
+
+    private var historyActionsDisabled: Bool {
+        if viewModel.isBusy { return true }
+        if workflow.canStartProcess() { return false }
+        return !isManagingSelectedSession
+    }
+
+    private var historyActionsDisabledReason: String? {
+        if viewModel.isBusy { return nil }
+        if workflow.canStartProcess() { return nil }
+        if isManagingSelectedSession { return nil }
+        return workflow.processBlockingLabel
     }
 
     private func statusColor(for status: SessionHistoryStatus, palette: ThemePalette) -> Color {

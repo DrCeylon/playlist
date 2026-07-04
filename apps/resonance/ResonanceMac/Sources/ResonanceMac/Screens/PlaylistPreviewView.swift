@@ -6,6 +6,7 @@ struct PlaylistPreviewView: View {
     let result: PlaylistGenerationResult
     let previewSourceLabel: String
     let actionsDisabled: Bool
+    let actionsDisabledReason: String?
     let onEdit: () -> Void
     let onImport: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
@@ -14,12 +15,14 @@ struct PlaylistPreviewView: View {
         result: PlaylistGenerationResult,
         previewSourceLabel: String,
         actionsDisabled: Bool = false,
+        actionsDisabledReason: String? = nil,
         onEdit: @escaping () -> Void,
         onImport: @escaping () -> Void
     ) {
         self.result = result
         self.previewSourceLabel = previewSourceLabel
         self.actionsDisabled = actionsDisabled
+        self.actionsDisabledReason = actionsDisabledReason
         self.onEdit = onEdit
         self.onImport = onImport
     }
@@ -92,6 +95,12 @@ struct PlaylistPreviewView: View {
                     .tint(palette.accentPrimary)
                     .disabled(actionsDisabled)
                     .opacity(actionsDisabled ? 0.55 : 1)
+                }
+
+                if actionsDisabled, let actionsDisabledReason {
+                    Label(actionsDisabledReason, systemImage: "hourglass")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.statusWarning)
                 }
             }
             .padding(24)

@@ -22,6 +22,8 @@ final class ImportViewModel: ObservableObject {
     private var importSessionID: String?
     private var manualPollTask: Task<Void, Never>?
     private var importedGeneration: PlaylistGenerationResult?
+    private var activeImportToken: UUID?
+    private var isContinuingManual = false
 
     init(service: any PlaylistImportServing = MockPlaylistImportService()) {
         self.service = service
@@ -70,11 +72,16 @@ final class ImportViewModel: ObservableObject {
     }
 
     func confirmManualAcquisition() async {
+        guard !isContinuingManual else { return }
+        isContinuingManual = true
+        defer { isContinuingManual = false }
+
         stopManualPolling()
         guard let importSessionID else {
             screenState = .failed("Session d'import introuvable.")
             return
         }
+        let token = activeImportToken
         screenState = .importing
         mutateProgress { snapshot in
             snapshot.currentStep = "Reprise après ajout manuel…"
@@ -86,16 +93,21 @@ final class ImportViewModel: ObservableObject {
                 importSessionID: importSessionID,
                 onEvent: importEventHandler
             )
+            await flushPendingImportEvents()
+            guard token == nil || token == activeImportToken else { return }
             finishImport(with: result)
         } catch let error as PlaylistImportError {
+            guard token == nil || token == activeImportToken else { return }
             failImport(error)
         } catch {
+            guard token == nil || token == activeImportToken else { return }
             failImport(error)
         }
     }
 
     func reset() {
         stopManualPolling()
+        activeImportToken = nil
         screenState = .idle
         progress = ImportProgressSnapshot()
         manualPrompt = nil
@@ -116,6 +128,7 @@ final class ImportViewModel: ObservableObject {
 
     private func beginImport(playlistName: String, totalTracks: Int) {
         stopManualPolling()
+        activeImportToken = UUID()
         screenState = .importing
         architectErrorDetail = nil
         manualPrompt = nil
@@ -164,6 +177,8 @@ final class ImportViewModel: ObservableObject {
     }
 
     private func handle(event: BridgeEventMessage) {
+        guard activeImportToken != nil || screenState != .idle else { return }
+
         switch event.event {
         case .started:
             let message = startedMessage(from: event.payload)
@@ -228,7 +243,14 @@ final class ImportViewModel: ObservableObject {
                 snapshot.lastActivityAt = .now
             }
             architectErrorDetail = message
-            screenState = .failed(ImportErrorHumanizer.humanizeBridgeMessage(message))
+            switch screenState {
+            case .importing, .waitingForManualAcquisition:
+                mutateProgress { snapshot in
+                    snapshot.currentStep = ImportErrorHumanizer.humanizeBridgeMessage(message)
+                }
+            default:
+                screenState = .failed(ImportErrorHumanizer.humanizeBridgeMessage(message))
+            }
         case .manualAcquisitionRequired:
             importSessionID = event.payload["import_session_id"]?.stringValue
             manualPrompt = ManualAcquisitionPrompt(
@@ -241,11 +263,15 @@ final class ImportViewModel: ObservableObject {
                 catalogURL: event.payload["catalog_url"]?.stringValue ?? ""
             )
             mutateProgress { snapshot in
-                snapshot.currentStep = "En attente d'ajout manuel dans Music.app"
+                snapshot.currentStep = "Ajout manuel requis — ouvrez Music.app via le bouton ci-dessous"
+                appendDiagnostic(
+                    "Acquisition manuelle requise pour \(manualPrompt?.artist ?? "") — \(manualPrompt?.title ?? "")",
+                    to: &snapshot,
+                    force: true
+                )
                 snapshot.lastActivityAt = .now
             }
             screenState = .waitingForManualAcquisition
-            openMusicForManualPrompt()
             startManualPolling()
         default:
             break
@@ -270,31 +296,18 @@ final class ImportViewModel: ObservableObject {
     }
 
     private func probeManualAcquisition() async {
-        guard let importSessionID, screenState == .waitingForManualAcquisition else { return }
+        guard let importSessionID, screenState == .waitingForManualAcquisition, !isContinuingManual else { return }
         do {
             let found = try await service.probeManualAcquisition(importSessionID: importSessionID)
             if found {
                 manualPollStatus = "Morceau détecté — reprise automatique…"
                 await confirmManualAcquisition()
             } else {
-                manualPollStatus = "Vérification bibliothèque… morceau pas encore visible."
+                manualPollStatus = "Vérification bibliothèque en arrière-plan… morceau pas encore visible."
             }
         } catch {
             manualPollStatus = "Vérification bibliothèque indisponible."
         }
-    }
-
-    private func openMusicForManualPrompt() {
-        guard let manualPrompt else { return }
-        if !manualPrompt.catalogURL.isEmpty {
-            MusicAppLink.openURLString(manualPrompt.catalogURL)
-            return
-        }
-        MusicAppLink.openSearch(
-            artist: manualPrompt.artist,
-            title: manualPrompt.title,
-            album: manualPrompt.album
-        )
     }
 
     private func parseTrackActivity(from payload: BridgeJSONObject) -> ImportTrackActivity? {
@@ -373,6 +386,8 @@ final class ImportViewModel: ObservableObject {
             || lowered.contains("deliver")
             || lowered.contains("introuvable")
             || lowered.contains("cache")
+            || lowered.contains(" ms")
+            || lowered.contains("lot ")
     }
 
     private func startedMessage(from payload: BridgeJSONObject) -> String {

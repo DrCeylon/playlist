@@ -5,6 +5,8 @@ import SwiftUI
 struct ImportReportView: View {
     let report: ImportResultState
     let showsDismissButton: Bool
+    let actionsDisabled: Bool
+    let actionsDisabledReason: String?
     let onRetryTrack: ((Int) -> Void)?
     let onClose: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
@@ -12,11 +14,15 @@ struct ImportReportView: View {
     init(
         report: ImportResultState,
         showsDismissButton: Bool = true,
+        actionsDisabled: Bool = false,
+        actionsDisabledReason: String? = nil,
         onRetryTrack: ((Int) -> Void)? = nil,
         onClose: @escaping () -> Void
     ) {
         self.report = report
         self.showsDismissButton = showsDismissButton
+        self.actionsDisabled = actionsDisabled
+        self.actionsDisabledReason = actionsDisabledReason
         self.onRetryTrack = onRetryTrack
         self.onClose = onClose
     }
@@ -55,10 +61,16 @@ struct ImportReportView: View {
                             ImportOutcomeRow(
                                 outcome: outcome,
                                 palette: palette,
-                                onRetry: canRetry(outcome) ? { onRetryTrack?(index) } : nil
+                                onRetry: canRetry(outcome) && !actionsDisabled ? { onRetryTrack?(index) } : nil
                             )
                         }
                     }
+                }
+
+                if actionsDisabled, let actionsDisabledReason {
+                    Label(actionsDisabledReason, systemImage: "hourglass")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.statusWarning)
                 }
 
                 HStack(alignment: .center, spacing: 10) {

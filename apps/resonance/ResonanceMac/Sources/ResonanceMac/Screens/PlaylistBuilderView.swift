@@ -505,9 +505,9 @@ private struct GenerateFooterSection: View {
                         .font(.caption)
                         .foregroundStyle(palette.textTertiary)
                 } else if !canStartProcess {
-                    Text("Un autre processus est en cours — consulte le bandeau en haut de l'app.")
-                        .font(.caption)
-                        .foregroundStyle(palette.textTertiary)
+                    Text("Processus en cours — consulte le bandeau en haut de l'app.")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.statusWarning)
                 }
             }
             Spacer()
@@ -589,17 +589,24 @@ private struct ImportFailureView: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(palette.statusWarning)
             Text(message)
-                .foregroundStyle(palette.textSecondary)
+                .foregroundStyle(palette.textPrimary)
                 .textSelection(.enabled)
             if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
                 Text(architectErrorDetail)
                     .font(.caption.monospaced())
-                    .foregroundStyle(palette.textTertiary)
+                    .foregroundStyle(palette.textSecondary)
                     .textSelection(.enabled)
             }
             Button("Revenir à l'aperçu", action: onReset)
                 .buttonStyle(.borderedProminent)
                 .tint(palette.accentPrimary)
+        }
+        .padding(24)
+        .background(palette.surface.opacity(0.98))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(palette.borderSubtle, lineWidth: 1)
         }
         .padding(24)
     }

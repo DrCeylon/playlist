@@ -5,6 +5,7 @@ import SwiftUI
 struct HomeView: View {
     @Binding var selection: SidebarItem?
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var workflow: AppWorkflowCoordinator
 
     var body: some View {
         ThemedScreen {
@@ -28,9 +29,16 @@ struct HomeView: View {
                     }
 
                     card(title: "Raccourcis", palette: palette) {
-                        HStack(spacing: 16) {
-                            ForEach(HomeShortcut.allCases) { shortcut in
-                                shortcutButton(shortcut, palette: palette)
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 16) {
+                                ForEach(HomeShortcut.allCases) { shortcut in
+                                    shortcutButton(shortcut, palette: palette)
+                                }
+                            }
+                            if let blockingLabel = workflow.processBlockingLabel {
+                                Label(blockingLabel, systemImage: "hourglass")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(palette.statusWarning)
                             }
                         }
                     }
@@ -67,7 +75,9 @@ struct HomeView: View {
 
     @ViewBuilder
     private func shortcutButton(_ shortcut: HomeShortcut, palette: ThemePalette) -> some View {
+        let blocked = shortcut.triggersWorkflow && !workflow.canStartProcess()
         Button {
+            guard !blocked else { return }
             selection = shortcut.destination
         } label: {
             VStack(spacing: 8) {
@@ -80,9 +90,11 @@ struct HomeView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(palette.backgroundElevated, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .foregroundStyle(palette.accentPrimary)
+            .foregroundStyle(blocked ? palette.textSecondary : palette.accentPrimary)
         }
         .buttonStyle(.plain)
+        .disabled(blocked)
+        .opacity(blocked ? 0.55 : 1)
         .accessibilityLabel(shortcut.title)
     }
 }

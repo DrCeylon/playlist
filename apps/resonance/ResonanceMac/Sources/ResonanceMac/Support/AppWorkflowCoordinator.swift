@@ -23,6 +23,7 @@ final class AppWorkflowCoordinator: ObservableObject {
         let detail: String
         let progressLabel: String
         let progressRatio: Double?
+        let substeps: [String]
     }
 
     @Published private(set) var banner: BannerPresentation?
@@ -63,6 +64,40 @@ final class AppWorkflowCoordinator: ObservableObject {
 
     func canStartProcess() -> Bool {
         !isProcessRunning
+    }
+
+    var processBlockingLabel: String? {
+        isProcessRunning ? "Processus en cours" : nil
+    }
+
+    func isManagingSession(_ detail: SessionHistoryDetail) -> Bool {
+        matchesActivePlaylist(detail.summary.playlistName)
+    }
+
+    func matchesActivePlaylist(_ playlistName: String) -> Bool {
+        let trimmed = playlistName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+
+        if importWorkflow.progress.playlistName == trimmed {
+            return isImportWorkflowActive
+        }
+        if importWorkflow.report?.playlistName == trimmed, isImportWorkflowActive {
+            return true
+        }
+        if playlistBuilder.screenState == .generating,
+           (playlistBuilder.name == trimmed || playlistBuilder.previewResult?.playlistName == trimmed) {
+            return true
+        }
+        return false
+    }
+
+    private var isImportWorkflowActive: Bool {
+        switch importWorkflow.screenState {
+        case .importing, .waitingForManualAcquisition, .report, .failed:
+            return true
+        case .idle:
+            return false
+        }
     }
 
     func requestEditFromHistory(_ request: PlaylistGenerationRequest) {
@@ -124,19 +159,21 @@ final class AppWorkflowCoordinator: ObservableObject {
                 step: progress.currentStep.isEmpty ? "Import en cours…" : progress.currentStep,
                 detail: importDetail(from: progress),
                 progressLabel: importProgressLabel(from: progress),
-                progressRatio: progress.totalTracks > 0 ? progress.progressRatio : nil
+                progressRatio: progress.totalTracks > 0 ? progress.progressRatio : nil,
+                substeps: progress.diagnostics
             )
         case .waitingForManualAcquisition:
             banner = BannerPresentation(
                 phase: .inProgress,
                 kind: .importProcess,
                 playlistName: playlistName,
-                step: "Ajout manuel requis dans Music.app",
+                step: "Ajout manuel requis — ouvrez Music.app manuellement",
                 detail: progress.currentTrackLabel.isEmpty
-                    ? "Un morceau doit être ajouté manuellement à la bibliothèque."
+                    ? "Resonance n'ouvre plus Music.app automatiquement."
                     : progress.currentTrackLabel,
                 progressLabel: importProgressLabel(from: progress),
-                progressRatio: progress.totalTracks > 0 ? progress.progressRatio : nil
+                progressRatio: progress.totalTracks > 0 ? progress.progressRatio : nil,
+                substeps: progress.diagnostics
             )
         case .report:
             banner = BannerPresentation(
@@ -146,7 +183,8 @@ final class AppWorkflowCoordinator: ObservableObject {
                 step: "Import terminé — touche pour voir le rapport",
                 detail: importSummary(from: report),
                 progressLabel: "",
-                progressRatio: 1
+                progressRatio: 1,
+                substeps: []
             )
         case .failed(let message):
             banner = BannerPresentation(
@@ -156,7 +194,8 @@ final class AppWorkflowCoordinator: ObservableObject {
                 step: ImportErrorHumanizer.humanizeBridgeMessage(message),
                 detail: progress.currentTrackLabel,
                 progressLabel: importProgressLabel(from: progress),
-                progressRatio: nil
+                progressRatio: nil,
+                substeps: progress.diagnostics
             )
         case .idle:
             if importWorkflow.screenState == .idle {
@@ -182,7 +221,8 @@ final class AppWorkflowCoordinator: ObservableObject {
                 step: "Génération en cours…",
                 detail: "Le moteur Python compose la playlist.",
                 progressLabel: "",
-                progressRatio: nil
+                progressRatio: nil,
+                substeps: []
             )
         case .preview:
             banner = BannerPresentation(
@@ -192,7 +232,8 @@ final class AppWorkflowCoordinator: ObservableObject {
                 step: "Aperçu prêt — touche pour reprendre",
                 detail: preview.map { "\($0.trackCount) morceau(x) · score moyen \(String(format: "%.2f", $0.averageScore))" } ?? "",
                 progressLabel: "",
-                progressRatio: 1
+                progressRatio: 1,
+                substeps: []
             )
         case .editing:
             if playlistBuilder.screenState == .editing, importWorkflow.screenState == .idle {

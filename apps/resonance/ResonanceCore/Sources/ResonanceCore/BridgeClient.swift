@@ -14,7 +14,7 @@ public struct BridgeClientConfiguration: Sendable {
         pythonExecutable: String = "/usr/bin/python3",
         moduleName: String = "playlist_builder.cli.engine_bridge",
         workingDirectory: URL,
-        timeoutSeconds: TimeInterval = 180,
+        timeoutSeconds: TimeInterval = 600,
         environment: [String: String] = [:]
     ) {
         self.pythonExecutable = pythonExecutable

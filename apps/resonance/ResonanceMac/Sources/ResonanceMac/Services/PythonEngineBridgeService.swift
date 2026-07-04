@@ -78,7 +78,7 @@ public struct PythonEngineBridgeConfiguration: Sendable {
     public init(
         pythonExecutable: String = "/usr/bin/python3",
         workingDirectory: URL,
-        timeoutSeconds: TimeInterval = 180,
+        timeoutSeconds: TimeInterval = 600,
         useBridgeWhenAvailable: Bool = true
     ) {
         self.pythonExecutable = pythonExecutable
