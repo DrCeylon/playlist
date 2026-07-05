@@ -3,11 +3,13 @@ import ResonanceCore
 
 @MainActor
 final class SmartInputFormEngines: ObservableObject {
+    let autocompleteService: any AutocompleteServing
     let artistHolder: AutocompleteEngineHolder<BridgeArtistSuggestionProvider>
     let trackHolder: AutocompleteEngineHolder<BridgeTrackSuggestionProvider>
     let keywordHolder: AutocompleteEngineHolder<LocalKeywordSuggestionProvider>
 
     init(autocompleteService: any AutocompleteServing = MockAutocompleteService()) {
+        self.autocompleteService = autocompleteService
         let artistEngine = AutocompleteEngine(
             provider: BridgeArtistSuggestionProvider(service: autocompleteService),
             entityKind: .artist

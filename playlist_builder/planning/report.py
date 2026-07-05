@@ -17,9 +17,17 @@ def build_mad_scientist_report(
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
         f"Expérience : {playlist.request.name}",
         f"Résultat : {analysis.track_count} morceau(x) retenu(s)",
-        f"Diversité artistes : {analysis.artist_count} artiste(s)",
-        f"Score moyen : {analysis.average_score:.1f}",
     ]
+    if playlist.is_short:
+        lines.append(f"Cible : {playlist.target_track_count} morceau(x)")
+        if playlist.shortfall_message:
+            lines.append(f"⚠️ {playlist.shortfall_message}")
+    lines.extend(
+        [
+            f"Diversité artistes : {analysis.artist_count} artiste(s)",
+            f"Score moyen : {analysis.average_score:.1f}",
+        ]
+    )
 
     if analysis.average_energy is not None:
         lines.append(f"Énergie moyenne : {analysis.average_energy:.1f}/100")

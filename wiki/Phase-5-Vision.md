@@ -71,6 +71,14 @@ UX import Apple Music mergée (PR #36) : progression morceau par morceau, texte 
 | Dette bridge | Refactor AsyncStream avant nouvelles commandes |
 | iOS trop tôt | Valider macOS production d'abord |
 
+## Phase 5.2 — validée fonctionnellement
+
+Voir [Phase 5.2 — Clôture](Phase-5-2-Cloture) et [État des phases](Etat-des-Phases).
+
+## Phase 5.3 — performance (prochaine)
+
+Voir [Phase 5.3 — Performance](Phase-5-3-Performance) : mesure import/génération, bridge, cache, hypothèses AppleScript vs MusicKit.
+
 ## Dépendances
 
 - Validation utilisateur Phase 4.8A sur Mac réel

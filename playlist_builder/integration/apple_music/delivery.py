@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 
 from playlist_builder.canonical.enums import ImportStatus
@@ -18,7 +19,12 @@ from playlist_builder.integration.apple_music.resolver import (
     AppleMusicResolutionStatus,
 )
 
+from collections.abc import Callable
+
 BATCH_SIZE = 25
+logger = logging.getLogger(__name__)
+
+DeliveryBatchCallback = Callable[[int, int], None]
 
 
 class AppleMusicDelivery:
@@ -28,19 +34,74 @@ class AppleMusicDelivery:
         self._applescript = applescript
 
     def ensure_playlist(self, name: str) -> None:
-        self._applescript.ensure_running()
+        self._applescript.ensure_running(activate=False)
         self._applescript.ensure_playlist(name)
+
+    def add_resolved_track(
+        self,
+        playlist_name: str,
+        outcome: AppleMusicResolutionOutcome,
+        *,
+        section_name: str,
+        existing_keys: set[str] | None = None,
+    ) -> CanonicalImportResult:
+        known_keys = set(existing_keys or ())
+        if outcome.status != AppleMusicResolutionStatus.RESOLVED:
+            return _result_from_outcome(outcome, section_name)
+        track_key = outcome.track.identity_key
+        if track_key in known_keys:
+            return CanonicalImportResult(
+                track=outcome.track,
+                status=ImportStatus.SKIPPED,
+                section_name=section_name,
+            )
+        statuses = self._add_batch_with_retry(playlist_name, [(0, outcome, section_name)])
+        status = statuses[0]
+        if status.startswith("added"):
+            return CanonicalImportResult(
+                track=outcome.track,
+                status=ImportStatus.ADDED,
+                section_name=section_name,
+            )
+        if status.startswith("not_found"):
+            return CanonicalImportResult(
+                track=outcome.track,
+                status=ImportStatus.NOT_FOUND,
+                section_name=section_name,
+                error="Apple Music library track introuvable pour le persistent ID résolu.",
+            )
+        _, _, detail = _parse_delivery_status(status)
+        return CanonicalImportResult(
+            track=outcome.track,
+            status=ImportStatus.ERROR,
+            section_name=section_name,
+            error=detail or "Erreur AppleScript lors de l'ajout.",
+        )
 
     def sync_playlist(
         self,
         playlist: CanonicalPlaylist,
         outcomes: list[AppleMusicResolutionOutcome],
+        *,
+        on_delivery_batch: DeliveryBatchCallback | None = None,
     ) -> CanonicalImportReport:
         resolved = [outcome for outcome in outcomes if outcome.status == AppleMusicResolutionStatus.RESOLVED]
         if not resolved:
-            return self._import_resolved_tracks(playlist, outcomes, existing_keys=None, allow_duplicates=True)
+            return self._import_resolved_tracks(
+                playlist,
+                outcomes,
+                existing_keys=None,
+                allow_duplicates=True,
+                on_delivery_batch=on_delivery_batch,
+            )
         self._clear_playlist_with_confirmation(playlist.name)
-        report = self._import_resolved_tracks(playlist, outcomes, existing_keys=None, allow_duplicates=True)
+        report = self._import_resolved_tracks(
+            playlist,
+            outcomes,
+            existing_keys=None,
+            allow_duplicates=True,
+            on_delivery_batch=on_delivery_batch,
+        )
         added_count = sum(1 for item in report.results if item.status == ImportStatus.ADDED)
         if added_count > 0:
             wait_for_playlist_track_count(
@@ -76,6 +137,7 @@ class AppleMusicDelivery:
         *,
         existing_keys: set[str] | None,
         allow_duplicates: bool,
+        on_delivery_batch: DeliveryBatchCallback | None = None,
     ) -> CanonicalImportReport:
         rows = _flatten_playlist_with_outcomes(playlist, outcomes)
         known_keys = set(existing_keys or ())
@@ -98,11 +160,14 @@ class AppleMusicDelivery:
             pending.append((index, outcome, section_name))
 
         batch_index = 0
+        total_batches = max(1, (len(pending) + BATCH_SIZE - 1) // BATCH_SIZE) if pending else 0
         for offset in range(0, len(pending), BATCH_SIZE):
             pace_between_delivery_batches(batch_index)
             batch_index += 1
             batch = pending[offset : offset + BATCH_SIZE]
             statuses = self._add_batch_with_retry(playlist.name, batch)
+            if on_delivery_batch is not None and total_batches > 0:
+                on_delivery_batch(batch_index, total_batches)
             for (index, outcome, section_name), status in zip(batch, statuses, strict=True):
                 if status.startswith("added"):
                     known_keys.add(outcome.track.identity_key)
@@ -165,14 +230,36 @@ def _flatten_playlist_with_outcomes(
     outcomes: list[AppleMusicResolutionOutcome],
 ) -> list[tuple[AppleMusicResolutionOutcome, str]]:
     flat_sections: list[str] = []
+    flat_tracks: list = []
     for section in playlist.sections:
-        for _track in section.tracks:
+        for track in section.tracks:
             flat_sections.append(section.name)
+            flat_tracks.append(track)
 
-    if len(flat_sections) != len(outcomes):
-        raise ValueError("Resolution outcomes do not match playlist track count.")
+    expected = len(flat_sections)
+    received = len(outcomes)
+    aligned_outcomes = list(outcomes)
+    if received != expected:
+        logger.error(
+            "Resolution outcomes count mismatch for playlist %r: outcomes=%d tracks=%d",
+            playlist.name,
+            received,
+            expected,
+        )
+        if received < expected:
+            for index in range(received, expected):
+                aligned_outcomes.append(
+                    AppleMusicResolutionOutcome(
+                        track=flat_tracks[index],
+                        persistent_id="",
+                        status=AppleMusicResolutionStatus.ERROR,
+                        error="Résolution manquante pour ce morceau.",
+                    )
+                )
+        else:
+            aligned_outcomes = aligned_outcomes[:expected]
 
-    return list(zip(outcomes, flat_sections, strict=True))
+    return list(zip(aligned_outcomes, flat_sections, strict=True))
 
 
 def _result_from_outcome(outcome: AppleMusicResolutionOutcome, section_name: str) -> CanonicalImportResult:

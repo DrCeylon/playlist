@@ -16,8 +16,19 @@ from playlist_builder.resolver.query import generate_query_variants
 class AppleScriptClient:
     """Low-level Apple Music.app adapter — no business logic."""
 
-    def ensure_running(self) -> None:
-        run_applescript('tell application "Music" to activate')
+    def ensure_running(self, *, activate: bool = False) -> None:
+        if activate:
+            run_applescript('tell application "Music" to activate')
+            return
+        run_applescript(
+            '''
+tell application "Music"
+    if it is not running then
+        launch
+    end if
+end tell
+'''
+        )
 
     def ensure_playlist(self, name: str) -> None:
         escaped = apple_escape(name)

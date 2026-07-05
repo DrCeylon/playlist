@@ -17,9 +17,10 @@ final class ThemeRegistryTests: XCTestCase {
 
     func testInheritanceMerge() throws {
         let registry = try ThemeRegistry.loadBundled()
-        let parent = try registry.get("apple_music_dark")
+        let parentTheme = try registry.get("apple_music_dark")
         let child = try registry.get("classic_winamp_inspired")
 
+        XCTAssertEqual(parentTheme.id, "apple_music_dark")
         XCTAssertEqual(child.extends, "apple_music_dark")
         XCTAssertEqual(child.tokens.colors["color.background.primary"], "#232323")
         XCTAssertEqual(child.tokens.colors["color.text.primary"], "#E8FFE8")

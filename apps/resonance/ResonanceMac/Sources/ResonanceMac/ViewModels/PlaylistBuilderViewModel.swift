@@ -45,6 +45,10 @@ final class PlaylistBuilderViewModel: ObservableObject {
         seedArtist != nil || seedTrack != nil || !keywords.isEmpty
     }
 
+    var inspirationArtworkURL: URL? {
+        seedTrack?.artworkURL ?? seedArtist?.artworkURL
+    }
+
     func buildRequest() -> PlaylistGenerationRequest {
         let keywordLabels = keywords.map(\.label)
 
@@ -117,6 +121,40 @@ final class PlaylistBuilderViewModel: ObservableObject {
     }
 
     func backToEditing() {
+        screenState = .editing
+    }
+
+    func loadFromHistory(_ request: PlaylistGenerationRequest) {
+        name = request.name
+        descriptionText = request.description
+        targetTrackCountText = request.targetTrackCount.map(String.init) ?? targetTrackCountText
+        targetDurationText = request.targetDurationMinutes.map(String.init) ?? ""
+        energyProfile = request.energyCurve.profile
+        exclusions = request.exclusions
+        keywords = request.keywords.map { KeywordRef(id: UUID().uuidString, label: $0) }
+
+        if let seed = request.seeds.first {
+            let artistName = seed.artist.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trackTitle = seed.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            seedArtist = artistName.isEmpty
+                ? nil
+                : ArtistRef(id: "history:\(artistName)", displayName: artistName)
+            seedTrack = trackTitle.isEmpty
+                ? nil
+                : TrackRef(
+                    id: "history:\(trackTitle)",
+                    title: trackTitle,
+                    artistName: artistName
+                )
+        } else {
+            seedArtist = nil
+            seedTrack = nil
+        }
+
+        previewResult = nil
+        previewSourceLabel = "Aperçu moteur Python"
+        bridgeFallbackMessage = nil
+        validationErrors = []
         screenState = .editing
     }
 }

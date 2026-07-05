@@ -183,7 +183,40 @@ public struct ImportProgressSnapshot: Equatable, Sendable {
 
     public var progressRatio: Double {
         guard totalTracks > 0 else { return 0 }
-        return min(1.0, Double(processedTracks) / Double(totalTracks))
+        switch phase {
+        case .delivering:
+            let resolvedWeight = 0.7
+            let deliveryProgress = min(1.0, Double(addedCount + skippedCount + notFoundCount + errorCount) / Double(totalTracks))
+            return min(1.0, resolvedWeight + (1.0 - resolvedWeight) * deliveryProgress)
+        case .completed:
+            return 1.0
+        default:
+            return min(0.7, Double(processedTracks) / Double(totalTracks) * 0.7)
+        }
+    }
+
+    public var remainingTracksLabel: String {
+        guard totalTracks > 0 else { return "" }
+        let remaining = max(0, totalTracks - processedTracks)
+        if phase == .delivering {
+            return "Finalisation dans Music.app…"
+        }
+        if remaining == 0 {
+            return "Résolution terminée"
+        }
+        return "\(remaining) morceau(x) restant(s)"
+    }
+
+    public var phaseLabel: String {
+        switch phase {
+        case .resolving: return "Étape 1/2 — Recherche et résolution"
+        case .delivering: return "Étape 2/2 — Ajout dans Music.app"
+        case .waitingForManualAcquisition: return "En attente d'ajout manuel"
+        case .completed: return "Import terminé"
+        case .partialSuccess: return "Import partiel"
+        case .failed: return "Import échoué"
+        default: return "Préparation"
+        }
     }
 }
 
@@ -271,9 +304,25 @@ public protocol PlaylistImportServing: Sendable {
     func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState
 
     func probeManualAcquisition(importSessionID: String) async throws -> Bool
+
+    func retryImportTracks(
+        _ generationResult: PlaylistGenerationResult,
+        trackIndices: [Int],
+        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+    ) async throws -> ImportResultState
 }
 
 public extension PlaylistImportServing {
+    func retryImportTracks(
+        _ generationResult: PlaylistGenerationResult,
+        trackIndices: [Int],
+        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+    ) async throws -> ImportResultState {
+        _ = generationResult
+        _ = trackIndices
+        _ = onEvent
+        throw PlaylistImportError.bridgeUnavailable
+    }
     func probeManualAcquisition(importSessionID: String) async throws -> Bool {
         _ = importSessionID
         return false

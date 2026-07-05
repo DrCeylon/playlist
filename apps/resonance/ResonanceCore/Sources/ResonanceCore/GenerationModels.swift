@@ -133,22 +133,33 @@ public struct PlaylistGenerationResult: Hashable, Codable, Sendable {
     public var averageScore: Double
     public var providerID: ProviderID
     public var historySessionID: String
+    public var targetTrackCount: Int?
+    public var shortfallMessage: String
 
     public init(
         playlistName: String,
         sections: [GeneratedSectionPreview] = [],
         averageScore: Double = 0,
         providerID: ProviderID = .appleMusic,
-        historySessionID: String = ""
+        historySessionID: String = "",
+        targetTrackCount: Int? = nil,
+        shortfallMessage: String = ""
     ) {
         self.playlistName = playlistName
         self.sections = sections
         self.averageScore = averageScore
         self.providerID = providerID
         self.historySessionID = historySessionID
+        self.targetTrackCount = targetTrackCount
+        self.shortfallMessage = shortfallMessage
     }
 
     public var trackCount: Int {
         sections.reduce(0) { $0 + $1.tracks.count }
+    }
+
+    public var isShort: Bool {
+        guard let targetTrackCount else { return false }
+        return trackCount < targetTrackCount
     }
 }

@@ -3,17 +3,21 @@ import ResonanceCore
 @testable import ResonanceMac
 import XCTest
 
-final class MockBridgeTransport: BridgeTransport, @unchecked Sendable {
-    private let lock = NSLock()
-    private var _lastCommand: BridgeCommand?
+actor MockBridgeTransport: BridgeTransport {
+    private(set) var lastCommand: BridgeCommand?
+    private let responseHandler: @Sendable (BridgeCommand, BridgeJSONObject) -> (
+        BridgeResponseMessage,
+        [BridgeEventMessage]
+    )
 
-    var lastCommand: BridgeCommand? {
-        lock.lock()
-        defer { lock.unlock() }
-        return _lastCommand
+    init(
+        responseHandler: @escaping @Sendable (BridgeCommand, BridgeJSONObject) -> (
+            BridgeResponseMessage,
+            [BridgeEventMessage]
+        )
+    ) {
+        self.responseHandler = responseHandler
     }
-
-    var handler: ((BridgeCommand, BridgeJSONObject) -> (BridgeResponseMessage, [BridgeEventMessage]))?
 
     func send(
         command: BridgeCommand,
@@ -25,22 +29,17 @@ final class MockBridgeTransport: BridgeTransport, @unchecked Sendable {
         response: BridgeResponseMessage,
         events: [BridgeEventMessage]
     ) {
+        _ = requestID
         _ = onEvent
         _ = onDiagnostic
-        lock.lock()
-        _lastCommand = command
-        lock.unlock()
-        if let handler {
-            return handler(command, params)
-        }
-        throw BridgeClientError.bridgeUnavailable
+        lastCommand = command
+        return responseHandler(command, params)
     }
 }
 
 final class BridgeClientTests: XCTestCase {
     func testPythonEngineBridgeServiceGenerateUsesTransport() async throws {
-        let transport = MockBridgeTransport()
-        transport.handler = { command, _ in
+        let transport = MockBridgeTransport { command, _ in
             XCTAssertEqual(command, .generatePlaylist)
             let result: BridgeJSONObject = [
                 "generation": .object([
@@ -80,6 +79,7 @@ final class BridgeClientTests: XCTestCase {
         )
         XCTAssertEqual(result.playlistName, "Demo")
         XCTAssertEqual(result.trackCount, 1)
-        XCTAssertEqual(transport.lastCommand, .generatePlaylist)
+        let lastCommand = await transport.lastCommand
+        XCTAssertEqual(lastCommand, .generatePlaylist)
     }
 }

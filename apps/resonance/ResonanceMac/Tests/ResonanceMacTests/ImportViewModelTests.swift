@@ -137,9 +137,14 @@ final class ImportViewModelTests: XCTestCase {
         await viewModel.importPlaylist(
             PlaylistGenerationResult(playlistName: "Demo", sections: [], averageScore: 0)
         )
+        XCTAssertEqual(viewModel.screenState, .report)
         XCTAssertEqual(viewModel.progress.activities.count, 1)
         XCTAssertEqual(viewModel.progress.activities[0].title, "Firestone")
-        XCTAssertEqual(viewModel.progress.currentStep, "Recherche…")
+        XCTAssertEqual(
+            viewModel.progress.currentStep,
+            "Playlist créée — 0 morceau(x) ajouté(s)",
+            "After import completes, progress should show the final summary step, not the last per-track message."
+        )
     }
 
     func testDiagnosticsRingBufferLimitsGrowth() async {

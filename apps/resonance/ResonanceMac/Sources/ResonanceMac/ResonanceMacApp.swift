@@ -6,6 +6,7 @@ import SwiftUI
 @main
 struct ResonanceMacApp: App {
     @StateObject private var themeManager: ThemeManager
+    @StateObject private var workflowCoordinator: AppWorkflowCoordinator
 
     init() {
         let manager: ThemeManager
@@ -15,12 +16,14 @@ struct ResonanceMacApp: App {
             fatalError("Impossible de charger les thèmes embarqués : \(error)")
         }
         _themeManager = StateObject(wrappedValue: manager)
+        _workflowCoordinator = StateObject(wrappedValue: AppWorkflowCoordinator())
     }
 
     var body: some Scene {
         WindowGroup {
             AppShellView()
                 .environmentObject(themeManager)
+                .environmentObject(workflowCoordinator)
                 .onAppear {
                     NSApp.setActivationPolicy(.regular)
                     ApplicationIconConfigurator.applyIfNeeded()

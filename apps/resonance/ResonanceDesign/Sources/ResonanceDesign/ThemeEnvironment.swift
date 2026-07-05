@@ -138,6 +138,7 @@ public extension EnvironmentValues {
 
 public struct ThemedScreen<Content: View>: View {
   @EnvironmentObject private var themeManager: ThemeManager
+  @Environment(\.colorScheme) private var colorScheme
   private let content: Content
 
   public init(@ViewBuilder content: () -> Content) {
@@ -151,5 +152,11 @@ public struct ThemedScreen<Content: View>: View {
       .background(palette.backgroundPrimary)
       .tint(palette.accentPrimary)
       .animation(.easeOut(duration: 0.3), value: themeManager.active.id)
+      .onAppear {
+        themeManager.updateColorScheme(colorScheme)
+      }
+      .onChange(of: colorScheme) { _, newValue in
+        themeManager.updateColorScheme(newValue)
+      }
   }
 }

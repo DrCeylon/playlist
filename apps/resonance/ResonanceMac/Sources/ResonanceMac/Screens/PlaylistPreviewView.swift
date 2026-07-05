@@ -5,9 +5,27 @@ import SwiftUI
 struct PlaylistPreviewView: View {
     let result: PlaylistGenerationResult
     let previewSourceLabel: String
+    let actionsDisabled: Bool
+    let actionsDisabledReason: String?
     let onEdit: () -> Void
     let onImport: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
+
+    init(
+        result: PlaylistGenerationResult,
+        previewSourceLabel: String,
+        actionsDisabled: Bool = false,
+        actionsDisabledReason: String? = nil,
+        onEdit: @escaping () -> Void,
+        onImport: @escaping () -> Void
+    ) {
+        self.result = result
+        self.previewSourceLabel = previewSourceLabel
+        self.actionsDisabled = actionsDisabled
+        self.actionsDisabledReason = actionsDisabledReason
+        self.onEdit = onEdit
+        self.onImport = onImport
+    }
 
     var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
@@ -24,6 +42,15 @@ struct PlaylistPreviewView: View {
                     Text(previewSourceLabel)
                         .font(.caption)
                         .foregroundStyle(palette.textTertiary)
+                    if result.isShort, !result.shortfallMessage.isEmpty {
+                        Text(result.shortfallMessage)
+                            .font(.callout)
+                            .foregroundStyle(palette.statusWarning)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(palette.statusWarning.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
                 }
 
                 ForEach(result.sections) { section in
@@ -51,19 +78,29 @@ struct PlaylistPreviewView: View {
                         }
                     }
                     .padding(16)
-                    .background(palette.backgroundSecondary)
+                    .background(palette.backgroundSecondary.opacity(0.88))
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
                 HStack {
                     Button("Modifier le formulaire", action: onEdit)
                         .buttonStyle(.bordered)
+                        .disabled(actionsDisabled)
+                        .opacity(actionsDisabled ? 0.55 : 1)
                     Spacer()
                     Button(action: onImport) {
                         Label("Importer dans Apple Music", systemImage: "square.and.arrow.down")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(palette.accentPrimary)
+                    .disabled(actionsDisabled)
+                    .opacity(actionsDisabled ? 0.55 : 1)
+                }
+
+                if actionsDisabled, let actionsDisabledReason {
+                    Label(actionsDisabledReason, systemImage: "hourglass")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.statusWarning)
                 }
             }
             .padding(24)

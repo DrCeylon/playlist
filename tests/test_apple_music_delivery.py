@@ -101,6 +101,27 @@ def test_delivery_skips_clear_when_no_resolved_tracks():
     applescript.clear_playlist_tracks.assert_not_called()
 
 
+def test_delivery_aligns_when_outcome_count_is_shorter_than_playlist():
+    applescript = MagicMock()
+    applescript.add_tracks_by_persistent_id_batch.return_value = ["added"]
+    delivery = AppleMusicDelivery(applescript)
+    playlist = CanonicalPlaylist(
+        name="Mismatch",
+        sections=(
+            CanonicalPlaylistSection(
+                name="Playlist",
+                tracks=(_track(), CanonicalTrack(artist=CanonicalArtist(name="Daft Punk"), title="One More Time")),
+            ),
+        ),
+    )
+
+    report = delivery.sync_playlist(playlist, [_resolved_outcome()])
+
+    assert len(report.results) == 2
+    assert report.results[0].status == ImportStatus.ADDED
+    assert report.results[1].status == ImportStatus.ERROR
+
+
 def test_import_service_uses_cache_on_second_run(tmp_path: Path):
     applescript = MagicMock()
     applescript.collect_candidates_batch.return_value = [

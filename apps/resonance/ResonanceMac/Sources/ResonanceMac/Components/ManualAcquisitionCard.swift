@@ -72,9 +72,13 @@ struct ManualAcquisitionCard: View {
                     .tint(palette.accentPrimary)
             }
 
+            Text("Music.app ne s'ouvre que si vous touchez « Ouvrir dans Music ». Resonance ne reprend plus le focus automatiquement.")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.textPrimary)
+
             Text("Resonance vérifie automatiquement la bibliothèque toutes les quelques secondes et reprend l'import dès que le morceau est détecté.")
-                .font(.caption2)
-                .foregroundStyle(palette.textTertiary)
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
                 .textSelection(.enabled)
         }
         .padding(16)

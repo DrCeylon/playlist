@@ -14,7 +14,7 @@ public struct BridgeClientConfiguration: Sendable {
         pythonExecutable: String = "/usr/bin/python3",
         moduleName: String = "playlist_builder.cli.engine_bridge",
         workingDirectory: URL,
-        timeoutSeconds: TimeInterval = 180,
+        timeoutSeconds: TimeInterval = 600,
         environment: [String: String] = [:]
     ) {
         self.pythonExecutable = pythonExecutable
@@ -444,7 +444,9 @@ public enum BridgePayloadBuilder {
             sections: sections,
             averageScore: averageScore,
             providerID: providerID,
-            historySessionID: payload["history_session_id"]?.stringValue ?? ""
+            historySessionID: payload["history_session_id"]?.stringValue ?? "",
+            targetTrackCount: generation["target_track_count"]?.intValue,
+            shortfallMessage: generation["shortfall_message"]?.stringValue ?? ""
         )
     }
 

@@ -35,9 +35,14 @@ class ITunesCandidateProvider(CandidateProvider):
             )
             if not response.candidates:
                 continue
-            candidates.append(
-                discovery_candidate_from_canonical(response.candidates[0], query=query)
-            )
+            seen_keys: set[str] = set()
+            for hit in response.candidates:
+                candidate = discovery_candidate_from_canonical(hit, query=query)
+                key = candidate.track.identity_key
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                candidates.append(candidate)
         return candidates
 
 

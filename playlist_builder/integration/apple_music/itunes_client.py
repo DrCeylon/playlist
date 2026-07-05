@@ -15,7 +15,12 @@ from playlist_builder.core.models import TrackRef
 from playlist_builder.infrastructure.cache.keys import catalog_entry_key
 from playlist_builder.infrastructure.cache.store import JsonCache
 from playlist_builder.integration.apple_music.models import AppleITunesSearchHit
-from playlist_builder.scoring.match_engine import artist_name_matches, pick_best_match
+from playlist_builder.scoring.match_engine import (
+    artist_id_matches,
+    artist_name_exact_matches,
+    artist_name_matches,
+    pick_best_match,
+)
 
 ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
 USER_AGENT = f"PlaylistBuilder/{__version__} (AppleMusicCatalog; Python)"
@@ -173,13 +178,15 @@ class ITunesSearchClient:
         *,
         limit: int = 10,
         wanted_artist: str = "",
+        wanted_artist_id: str = "",
     ) -> tuple[list[AppleITunesSearchHit], str]:
         normalized = term.strip().lower()
         artist_key = wanted_artist.strip().lower()
+        artist_id_key = wanted_artist_id.strip()
         new_key = catalog_entry_key(
             _PROVIDER_ID,
             "tracks",
-            f"{self.country}::{normalized}::{artist_key}::{limit}",
+            f"{self.country}::{normalized}::{artist_key}::{artist_id_key}::{limit}",
         )
         cached = self._read_cache(new_key, None)
         if cached is not None:
@@ -197,8 +204,23 @@ class ITunesSearchClient:
             self.rate_limiter.wait()
             try:
                 hits = self._search_entity(search_term, entity="song", limit=fetch_limit)
-                if artist_key:
-                    hits = [hit for hit in hits if artist_name_matches(wanted_artist, hit.artist_name)]
+                if artist_id_key:
+                    hits = [
+                        hit
+                        for hit in hits
+                        if artist_id_matches(
+                            wanted_artist_id,
+                            hit.artist_id,
+                            hit.collection_artist_id,
+                            hit.amg_artist_id,
+                        )
+                    ]
+                elif artist_key:
+                    hits = [
+                        hit
+                        for hit in hits
+                        if artist_name_exact_matches(wanted_artist, hit.artist_name)
+                    ]
                 hits = hits[:limit]
                 self._write_cache(new_key, self._serialize_hits(hits))
                 return hits, ""

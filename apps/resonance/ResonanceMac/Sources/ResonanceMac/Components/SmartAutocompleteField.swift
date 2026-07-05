@@ -173,6 +173,7 @@ struct SmartAutocompleteField<Provider: SuggestionProvider>: View where Provider
 final class AutocompleteEngineHolder<Provider: SuggestionProvider>: ObservableObject where Provider.Entity: CanonicalEntity & Codable {
     let engine: AutocompleteEngine<Provider>
     @Published var queryText = ""
+    @Published private(set) var selectedArtworkURL: URL?
 
     init(engine: AutocompleteEngine<Provider>) {
         self.engine = engine
@@ -181,6 +182,13 @@ final class AutocompleteEngineHolder<Provider: SuggestionProvider>: ObservableOb
 
     func syncText() {
         queryText = engine.selection.query
+        if let artist = engine.selection.selected as? ArtistRef {
+            selectedArtworkURL = artist.artworkURL
+        } else if let track = engine.selection.selected as? TrackRef {
+            selectedArtworkURL = track.artworkURL
+        } else {
+            selectedArtworkURL = nil
+        }
     }
 }
 
@@ -251,13 +259,33 @@ private struct ArtworkThumbnail: View {
     let palette: ThemePalette
 
     var body: some View {
+        Group {
+            if let url {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        placeholder
+                    }
+                }
+            } else {
+                placeholder
+            }
+        }
+        .frame(width: 36, height: 36)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
+    private var placeholder: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(palette.backgroundSecondary)
             Image(systemName: "music.note")
                 .foregroundStyle(palette.textTertiary)
         }
-        .frame(width: 36, height: 36)
     }
 }
 
@@ -345,18 +373,17 @@ struct SmartSearchTextField: NSViewRepresentable {
             case #selector(NSResponder.cancelOperation(_:)):
                 parent.onDismiss()
                 return true
-            default:
-                if commandSelector == Selector(("deleteBackward:")),
-                   NSEvent.modifierFlags.contains(.command) {
-                    parent.onClearWithCommand()
-                    if let field = control as? NSTextField {
-                        field.stringValue = ""
-                        lastSyncedText = ""
-                        parent.text = ""
-                        parent.onTextChange("")
-                    }
-                    return true
+            case #selector(NSResponder.deleteBackward(_:)):
+                guard NSEvent.modifierFlags.contains(.command) else { return false }
+                parent.onClearWithCommand()
+                if let field = control as? NSTextField {
+                    field.stringValue = ""
+                    lastSyncedText = ""
+                    parent.text = ""
+                    parent.onTextChange("")
                 }
+                return true
+            default:
                 return false
             }
         }

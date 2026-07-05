@@ -27,27 +27,45 @@ Correctifs intégrés sur `main` :
 | [#35](https://github.com/DrCeylon/playlist/pull/35) | Filtre autocomplete morceaux par artiste sélectionné |
 | [#37](https://github.com/DrCeylon/playlist/pull/37) | Maintenance dépôt (Package.swift, workflow Git) |
 
-## PR ouvertes
+## Phase 5.2 — validée fonctionnellement (PR #39)
 
-Aucune — toutes les PR actives de juillet 2026 ont été mergées.
+**Statut** : validée sur macOS — merge recommandé. Détail : [Phase 5.2 — Clôture](Phase-5-2-Cloture).
 
-## Prochaines étapes envisagées
+| PR | Branche | Tests macOS |
+|----|---------|-------------|
+| [#39](https://github.com/DrCeylon/playlist/pull/39) | `cursor/phase-5-2-generation-import-ux-ef21` | `swift build`, `swift test`, `./scripts/build.sh`, `pytest` 332 passed |
+
+Livrables UX : workflow coordinator, historique live, bandeau processus, protection session active, import humanisé, instrumentation timings partielle.
+
+**Limites acceptées (non bloquantes)** — voir [Phase 5.3 — Performance](Phase-5-3-Performance) :
+
+- Polish textes / couleurs incomplet
+- Import encore lent
+- Génération ne remplit pas toujours le nombre de morceaux demandé
+- Bridge Python one-shot par commande
+
+| PR | Branche | Sujet | Statut |
+|----|---------|-------|--------|
+| [#38](https://github.com/DrCeylon/playlist/pull/38) | `cursor/phase-5-1-2-product-ux-stabilization-ef21` | Phase 5.1.2 — stabilisation UX produit (intégrée en grande partie dans 5.2) | Draft — à fermer après merge #39 |
+
+## Prochaine phase
 
 | Phase | Thème | Référence |
 |-------|-------|-----------|
-| **5.2+** | Édition playlist, templates, `ImportCoordinator` | [Phase 5 — Vision](Phase-5-Vision) |
+| **5.3** | **Performance** — mesure, import, génération, bridge, cache | [Phase 5.3 — Performance](Phase-5-3-Performance) |
+| **5.4+** | Édition playlist, templates, polish UI | [Phase 5 — Vision](Phase-5-Vision) |
 
 ## Branches Git
 
-Sur `origin` : **`main` uniquement**.
+Sur `origin` : **`main`**, **`cursor/phase-5-2-generation-import-ux-ef21`** (PR #39 prête merge).
 
 Les branches feature `cursor/*-ef21` sont supprimées après chaque merge squash.
 
-## Validation qualité (`main`)
+## Validation qualité (`main` + PR #39)
 
 ```bash
-python3 -m pytest -q
-cd apps/resonance && ./scripts/build.sh   # macOS
+python3.12 -m pytest -q
+cd apps/resonance && swift build && swift test && ./scripts/build.sh
 ```
 
-323 tests Python (1 skipped hors macOS) ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+332 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).

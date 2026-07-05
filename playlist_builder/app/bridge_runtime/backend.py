@@ -264,6 +264,24 @@ class RuntimeEngineBridgeBackend:
     def export_history_session(self, session_id: str) -> dict[str, Any] | None:
         return self._history.export_session(session_id)
 
+    def retry_import_tracks_stream(
+        self,
+        playlist: PlaylistDefinition,
+        *,
+        track_indices: list[int],
+        existing_results: list | None = None,
+        request_id: str = "retry_import",
+    ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
+        from playlist_builder.app.bridge_runtime.retry_import import stream_retry_import_tracks
+
+        yield from stream_retry_import_tracks(
+            self._context,
+            playlist,
+            request_id,
+            track_indices=track_indices,
+            existing_results=existing_results,
+        )
+
     def replay_generation(self, session_id: str, request_id: str = "replay") -> GeneratePlaylistResult:
         payload = self._history.export_session(session_id)
         if payload is None:

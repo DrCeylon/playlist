@@ -78,7 +78,7 @@ public struct PythonEngineBridgeConfiguration: Sendable {
     public init(
         pythonExecutable: String = "/usr/bin/python3",
         workingDirectory: URL,
-        timeoutSeconds: TimeInterval = 180,
+        timeoutSeconds: TimeInterval = 600,
         useBridgeWhenAvailable: Bool = true
     ) {
         self.pythonExecutable = pythonExecutable
@@ -187,12 +187,15 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                         id: "import-local",
                         event: .diagnostic,
                         payload: [
-                            "message": .string("Lancement process Python bridge dans \(workingDirectory)"),
+                            "message": .string(
+                                "Démarrage process Python bridge (nouveau processus par commande) dans \(workingDirectory)"
+                            ),
                         ]
                     )
                 )
             }
 
+            let bridgeStarted = Date()
             let (response, _) = try await transport.send(
                 command: .importPlaylist,
                 params: [
@@ -205,6 +208,16 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                 onDiagnostic: { line in
                     bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
                 }
+            )
+            let bridgeMS = max(0, Int(Date().timeIntervalSince(bridgeStarted) * 1000))
+            onEvent(
+                BridgeEventMessage(
+                    id: "import-local",
+                    event: .diagnostic,
+                    payload: [
+                        "message": .string("[+\(bridgeMS) ms] Bridge Python handshake terminé"),
+                    ]
+                )
             )
             if let importState = try? BridgePayloadBuilder.importResult(from: response.result),
                importState.phase == .waitingForManualAcquisition {
@@ -251,6 +264,29 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             onEvent: { _ in }
         )
         return response.result["found"]?.boolValue ?? false
+    }
+
+    public func retryImportTracks(
+        _ result: PlaylistGenerationResult,
+        trackIndices: [Int],
+        onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+    ) async throws -> ImportResultState {
+        guard let transport else {
+            return try await fallbackImport.retryImportTracks(result, trackIndices: trackIndices, onEvent: onEvent)
+        }
+        let playlistPayload = BridgePayloadBuilder.playlistDictionary(from: result)
+        let (response, _) = try await transport.send(
+            command: .retryImportTracks,
+            params: [
+                "playlist": .object(playlistPayload),
+                "track_indices": .array(trackIndices.map { .number(Double($0)) }),
+            ],
+            onEvent: onEvent,
+            onDiagnostic: { line in
+                bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
+            }
+        )
+        return try BridgePayloadBuilder.importResult(from: response.result)
     }
 
     public func fetchDiagnostics() async throws -> DiagnosticsSnapshot {
@@ -402,13 +438,6 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             return PlaylistImportError.invalidResponse
         }
     }
-}
-
-public enum PlaylistImportError: Error, Equatable, Sendable {
-    case bridgeUnavailable
-    case timeout
-    case invalidResponse
-    case bridge(BridgeErrorPayload)
 }
 
 public enum AutocompleteServiceError: Error, Equatable, Sendable {

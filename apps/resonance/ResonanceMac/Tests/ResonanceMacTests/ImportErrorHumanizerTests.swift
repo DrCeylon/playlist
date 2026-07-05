@@ -23,6 +23,14 @@ final class ImportErrorHumanizerTests: XCTestCase {
         let message = ImportErrorHumanizer.message(for: .invalidResponse)
         XCTAssertTrue(message.contains("Réponse bridge invalide"))
     }
+
+    func testHumanizesResolutionMismatchMessage() {
+        let message = ImportErrorHumanizer.humanizeBridgeMessage(
+            "Resolution outcomes do not match playlist track count."
+        )
+        XCTAssertFalse(message.contains("Resolution outcomes"))
+        XCTAssertTrue(message.contains("Relance l'import"))
+    }
 }
 
 final class ImportPerformanceGuardTests: XCTestCase {

@@ -4,10 +4,16 @@ import SwiftUI
 
 struct HistoryView: View {
     @StateObject private var viewModel: HistoryViewModel
+    @Binding var selection: SidebarItem?
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var workflow: AppWorkflowCoordinator
     @State private var showClearConfirmation = false
 
-    init(service: any SessionHistoryServing = PythonEngineBridgeService()) {
+    init(
+        selection: Binding<SidebarItem?>,
+        service: any SessionHistoryServing = PythonEngineBridgeService()
+    ) {
+        _selection = selection
         _viewModel = StateObject(wrappedValue: HistoryViewModel(service: service))
     }
 
@@ -26,32 +32,61 @@ struct HistoryView: View {
             await viewModel.refresh()
         }
         .confirmationDialog(
-            "Vider tout l'historique ?",
+            clearHistoryDialogTitle,
             isPresented: $showClearConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Vider l'historique", role: .destructive) {
-                Task { await viewModel.clearAll() }
+            Button(clearHistoryConfirmLabel, role: .destructive) {
+                Task {
+                    await viewModel.clearAll(preservingSessionID: workflow.activeHistorySessionID)
+                }
             }
             Button("Annuler", role: .cancel) {}
         } message: {
-            Text("Cette action supprime toutes les sessions locales enregistrées par Resonance.")
+            Text(clearHistoryDialogMessage)
         }
     }
 
+    private var clearHistoryDialogTitle: String {
+        workflow.isProcessRunning ? "Vider l'historique (session active conservée) ?" : "Vider tout l'historique ?"
+    }
+
+    private var clearHistoryConfirmLabel: String {
+        workflow.isProcessRunning ? "Vider les autres sessions" : "Vider l'historique"
+    }
+
+    private var clearHistoryDialogMessage: String {
+        if workflow.isProcessRunning {
+            return "Un processus est en cours. Seules les autres sessions seront supprimées — la session active restera visible jusqu'à la fin du workflow."
+        }
+        return "Cette action supprime toutes les sessions locales enregistrées par Resonance."
+    }
+
     private func header(palette: ThemePalette) -> some View {
-        HStack {
-            Text("Sessions locales")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Spacer()
-            Button("Vider") { showClearConfirmation = true }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.isBusy)
-            Button("Rafraîchir") { Task { await viewModel.refresh() } }
-                .buttonStyle(.borderedProminent)
-                .tint(palette.accentPrimary)
-                .disabled(viewModel.isBusy)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Sessions locales")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary)
+                Spacer()
+                Button("Vider") { showClearConfirmation = true }
+                    .buttonStyle(.bordered)
+                    .disabled(viewModel.isBusy)
+                    .opacity(viewModel.isBusy ? 0.55 : 1)
+                if workflow.isProcessRunning {
+                    Text("Processus en cours — la session active sera conservée")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.statusWarning)
+                }
+                Button("Rafraîchir") { Task { await viewModel.refresh() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accentPrimary)
+                    .disabled(viewModel.isBusy)
+                    .opacity(viewModel.isBusy ? 0.55 : 1)
+            }
+            Text("Retrouve tes playlists et reprends le workflow là où tu t'étais arrêté.")
+                .font(.callout)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -100,7 +135,7 @@ struct HistoryView: View {
             Text(message).foregroundStyle(palette.statusWarning)
         case .ready:
             if viewModel.sessions.isEmpty {
-                Text("Aucune session pour le moment.")
+                Text("Aucune session pour le moment. Génère une playlist pour commencer.")
                     .foregroundStyle(palette.textSecondary)
             } else {
                 HStack(alignment: .top, spacing: 16) {
@@ -110,7 +145,15 @@ struct HistoryView: View {
                             .listRowSeparatorTint(palette.borderSubtle)
                             .onTapGesture { Task { await viewModel.select(session: session) } }
                             .contextMenu {
-                                Button("Supprimer") { Task { await viewModel.delete(session: session) } }
+                                Button("Supprimer") {
+                                    Task {
+                                        await viewModel.delete(
+                                            session: session,
+                                            isProtected: workflow.isProtectedHistorySession
+                                        )
+                                    }
+                                }
+                                .disabled(workflow.isProtectedHistorySession(session))
                             }
                     }
                     .listStyle(.inset(alternatesRowBackgrounds: false))
@@ -119,19 +162,45 @@ struct HistoryView: View {
                     .frame(minWidth: 360)
                     .focusEffectDisabled()
 
-                    SessionDetailView(
+                    HistoryWorkflowResumeView(
                         detail: viewModel.selectedDetail,
-                        canReplay: viewModel.canReplaySelectedSession,
-                        canReimport: viewModel.canReimportSelectedSession,
-                        isBusy: viewModel.isBusy,
-                        replayDescription: viewModel.replayActionDescription,
-                        reimportDescription: viewModel.reimportActionDescription,
-                        exportDescription: viewModel.exportActionDescription,
-                        replayDisabledReason: viewModel.replayDisabledReason,
-                        reimportDisabledReason: viewModel.reimportDisabledReason,
-                        onReplay: { Task { await viewModel.replayGeneration() } },
-                        onReimport: { Task { await viewModel.reimportSelected() } },
-                        onExport: { Task { await viewModel.exportSelection() } }
+                        resumeContent: viewModel.resumeContent,
+                        isBusy: historyActionsDisabled,
+                        actionsDisabledReason: historyActionsDisabledReason,
+                        onEditForm: {
+                            if let request = viewModel.editRequestForSelectedSession() {
+                                workflow.requestEditFromHistory(request)
+                                selection = workflow.activeRoute
+                            }
+                        },
+                        onImport: { result in
+                            Task {
+                                await workflow.startImport(from: result)
+                                selection = workflow.activeRoute
+                            }
+                        },
+                        onRetryTrack: { index in
+                            Task { await viewModel.retryImportTrack(at: index) }
+                        },
+                        onRetryImport: { result in
+                            Task {
+                                await workflow.startImport(from: result)
+                                selection = workflow.activeRoute
+                            }
+                        },
+                        onExport: {
+                            Task { await viewModel.exportSelection() }
+                        },
+                        onConfirmManual: {
+                            Task { await workflow.importWorkflow.confirmManualAcquisition() }
+                        },
+                        onDismissLiveImport: {
+                            workflow.importWorkflow.reset()
+                        },
+                        onOpenNewPlaylist: {
+                            workflow.activeRoute = .newPlaylist
+                            selection = .newPlaylist
+                        }
                     )
                 }
             }
@@ -146,28 +215,36 @@ struct HistoryView: View {
             Text("\(session.startedAtISO) · \(session.providerID.rawValue)")
                 .font(.caption)
                 .foregroundStyle(palette.textTertiary)
-            Text(badgeLabel(for: session))
+            Text(SessionHistoryDisplay.statusLabel(for: session.status))
                 .font(.caption.weight(.medium))
-                .foregroundStyle(badgeColor(for: session, palette: palette))
-            Text("+\(session.addedCount) · skip \(session.skippedCount) · nf \(session.notFoundCount) · err \(session.errorCount)")
-                .font(.caption2.monospaced())
-                .foregroundStyle(palette.textTertiary)
+                .foregroundStyle(statusColor(for: session.status, palette: palette))
+            Text(SessionHistoryDisplay.rowSubtitle(for: session))
+                .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
         }
         .contentShape(Rectangle())
     }
 
-    private func badgeLabel(for session: SessionHistorySummary) -> String {
-        switch session.status {
-        case .generated: return "generated"
-        case .imported: return "imported"
-        case .partialSuccess: return "partial"
-        case .failed: return "failed"
-        case .waitingForManualAcquisition: return "manual"
-        }
+    private var isManagingSelectedSession: Bool {
+        guard let detail = viewModel.selectedDetail else { return false }
+        return workflow.isManagingSession(detail)
     }
 
-    private func badgeColor(for session: SessionHistorySummary, palette: ThemePalette) -> Color {
-        switch session.status {
+    private var historyActionsDisabled: Bool {
+        if viewModel.isBusy { return true }
+        if workflow.canStartProcess() { return false }
+        return !isManagingSelectedSession
+    }
+
+    private var historyActionsDisabledReason: String? {
+        if viewModel.isBusy { return nil }
+        if workflow.canStartProcess() { return nil }
+        if isManagingSelectedSession { return nil }
+        return workflow.processBlockingLabel
+    }
+
+    private func statusColor(for status: SessionHistoryStatus, palette: ThemePalette) -> Color {
+        switch status {
         case .generated: return palette.accentPrimary
         case .imported: return palette.statusSuccess
         case .partialSuccess, .waitingForManualAcquisition: return palette.statusWarning

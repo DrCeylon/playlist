@@ -43,6 +43,7 @@ class BridgeCommand(StrEnum):
     EXPORT_HISTORY_SESSION = "export_history_session"
     AUTOCOMPLETE_SEARCH = "autocomplete_search"
     PROBE_MANUAL_ACQUISITION = "probe_manual_acquisition"
+    RETRY_IMPORT_TRACKS = "retry_import_tracks"
 
 
 @dataclass(frozen=True, slots=True)

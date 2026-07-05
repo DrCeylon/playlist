@@ -32,6 +32,16 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
         case .laboratory: return .laboratory
         }
     }
+
+    /// Shortcuts that can start generation or import when the destination screen is used.
+    var triggersWorkflow: Bool {
+        switch self {
+        case .newPlaylist, .history:
+            return true
+        case .laboratory:
+            return false
+        }
+    }
 }
 
 struct ThemedTextField: View {

@@ -60,6 +60,11 @@ enum ImportErrorHumanizer {
 
     static func humanizeBridgeMessage(_ message: String) -> String {
         let lowered = message.lowercased()
+        if lowered.contains("resolution outcomes")
+            || lowered.contains("do not match playlist track count")
+            || lowered.contains("ne correspondent pas à la playlist") {
+            return "L'import n'a pas pu finaliser tous les morceaux. Relance l'import ou régénère la playlist depuis le formulaire."
+        }
         if lowered.contains("not found") || lowered.contains("introuvable") {
             return "Morceau introuvable dans Apple Music : \(message)"
         }

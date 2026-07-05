@@ -12,6 +12,7 @@ from playlist_builder.ui.bridge.json_rpc import JsonRpcEngineBridge
 from playlist_builder.ui.shared.autocomplete.genre_registry import search_genres
 from playlist_builder.ui.shared.autocomplete.keyword_registry import search_keywords
 from playlist_builder.ui.shared.dto.autocomplete import (
+    AutocompleteContext,
     AutocompleteEntityKind,
     AutocompleteRequest,
     AutocompleteResponse,
@@ -141,6 +142,44 @@ def test_apple_autocomplete_gateway_filters_tracks_by_artist() -> None:
     assert len(response.suggestions) == 1
     assert response.suggestions[0].title == "Firestone"
     assert response.suggestions[0].artist_name == "Kygo"
+
+
+def test_apple_autocomplete_gateway_filters_tracks_by_artist_id() -> None:
+    client = MagicMock()
+    client.search_tracks.return_value = (
+        [
+            AppleITunesSearchHit(
+                {
+                    "artistName": "Kygo",
+                    "trackName": "Firestone",
+                    "trackId": 1,
+                    "artistId": 123,
+                }
+            ),
+            AppleITunesSearchHit(
+                {
+                    "artistName": "Kygo Tribute",
+                    "trackName": "Firestone Cover",
+                    "trackId": 2,
+                    "artistId": 999,
+                }
+            ),
+        ],
+        "",
+    )
+    gateway = AppleAutocompleteGateway(client=client)
+    response = gateway.search_tracks(
+        AutocompleteRequest(
+            provider_id=ProviderId.APPLE_MUSIC,
+            entity_kind=AutocompleteEntityKind.TRACK,
+            query="fire",
+            context=AutocompleteContext(artist_name="Kygo", artist_id="123"),
+        ),
+        artist_name="Kygo",
+        artist_id="123",
+    )
+    assert len(response.suggestions) == 1
+    assert response.suggestions[0].title == "Firestone"
 
 
 def test_autocomplete_use_case_genre_is_local() -> None:

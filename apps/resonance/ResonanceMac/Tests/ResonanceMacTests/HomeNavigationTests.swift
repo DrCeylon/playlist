@@ -14,4 +14,10 @@ final class HomeNavigationTests: XCTestCase {
         XCTAssertEqual(HomeShortcut.history.title, SidebarItem.history.title)
         XCTAssertEqual(HomeShortcut.laboratory.title, SidebarItem.laboratory.title)
     }
+
+    func testWorkflowShortcutsAreMarked() {
+        XCTAssertTrue(HomeShortcut.newPlaylist.triggersWorkflow)
+        XCTAssertTrue(HomeShortcut.history.triggersWorkflow)
+        XCTAssertFalse(HomeShortcut.laboratory.triggersWorkflow)
+    }
 }

@@ -138,3 +138,21 @@ def test_resolver_handles_applescript_error(tmp_path: Path):
 
     assert outcome.status == AppleMusicResolutionStatus.ERROR
     assert "Music not running" in outcome.error
+
+
+def test_resolver_batch_preserves_length_when_pending_slots_unresolved(tmp_path: Path):
+    identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
+    applescript = MagicMock()
+    applescript.collect_candidates_batch.return_value = [[], []]
+    resolver = AppleMusicResolver(applescript, identity_cache)
+
+    outcomes = resolver.resolve_batch(
+        [
+            (_track(), "Main"),
+            (CanonicalTrack(artist=CanonicalArtist(name="Kygo"), title="B"), "Main"),
+        ]
+    )
+
+    assert len(outcomes) == 2
+    assert outcomes[0].status == AppleMusicResolutionStatus.NOT_FOUND
+    assert outcomes[1].status == AppleMusicResolutionStatus.NOT_FOUND

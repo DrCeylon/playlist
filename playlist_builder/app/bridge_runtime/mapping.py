@@ -108,6 +108,8 @@ def generated_playlist_to_ui_result(
         sections=(GeneratedSectionPreview(name=section_name, tracks=tracks),),
         average_score=average,
         provider_id=provider_id,
+        target_track_count=generated.target_track_count,
+        shortfall_message=generated.shortfall_message,
     )
 
 

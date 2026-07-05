@@ -5,6 +5,7 @@ import SwiftUI
 struct ImportOutcomeRow: View {
     let outcome: ImportTrackOutcome
     let palette: ThemePalette
+    var onRetry: (() -> Void)?
     @State private var showsDetail = false
     @State private var copiedLabel: String?
 
@@ -44,23 +45,14 @@ struct ImportOutcomeRow: View {
                 Spacer(minLength: 0)
             }
 
-            HStack(spacing: 8) {
-                actionButton("Copier", systemImage: "doc.on.doc") {
-                    ClipboardSupport.copy(outcome.searchLine)
-                    copiedLabel = "Copier"
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 8) {
+                    actionButtons
                 }
-                if outcome.status == .acquiring || outcome.status == .notFound || outcome.status == .error {
-                    actionButton("Ouvrir dans Music", systemImage: "music.note") {
-                        openInMusic()
-                    }
-                }
-                if !outcome.message.isEmpty {
-                    actionButton(showsDetail ? "Masquer" : "Détail", systemImage: "info.circle") {
-                        showsDetail.toggle()
-                    }
+                VStack(alignment: .leading, spacing: 8) {
+                    actionButtons
                 }
             }
-            .controlSize(.small)
 
             if let copiedLabel {
                 Text("Copié : \(copiedLabel)")
@@ -75,6 +67,29 @@ struct ImportOutcomeRow: View {
         .padding(12)
         .background(palette.backgroundSecondary)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        actionButton("Copier", systemImage: "doc.on.doc") {
+            ClipboardSupport.copy(outcome.searchLine)
+            copiedLabel = "Copier"
+        }
+        if outcome.status == .acquiring || outcome.status == .notFound || outcome.status == .error {
+            actionButton("Ouvrir dans Music", systemImage: "music.note") {
+                openInMusic()
+            }
+        }
+        if let onRetry {
+            actionButton("Réessayer", systemImage: "arrow.clockwise") {
+                onRetry()
+            }
+        }
+        if !outcome.message.isEmpty {
+            actionButton(showsDetail ? "Masquer" : "Détail", systemImage: "info.circle") {
+                showsDetail.toggle()
+            }
+        }
     }
 
     private var statusLabel: String {
@@ -99,8 +114,11 @@ struct ImportOutcomeRow: View {
     private func actionButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
+                .frame(minHeight: 28)
         }
         .buttonStyle(.bordered)
+        .controlSize(.small)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func openInMusic() {
