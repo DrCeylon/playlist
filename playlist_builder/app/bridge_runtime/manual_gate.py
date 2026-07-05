@@ -1,22 +1,36 @@
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass
 
 from playlist_builder.canonical.models import CanonicalCandidate, CanonicalTrack
 
 
-@dataclass(frozen=True, slots=True)
 class ManualAcquisitionInterrupted(Exception):
-    """Raised when import must pause for a manual Music.app acquisition."""
+    """Raised when import must pause for a manual Music.app acquisition.
 
-    token: str
-    instructions: str
-    artist: str
-    title: str
-    catalog_label: str = ""
-    catalog_url: str = ""
-    album: str = ""
+    Must remain a plain Exception subclass (not a frozen/slots dataclass) so
+    context managers such as ``perf_span`` can attach tracebacks safely.
+    """
+
+    def __init__(
+        self,
+        *,
+        token: str,
+        instructions: str,
+        artist: str,
+        title: str,
+        catalog_label: str = "",
+        catalog_url: str = "",
+        album: str = "",
+    ) -> None:
+        super().__init__(instructions)
+        self.token = token
+        self.instructions = instructions
+        self.artist = artist
+        self.title = title
+        self.catalog_label = catalog_label
+        self.catalog_url = catalog_url
+        self.album = album
 
 
 class ManualAcquisitionGate:
