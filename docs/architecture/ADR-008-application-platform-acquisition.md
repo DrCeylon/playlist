@@ -34,6 +34,11 @@ CLIs become thin shells delegating to use cases.
 
 ### 2. Catalog-to-library acquisition (opt-out)
 
+> **Amendment (Phase 5.4):** Production automatic acquisition is governed by
+> [ADR-012](ADR-012-apple-catalog-acquisition-production-policy.md) (S1 quick probe
+> + manual gate). The S2 open/play/duplicate path below is **deprecated for production**
+> and retained only as `LEGACY_EXPERIMENTAL`.
+
 When library search returns no acceptable candidates and iTunes catalog confidence
 ≥ 70, attempt to add the track URL to Music.app via AppleScript (`add` then `open location`
 fallback), re-search the library, then score and deliver.

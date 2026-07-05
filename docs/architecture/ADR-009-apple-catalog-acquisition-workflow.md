@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — **production automatic S2 steps superseded by [ADR-012](ADR-012-apple-catalog-acquisition-production-policy.md)** (Phase 5.3.3, July 2026). Manual acquisition and identity cache behaviour remain valid.
+Accepted — **production automatic S2 steps superseded by [ADR-012](ADR-012-apple-catalog-acquisition-production-policy.md)** (Phase 5.3.3, July 2026). Manual acquisition and identity cache behaviour remain valid. See [ADR-013](ADR-013-multi-provider-platform-vision.md) for multi-provider scope.
 
 ## Context
 
