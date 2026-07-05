@@ -14,6 +14,7 @@ from playlist_builder.integration.apple_music.delivery_pacing import (
     wait_for_playlist_cleared,
     wait_for_playlist_track_count,
 )
+from playlist_builder.infrastructure.perf import perf_record, perf_span
 from playlist_builder.integration.apple_music.resolver import (
     AppleMusicResolutionOutcome,
     AppleMusicResolutionStatus,
@@ -34,8 +35,9 @@ class AppleMusicDelivery:
         self._applescript = applescript
 
     def ensure_playlist(self, name: str) -> None:
-        self._applescript.ensure_running(activate=False)
-        self._applescript.ensure_playlist(name)
+        with perf_span("delivery", "ensure_playlist"):
+            self._applescript.ensure_running(activate=False)
+            self._applescript.ensure_playlist(name)
 
     def add_resolved_track(
         self,
@@ -104,11 +106,13 @@ class AppleMusicDelivery:
         )
         added_count = sum(1 for item in report.results if item.status == ImportStatus.ADDED)
         if added_count > 0:
-            wait_for_playlist_track_count(
-                self._applescript,
-                playlist.name,
-                minimum_count=added_count,
-            )
+            with perf_span("delivery", "playlist_settle_poll", metadata={"minimum_count": added_count}):
+                settled = wait_for_playlist_track_count(
+                    self._applescript,
+                    playlist.name,
+                    minimum_count=added_count,
+                )
+            perf_record("delivery", "playlist_settle_result", 0, metadata={"settled": settled})
         return report
 
     def import_incremental(
@@ -127,8 +131,15 @@ class AppleMusicDelivery:
         )
 
     def _clear_playlist_with_confirmation(self, playlist_name: str) -> None:
-        self._applescript.clear_playlist_tracks(playlist_name)
-        wait_for_playlist_cleared(self._applescript, playlist_name)
+        with perf_span("delivery", "playlist_clear"):
+            self._applescript.clear_playlist_tracks(playlist_name)
+            cleared = wait_for_playlist_cleared(self._applescript, playlist_name)
+        perf_record(
+            "delivery",
+            "playlist_clear_poll",
+            0,
+            metadata={"cleared": cleared},
+        )
 
     def _import_resolved_tracks(
         self,
@@ -162,10 +173,13 @@ class AppleMusicDelivery:
         batch_index = 0
         total_batches = max(1, (len(pending) + BATCH_SIZE - 1) // BATCH_SIZE) if pending else 0
         for offset in range(0, len(pending), BATCH_SIZE):
+            pace_started = time.perf_counter()
             pace_between_delivery_batches(batch_index)
+            perf_record("delivery", "batch_pace", int((time.perf_counter() - pace_started) * 1000), batch_index=batch_index)
             batch_index += 1
             batch = pending[offset : offset + BATCH_SIZE]
-            statuses = self._add_batch_with_retry(playlist.name, batch)
+            with perf_span("delivery", "delivery_batch", batch_index=batch_index):
+                statuses = self._add_batch_with_retry(playlist.name, batch)
             if on_delivery_batch is not None and total_batches > 0:
                 on_delivery_batch(batch_index, total_batches)
             for (index, outcome, section_name), status in zip(batch, statuses, strict=True):

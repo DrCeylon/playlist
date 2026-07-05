@@ -39,6 +39,7 @@ from playlist_builder.ui.shared.history import (
     SessionHistoryService,
     record_to_dict,
 )
+from playlist_builder.infrastructure.perf import PerfSession, perf_record, perf_span, perf_trace_enabled
 from playlist_builder.ui.shared.validation import dto_to_dict
 
 
@@ -169,12 +170,38 @@ class RuntimeEngineBridgeBackend:
     def generate_playlist(self, request: PlaylistGenerationRequest, request_id: str = "generate") -> GeneratePlaylistResult:
         playlist_request = ui_request_to_playlist_request(request)
         playlist_request.validate()
-        try:
-            session = self._generation_engine.generate(playlist_request)
-        except ValueError as exc:
-            raise BridgeError(BridgeErrorCode.VALIDATION_FAILED, str(exc)) from exc
-        except Exception as exc:
-            raise BridgeError(BridgeErrorCode.ENGINE_ERROR, str(exc)) from exc
+        target_count = playlist_request.constraints.target_track_count
+        with PerfSession(
+            scenario="generate",
+            operation="generate_playlist",
+            track_count=target_count,
+        ) as perf_session:
+            try:
+                with perf_span("generate", "engine_generate", metadata={"target_track_count": target_count}):
+                    session = self._generation_engine.generate(playlist_request)
+            except ValueError as exc:
+                raise BridgeError(BridgeErrorCode.VALIDATION_FAILED, str(exc)) from exc
+            except Exception as exc:
+                raise BridgeError(BridgeErrorCode.ENGINE_ERROR, str(exc)) from exc
+
+            shortfall_count = max(0, target_count - len(session.generated_playlist.candidates))
+            perf_record(
+                "generate",
+                "generate_total",
+                perf_session.total_duration_ms,
+                metadata={
+                    "track_count": len(session.generated_playlist.candidates),
+                    "shortfall_count": shortfall_count,
+                },
+            )
+            if perf_trace_enabled():
+                try:
+                    from playlist_builder.reports.perf_report import write_perf_csv, write_perf_json
+
+                    write_perf_json(perf_session, Path("reports/perf"), stem="generate")
+                    write_perf_csv(perf_session, Path("reports/perf"), stem="generate")
+                except OSError:
+                    pass
 
         ui_result = generated_playlist_to_ui_result(session.generated_playlist, provider_id=request.provider_id)
         history = self._history.create_generation_session(

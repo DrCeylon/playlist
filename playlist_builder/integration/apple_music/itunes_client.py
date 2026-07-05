@@ -15,6 +15,7 @@ from playlist_builder.core.models import TrackRef
 from playlist_builder.infrastructure.cache.keys import catalog_entry_key
 from playlist_builder.infrastructure.cache.store import JsonCache
 from playlist_builder.integration.apple_music.models import AppleITunesSearchHit
+from playlist_builder.infrastructure.perf import perf_record
 from playlist_builder.scoring.match_engine import (
     artist_id_matches,
     artist_name_exact_matches,
@@ -48,11 +49,13 @@ class ITunesSearchClient:
         legacy_key = f"itunes::{self.country}::{track.key}"
         cached = self._read_cache(new_key, legacy_key)
         if cached is not None:
+            perf_record("itunes", "search_track", 0, cache_hit=True)
             return self._hit_from_cache_payload(cached)
 
         total_wait = 0.0
         last_error = ""
         term = f"{track.artist} {track.title}".strip()
+        started = time.perf_counter()
 
         for attempt in range(1, self.retry_policy.max_attempts + 1):
             self.rate_limiter.wait()
@@ -64,6 +67,13 @@ class ITunesSearchClient:
                     wanted_title=track.title,
                 )
                 self._write_cache(new_key, self._serialize_hit(hit))
+                perf_record(
+                    "itunes",
+                    "search_track",
+                    int((time.perf_counter() - started) * 1000),
+                    cache_hit=False,
+                    metadata={"term": term},
+                )
                 return hit, ""
             except urllib.error.HTTPError as exc:
                 last_error = f"HTTP Error {exc.code}: {exc.reason}"
@@ -84,6 +94,13 @@ class ITunesSearchClient:
             time.sleep(delay)
 
         self._write_cache(new_key, self._serialize_hit(None, error=last_error))
+        perf_record(
+            "itunes",
+            "search_track",
+            int((time.perf_counter() - started) * 1000),
+            cache_hit=False,
+            metadata={"term": term, "error": last_error},
+        )
         return None, last_error
 
     def search_term(
@@ -100,10 +117,12 @@ class ITunesSearchClient:
 
         cached = self._read_cache(new_key, legacy_key)
         if cached is not None:
+            perf_record("itunes", "search_term", 0, cache_hit=True, metadata={"term": term})
             return self._hit_from_cache_payload(cached)
 
         total_wait = 0.0
         last_error = ""
+        started = time.perf_counter()
 
         for attempt in range(1, self.retry_policy.max_attempts + 1):
             self.rate_limiter.wait()
@@ -117,6 +136,13 @@ class ITunesSearchClient:
                 self._write_cache(
                     new_key,
                     self._serialize_hit(hit),
+                )
+                perf_record(
+                    "itunes",
+                    "search_term",
+                    int((time.perf_counter() - started) * 1000),
+                    cache_hit=False,
+                    metadata={"term": term},
                 )
                 return hit, ""
             except urllib.error.HTTPError as exc:
@@ -138,6 +164,13 @@ class ITunesSearchClient:
             time.sleep(delay)
 
         self._write_cache(new_key, self._serialize_hit(None, error=last_error))
+        perf_record(
+            "itunes",
+            "search_term",
+            int((time.perf_counter() - started) * 1000),
+            cache_hit=False,
+            metadata={"term": term, "error": last_error},
+        )
         return None, last_error
 
     def search_artists(self, term: str, *, limit: int = 10) -> tuple[list[AppleITunesSearchHit], str]:

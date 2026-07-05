@@ -41,7 +41,7 @@ def test_resolver_acquires_from_catalog_then_resolves(tmp_path):
             ]
         ],
     ]
-    applescript.acquire_song_from_url.return_value = ("added", "PID-NEW")
+    applescript.try_add_catalog_url.return_value = "PID-NEW"
 
     catalog = MagicMock()
     catalog.search.return_value = CanonicalSearchResponse(
@@ -69,4 +69,5 @@ def test_resolver_acquires_from_catalog_then_resolves(tmp_path):
     assert outcome.status == AppleMusicResolutionStatus.RESOLVED
     assert outcome.persistent_id == "PID-NEW"
     assert outcome.catalog_acquired is True
-    assert applescript.acquire_song_from_url.called
+    applescript.try_add_catalog_url.called
+    applescript.acquire_song_from_url.assert_not_called()

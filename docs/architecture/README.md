@@ -18,6 +18,9 @@ This directory contains the long-lived architectural documentation for Playlist 
 | [ADR-009-apple-catalog-acquisition-workflow.md](ADR-009-apple-catalog-acquisition-workflow.md) | Apple catalog acquisition workflow decision record |
 | [ADR-010-phases-2-3-completion.md](ADR-010-phases-2-3-completion.md) | Phases 2 and 3 enterprise architecture completion |
 | [ADR-011-cross-platform-product-ui.md](ADR-011-cross-platform-product-ui.md) | Cross-platform product UI architecture (Phase 4.0) |
+| [ADR-012-apple-catalog-acquisition-production-policy.md](ADR-012-apple-catalog-acquisition-production-policy.md) | Apple catalog acquisition production policy (Phase 5.3.3) |
+| [ADR-013-multi-provider-platform-vision.md](ADR-013-multi-provider-platform-vision.md) | Multi-provider platform vision (Phase 5.4) |
+| [phase-4-ui-architecture.md](phase-4-ui-architecture.md) | Phase 4 UI implementation notes |
 
 ## Product (Phase 4)
 
@@ -40,7 +43,10 @@ See [../product/README.md](../product/README.md).
 | PR 4.0 | Product UI discovery & architecture (docs) | Done |
 | PR 4.1 | Shared UI DTO + validation contracts | Done |
 | PR 4.2 | Engine Bridge JSON protocol | In progress |
-| PR 4.2–4.9 | UI implementation roadmap | Planned |
+| PR 4.2–4.9 | UI implementation roadmap | Largely done (macOS shell, import UX, history) |
+| PR 5.3 | Performance + acquisition policy (ADR-012) | Done |
+| PR 5.4 | Architecture consolidation (ADR-013, no runtime change) | Done |
+| PR 5.5+ | ProviderImportPort, bridge decoupling | Planned |
 
 ## Rules
 
