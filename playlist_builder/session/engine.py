@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import time
 from dataclasses import replace
+
+from playlist_builder.infrastructure.perf import perf_record, perf_span
 
 from playlist_builder.discovery.fulfillment import build_expansion_queries, explain_shortfall
 from playlist_builder.discovery.pipeline import DiscoveryPipeline
@@ -34,6 +37,7 @@ class GenerationSessionEngine:
         self.planner = planner or PlaylistPlanner()
 
     def generate(self, request: PlaylistRequest, extra_candidates: list[CandidateTrack] | None = None) -> GenerationSession:
+        generation_started = time.perf_counter()
         seed_candidates = self.planner.seed_candidates(request)
         target = PlaylistPlanner._target_count(request)
         extras = list(extra_candidates or [])
@@ -45,12 +49,14 @@ class GenerationSessionEngine:
         for pass_index in range(MAX_FULFILLMENT_PASSES):
             passes_used = pass_index + 1
             if pass_index == 0:
-                discovery_result = self.discovery.discover(request)
+                with perf_span("generate", "discovery", metadata={"pass": pass_index + 1}):
+                    discovery_result = self.discovery.discover(request)
             else:
                 expansion_queries = build_expansion_queries(request, pass_index=pass_index - 1)
                 if not expansion_queries:
                     break
-                discovery_result = self._discover_with_queries(request, expansion_queries)
+                with perf_span("generate", "discovery_expansion", metadata={"pass": pass_index + 1}):
+                    discovery_result = self._discover_with_queries(request, expansion_queries)
 
             batch = DiscoveryPipeline.to_planning_candidates(discovery_result)
             discovered_candidates = merge_candidate_lists(discovered_candidates, batch)
@@ -63,7 +69,8 @@ class GenerationSessionEngine:
                 )
 
             candidates = merge_candidate_lists(discovered_candidates, extras, seed_candidates)
-            generated = self.planner.plan(planning_request, candidates)
+            with perf_span("generate", "planning", metadata={"pass": pass_index + 1}):
+                generated = self.planner.plan(planning_request, candidates)
             if len(generated.candidates) >= target:
                 generated = self._with_shortfall_metadata(
                     generated,
@@ -86,9 +93,11 @@ class GenerationSessionEngine:
             )
 
         analyzer = PlaylistAnalyzer()
-        analysis = analyzer.analyze(generated)
-        report = build_mad_scientist_report(generated, analysis=analysis)
+        with perf_span("generate", "analysis"):
+            analysis = analyzer.analyze(generated)
+            report = build_mad_scientist_report(generated, analysis=analysis)
 
+        perf_record("generate", "scoring_total", int((time.perf_counter() - generation_started) * 1000))
         assert discovery_result is not None
         return GenerationSession(
             request=request,

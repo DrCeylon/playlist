@@ -18,7 +18,7 @@ class AppleScriptClient:
 
     def ensure_running(self, *, activate: bool = False) -> None:
         if activate:
-            run_applescript('tell application "Music" to activate')
+            run_applescript('tell application "Music" to activate', operation="ensure_running_activate")
             return
         run_applescript(
             '''
@@ -27,7 +27,8 @@ tell application "Music"
         launch
     end if
 end tell
-'''
+''',
+            operation="ensure_running",
         )
 
     def ensure_playlist(self, name: str) -> None:
@@ -39,7 +40,8 @@ tell application "Music"
         make new user playlist with properties {{name:"{escaped}"}}
     end if
 end tell
-'''
+''',
+            operation="ensure_playlist",
         )
 
     def count_playlist_tracks(self, playlist_name: str) -> int:
@@ -52,7 +54,8 @@ tell application "Music"
     end if
     return (count of tracks of user playlist "{escaped}") as text
 end tell
-'''
+''',
+            operation="count_playlist_tracks",
         )
         try:
             return max(0, int(output.strip()))
@@ -72,7 +75,8 @@ tell application "Music"
         delete track 1 of targetPlaylist
     end repeat
 end tell
-'''
+''',
+            operation="clear_playlist_tracks",
         )
 
     def load_playlist_keys(self, playlist_name: str) -> set[str]:
@@ -101,7 +105,7 @@ end tell
             return []
         script = self._build_collect_candidates_batch_script(tracks)
         try:
-            output = run_applescript(script)
+            output = run_applescript(script, operation="collect_candidates_batch")
         except RuntimeError:
             return [[] for _ in tracks]
 
@@ -120,7 +124,7 @@ end tell
         escaped_playlist = apple_escape(playlist_name)
         script = self._build_add_by_persistent_id_batch_script(escaped_playlist, persistent_ids)
         try:
-            output = run_applescript(script)
+            output = run_applescript(script, operation="add_tracks_by_persistent_id_batch")
         except RuntimeError:
             return ["error"] * len(persistent_ids)
 
@@ -268,7 +272,7 @@ end tell
             settle_delay_seconds=settle_delay_seconds,
         )
         try:
-            output = run_applescript(script)
+            output = run_applescript(script, operation="acquire_song_from_url")
         except RuntimeError as exc:
             return "error", str(exc)
 

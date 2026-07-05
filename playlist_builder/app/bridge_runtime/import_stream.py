@@ -18,6 +18,7 @@ from playlist_builder.ui.bridge.events import (
     progress_event,
     track_progress_event,
 )
+from playlist_builder.infrastructure.perf import PerfSession, perf_record, perf_span, perf_trace_enabled
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionCheckpoint, ImportSessionStore, new_session_id
 from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionInterrupted
 from playlist_builder.app.bridge_runtime.mapping import track_add_results_to_import_state
@@ -130,6 +131,54 @@ def stream_import_playlist(
     canonical = canonical_playlist_from_legacy(playlist)
     rows = _flatten_rows(canonical)
     total = len(rows)
+    cache_mode = "warm" if perf_trace_enabled() else ""
+    with PerfSession(
+        scenario="import",
+        operation="import_playlist",
+        track_count=total,
+        cache_mode=cache_mode,
+    ) as perf_session:
+        yield from _stream_import_playlist_body(
+            context=context,
+            playlist=playlist,
+            request_id=request_id,
+            sync=sync,
+            write_json_diagnostics=write_json_diagnostics,
+            session_store=session_store,
+            checkpoint=checkpoint,
+            apple_gateway=apple_gateway,
+            import_service=import_service,
+            resolver=resolver,
+            applescript=applescript,
+            canonical=canonical,
+            rows=rows,
+            total=total,
+            start_index=start_index,
+            session_id=session_id,
+            perf_session=perf_session,
+        )
+
+
+def _stream_import_playlist_body(
+    *,
+    context: AppContext,
+    playlist: PlaylistDefinition,
+    request_id: str,
+    sync: bool,
+    write_json_diagnostics: bool,
+    session_store: ImportSessionStore,
+    checkpoint: ImportSessionCheckpoint | None,
+    apple_gateway,
+    import_service,
+    resolver,
+    applescript,
+    canonical,
+    rows: list,
+    total: int,
+    start_index: int,
+    session_id: str,
+    perf_session: PerfSession,
+) -> Iterator[BridgeEvent | ImportPlaylistResult]:
     import_started_at = time.perf_counter()
 
     yield diagnostic_event(
@@ -151,6 +200,7 @@ def stream_import_playlist(
         _import_log(f"Music.app ensure_running failed: {exc}")
         raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
     music_app_ms = int((time.perf_counter() - music_app_started) * 1000)
+    perf_record("import", "music_app_ensure", music_app_ms)
     _import_log(f"Music.app ensure_running OK ({music_app_ms} ms)")
     yield diagnostic_event(
         request_id,
@@ -190,6 +240,7 @@ def stream_import_playlist(
             batch_inputs.append((track_index, track, section_name))
 
         if batch_inputs:
+            batch_number = (index // RESOLVE_BATCH_SIZE) + 1
             for track_index, track, section_name in batch_inputs:
                 artist_name = track.artist.display_name
                 title_name = track.title
@@ -210,9 +261,15 @@ def stream_import_playlist(
                 )
 
             try:
-                resolved_batch = resolver.resolve_batch(
-                    [(track, section_name) for _, track, section_name in batch_inputs]
-                )
+                with perf_span(
+                    "import",
+                    "resolve_batch",
+                    batch_index=batch_number,
+                    metadata={"batch_size": len(batch_inputs)},
+                ):
+                    resolved_batch = resolver.resolve_batch(
+                        [(track, section_name) for _, track, section_name in batch_inputs]
+                    )
             except ManualAcquisitionInterrupted as pause:
                 track_index = next(
                     (
@@ -404,6 +461,7 @@ def stream_import_playlist(
         index = batch_end
 
     resolve_ms = int((time.perf_counter() - resolve_phase_started) * 1000)
+    perf_record("import", "resolve_total", resolve_ms, metadata={"track_count": total})
     yield diagnostic_event(
         request_id,
         phase="resolve",
@@ -480,6 +538,7 @@ def stream_import_playlist(
         )
 
     delivery_ms = int((time.perf_counter() - delivery_started) * 1000)
+    perf_record("import", "delivery_total", delivery_ms, metadata={"track_count": total})
     yield diagnostic_event(
         request_id,
         phase="delivering",
@@ -576,6 +635,21 @@ def stream_import_playlist(
         session_store.delete(session_id)
     except OSError as exc:
         _import_log(f"session cleanup failed: {exc}")
+
+    import_total_ms = int((time.perf_counter() - import_started_at) * 1000)
+    perf_record("import", "import_total", import_total_ms, metadata={"track_count": total})
+    if perf_trace_enabled():
+        try:
+            from pathlib import Path
+
+            from playlist_builder.reports.perf_report import write_perf_csv, write_perf_json
+
+            perf_dir = Path("reports/perf")
+            write_perf_json(perf_session, perf_dir, stem="import")
+            write_perf_csv(perf_session, perf_dir, stem="import")
+        except OSError as exc:
+            _import_log(f"perf report write failed: {exc}")
+
     phase = _final_phase(aligned)
     import_state = track_add_results_to_import_state(playlist.name, aligned, phase=phase)
     yield ImportPlaylistResult(import_result=import_state)

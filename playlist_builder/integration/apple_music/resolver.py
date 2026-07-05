@@ -21,6 +21,7 @@ from playlist_builder.integration.apple_music.diagnostics import (
     trace_from_candidates,
 )
 from playlist_builder.integration.apple_music.library_acquisition import AppleMusicAcquisitionStatus, AppleMusicLibraryAcquisition
+from playlist_builder.infrastructure.perf import perf_record, perf_span
 from playlist_builder.integration.apple_music.mapper import resolution_candidates_from_apple_music_tracks
 from playlist_builder.integration.apple_music.models import AppleMusicTrack
 from playlist_builder.resolver.query import generate_query_variants
@@ -101,6 +102,13 @@ class AppleMusicResolver:
         for index, (track, section) in enumerate(rows):
             cached = self._identity_cache.get(track, self._provider_id)
             if cached is not None:
+                perf_record(
+                    "resolve",
+                    "identity_cache_hit",
+                    0,
+                    track_index=index,
+                    cache_hit=True,
+                )
                 outcomes[index] = AppleMusicResolutionOutcome(
                     track=track,
                     persistent_id=cached.external_id,
@@ -140,7 +148,8 @@ class AppleMusicResolver:
             legacy_track_from_canonical(track, section=section) for _, track, section in pending
         ]
         try:
-            candidate_groups = self._applescript.collect_candidates_batch(legacy_tracks)
+            with perf_span("resolve", "collect_candidates_batch", metadata={"pending_count": len(pending)}):
+                candidate_groups = self._applescript.collect_candidates_batch(legacy_tracks)
         except RuntimeError as exc:
             error = str(exc)
             for index, track, _section in pending:

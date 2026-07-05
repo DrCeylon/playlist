@@ -157,6 +157,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             "command": .string(command.rawValue),
             "params": .object(params),
         ]
+        let bridgeStarted = Date()
         let requestLine = try Self.encodeJSONObject(payload)
         bridgeLogger.info("Bridge send \(command.rawValue, privacy: .public) id=\(requestID, privacy: .public)")
         let lines = try await runProcess(requestLine: requestLine) { line in
@@ -167,10 +168,18 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
                 onDiagnostic: onDiagnostic
             )
         } onStderrLine: { line in
+            if line.hasPrefix("resonance-perf:") {
+                bridgeLogger.info("\(line, privacy: .public)")
+                return
+            }
             let message = "[stderr] \(line)"
             bridgeLogger.warning("\(message, privacy: .public)")
             onDiagnostic?(message)
         }
+        let bridgeRoundTripMS = max(0, Int(Date().timeIntervalSince(bridgeStarted) * 1000))
+        bridgeLogger.info(
+            "resonance-perf: {\"phase\":\"bridge\",\"operation\":\"swift_round_trip\",\"duration_ms\":\(bridgeRoundTripMS),\"metadata\":{\"command\":\"\(command.rawValue)\"}}"
+        )
         return try Self.parseConversation(requestID: requestID, lines: lines)
     }
 
@@ -274,6 +283,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             process.standardOutput = outputPipe
             process.standardError = errorPipe
 
+            let processStarted = Date()
             do {
                 try process.run()
             } catch {
@@ -281,7 +291,11 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
                 return
             }
 
-            bridgeLogger.info("Bridge process started pid=\(process.processIdentifier)")
+            let processSpawnMS = max(0, Int(Date().timeIntervalSince(processStarted) * 1000))
+            bridgeLogger.info("Bridge process started pid=\(process.processIdentifier) spawn_ms=\(processSpawnMS)")
+            bridgeLogger.info(
+                "resonance-perf: {\"phase\":\"bridge\",\"operation\":\"process_spawn\",\"duration_ms\":\(processSpawnMS)}"
+            )
 
             if let data = (requestLine + "\n").data(using: .utf8) {
                 inputPipe.fileHandleForWriting.write(data)
