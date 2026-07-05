@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import time
+
 from playlist_builder.canonical.identity import track_identity_key
 from playlist_builder.core.applescript import apple_escape, run_applescript
 from playlist_builder.core.models import TrackRef
+from playlist_builder.integration.apple_music.acquire_instrumentation import (
+    ACQUIRE_POLL_DELAY_SECONDS,
+    ACQUIRE_POLL_ITERATIONS,
+    ACQUIRE_POST_PLAY_DELAY_SECONDS,
+    acquire_song_from_url_with_tracing,
+)
 from playlist_builder.integration.apple_music.constants import (
     CANDIDATE_DELIMITER,
     FIELD_DELIMITER,
@@ -257,6 +265,28 @@ end tell
         Returns (status, detail) where status is one of:
         added, duplicated, opened, error.
         """
+        return acquire_song_from_url_with_tracing(
+            self,
+            url,
+            artist=artist,
+            title=title,
+            track_id=track_id,
+            search_terms=search_terms,
+            play_delay_seconds=play_delay_seconds,
+            settle_delay_seconds=settle_delay_seconds,
+        )
+
+    def _acquire_song_from_url_monolithic(
+        self,
+        url: str,
+        *,
+        artist: str = "",
+        title: str = "",
+        track_id: str = "",
+        search_terms: list[str] | None = None,
+        play_delay_seconds: float = 5.0,
+        settle_delay_seconds: float = 6.0,
+    ) -> tuple[str, str]:
         urls_to_try = self._catalog_acquire_urls(url, track_id)
         if not urls_to_try:
             return "error", "URL catalogue indisponible."
@@ -276,6 +306,202 @@ end tell
         except RuntimeError as exc:
             return "error", str(exc)
 
+        return self._parse_acquire_output(output)
+
+    def _acquire_song_from_url_phased(
+        self,
+        url: str,
+        *,
+        artist: str = "",
+        title: str = "",
+        track_id: str = "",
+        search_terms: list[str] | None = None,
+        play_delay_seconds: float = 5.0,
+        settle_delay_seconds: float = 6.0,
+    ) -> tuple[str, str]:
+        """Investigation path: same logic as monolithic script, per-phase spans."""
+        from playlist_builder.infrastructure.perf import perf_record, perf_span
+
+        urls_to_try = self._catalog_acquire_urls(url, track_id)
+        if not urls_to_try:
+            return "error", "URL catalogue indisponible."
+
+        terms = list(search_terms or [])
+        if not terms:
+            terms = self._default_search_terms(artist, title)
+
+        perf_record(
+            "acquire",
+            "acquire_start",
+            0,
+            metadata={"url_count": len(urls_to_try), "search_term_count": len(terms)},
+        )
+
+        for index, track_url in enumerate(urls_to_try, start=1):
+            with perf_span(
+                "acquire",
+                "add_url",
+                metadata={"url_index": index, "url_scheme": track_url.split(":", 1)[0]},
+            ):
+                persistent_id = self._try_add_url(track_url)
+            if persistent_id:
+                perf_record("acquire", "acquire_success", 0, metadata={"path": "add_url", "url_index": index})
+                return "added", persistent_id
+
+        duplicate_attempted = False
+        for index, track_url in enumerate(urls_to_try, start=1):
+            with perf_span(
+                "acquire",
+                "open_location",
+                metadata={"url_index": index, "url_scheme": track_url.split(":", 1)[0]},
+            ):
+                self._open_catalog_url(track_url)
+
+            polls_used = 0
+            with perf_span("acquire", "poll_current_track", metadata={"url_index": index}):
+                polls_used = self._poll_for_current_track()
+            perf_record(
+                "acquire",
+                "poll_current_track_result",
+                0,
+                metadata={"url_index": index, "polls_used": polls_used, "max_polls": ACQUIRE_POLL_ITERATIONS},
+            )
+
+            with perf_span(
+                "acquire",
+                "play_delay",
+                metadata={"url_index": index, "seconds": play_delay_seconds},
+            ):
+                time.sleep(max(0.0, play_delay_seconds))
+
+            with perf_span("acquire", "play", metadata={"url_index": index}):
+                self._play_current_track()
+
+            with perf_span(
+                "acquire",
+                "post_play_delay",
+                metadata={"url_index": index, "seconds": ACQUIRE_POST_PLAY_DELAY_SECONDS},
+            ):
+                time.sleep(ACQUIRE_POST_PLAY_DELAY_SECONDS)
+
+            with perf_span("acquire", "duplicate_to_library", metadata={"url_index": index}):
+                self._duplicate_current_track_to_library()
+                duplicate_attempted = True
+
+            with perf_span(
+                "acquire",
+                "settle_delay",
+                metadata={"url_index": index, "seconds": settle_delay_seconds},
+            ):
+                time.sleep(max(0.0, settle_delay_seconds))
+
+            with perf_span("acquire", "library_search", metadata={"url_index": index, "term_count": len(terms)}):
+                persistent_id = self._search_library_persistent_id(terms)
+            if persistent_id:
+                perf_record(
+                    "acquire",
+                    "acquire_success",
+                    0,
+                    metadata={"path": "open_duplicate_search", "url_index": index},
+                )
+                return "added", persistent_id
+
+        if duplicate_attempted:
+            perf_record("acquire", "acquire_success", 0, metadata={"path": "duplicated_fallback"})
+            return "duplicated", "Duplication automatique vers la bibliothèque effectuée"
+
+        with perf_span("acquire", "open_location_final", metadata={"url_index": 1}):
+            try:
+                self._open_catalog_url(urls_to_try[0])
+            except RuntimeError as exc:
+                return "error", str(exc)
+        perf_record("acquire", "acquire_success", 0, metadata={"path": "opened_only"})
+        return "opened", "URL ouverte dans Music — ajout automatique non confirmé"
+
+    def _try_add_url(self, track_url: str) -> str:
+        escaped = apple_escape(track_url)
+        output = run_applescript(
+            f'''
+tell application "Music"
+    try
+        set addedItems to add "{escaped}"
+        if (count of addedItems) > 0 then
+            return (persistent ID of item 1 of addedItems) as text
+        end if
+    end try
+    return ""
+end tell
+''',
+            operation="acquire_add_url",
+        )
+        return output.strip()
+
+    def _open_catalog_url(self, track_url: str) -> None:
+        escaped = apple_escape(track_url)
+        run_applescript(
+            f'tell application "Music" to open location "{escaped}"',
+            operation="acquire_open_location",
+        )
+
+    def _poll_for_current_track(self) -> int:
+        polls_used = 0
+        for attempt in range(1, ACQUIRE_POLL_ITERATIONS + 1):
+            time.sleep(ACQUIRE_POLL_DELAY_SECONDS)
+            polls_used = attempt
+            if self._has_current_track():
+                break
+        return polls_used
+
+    def _has_current_track(self) -> bool:
+        output = run_applescript(
+            '''
+tell application "Music"
+    try
+        set _ to current track
+        return "yes"
+    on error
+        return "no"
+    end try
+end tell
+''',
+            operation="acquire_probe_current_track",
+        )
+        return output.strip().casefold() == "yes"
+
+    def _play_current_track(self) -> None:
+        run_applescript('tell application "Music" to play', operation="acquire_play")
+
+    def _duplicate_current_track_to_library(self) -> None:
+        run_applescript(
+            'tell application "Music" to duplicate current track to source "Library"',
+            operation="acquire_duplicate_to_library",
+        )
+
+    def _search_library_persistent_id(self, search_terms: list[str]) -> str:
+        for term in search_terms:
+            normalized = term.strip()
+            if not normalized:
+                continue
+            escaped = apple_escape(normalized)
+            output = run_applescript(
+                f'''
+tell application "Music"
+    set searchResults to (search library playlist 1 for "{escaped}" only songs)
+    if (count of searchResults) > 0 then
+        return (persistent ID of item 1 of searchResults) as text
+    end if
+    return ""
+end tell
+''',
+                operation="acquire_library_search",
+            )
+            persistent_id = output.strip()
+            if persistent_id:
+                return persistent_id
+        return ""
+
+    @staticmethod
+    def _parse_acquire_output(output: str) -> tuple[str, str]:
         if not output:
             return "error", "Réponse AppleScript vide."
         parts = output.split(FIELD_DELIMITER, 1)

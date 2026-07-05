@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Iterator
 
 from playlist_builder.canonical.models import CanonicalCandidate
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
+from playlist_builder.integration.apple_music.acquire_instrumentation import record_post_acquisition_settle
 from playlist_builder.integration.apple_music.catalog_ids import (
     catalog_track_id_from_candidate,
     catalog_url_from_candidate,
@@ -100,19 +100,19 @@ class AppleMusicLibraryAcquisition:
         )
         parsed_status = _parse_acquire_status(status)
         if parsed_status == AppleMusicAcquisitionStatus.ADDED:
-            time.sleep(self._settle_delay_seconds)
+            record_post_acquisition_settle(self._settle_delay_seconds, status=parsed_status.value)
             return AppleMusicAcquisitionOutcome(
                 AppleMusicAcquisitionStatus.ADDED,
                 detail or "Ajouté à la bibliothèque Music depuis le catalogue.",
             )
         if parsed_status == AppleMusicAcquisitionStatus.DUPLICATED:
-            time.sleep(self._settle_delay_seconds)
+            record_post_acquisition_settle(self._settle_delay_seconds, status=parsed_status.value)
             return AppleMusicAcquisitionOutcome(
                 AppleMusicAcquisitionStatus.DUPLICATED,
                 detail or "Duplication automatique vers la bibliothèque effectuée.",
             )
         if parsed_status == AppleMusicAcquisitionStatus.OPENED:
-            time.sleep(self._settle_delay_seconds)
+            record_post_acquisition_settle(self._settle_delay_seconds, status=parsed_status.value)
             return AppleMusicAcquisitionOutcome(
                 AppleMusicAcquisitionStatus.OPENED,
                 detail or "URL ouverte dans Music — ajout automatique non confirmé.",
