@@ -68,12 +68,74 @@ class AppleMusicLibraryAcquisition:
         *,
         settle_delay_seconds: float = 6.0,
         play_delay_seconds: float = 5.0,
+        acquisition_mode: str = "",
     ) -> None:
         self._applescript = applescript
         self._settle_delay_seconds = settle_delay_seconds
         self._play_delay_seconds = play_delay_seconds
+        from playlist_builder.integration.apple_music.acquisition_policy import (
+            CatalogAcquisitionMode,
+            ENABLE_PLAY_DUPLICATE_ACQUISITION_DEFAULT,
+        )
+
+        if acquisition_mode:
+            self._acquisition_mode = CatalogAcquisitionMode(acquisition_mode)
+        elif ENABLE_PLAY_DUPLICATE_ACQUISITION_DEFAULT:
+            self._acquisition_mode = CatalogAcquisitionMode.LEGACY_EXPERIMENTAL
+        else:
+            self._acquisition_mode = CatalogAcquisitionMode.PRODUCTION
 
     def acquire_from_catalog_candidate(self, candidate: CanonicalCandidate) -> AppleMusicAcquisitionOutcome:
+        from playlist_builder.integration.apple_music.acquisition_policy import CatalogAcquisitionMode
+
+        if self._acquisition_mode == CatalogAcquisitionMode.LEGACY_EXPERIMENTAL:
+            return self._acquire_legacy_experimental(candidate)
+        return self._acquire_production(candidate)
+
+    def _acquire_production(self, candidate: CanonicalCandidate) -> AppleMusicAcquisitionOutcome:
+        url = catalog_url_from_candidate(candidate)
+        track_id = catalog_track_id_from_candidate(candidate)
+        if not url and not track_id:
+            return AppleMusicAcquisitionOutcome(AppleMusicAcquisitionStatus.ERROR, "URL catalogue indisponible.")
+
+        artist = candidate.track.artist.name
+        title = candidate.track.title
+
+        print(
+            f"🔎 Acquisition catalogue : {artist} - {title} — vérification rapide add URL…",
+            flush=True,
+        )
+
+        persistent_id = self._try_quick_add_urls(url=url, track_id=track_id)
+        if persistent_id:
+            record_post_acquisition_settle(1.0, status=AppleMusicAcquisitionStatus.ADDED.value)
+            return AppleMusicAcquisitionOutcome(
+                AppleMusicAcquisitionStatus.ADDED,
+                persistent_id,
+            )
+
+        open_url = self._preferred_open_url(url=url, track_id=track_id)
+        if not open_url:
+            return AppleMusicAcquisitionOutcome(
+                AppleMusicAcquisitionStatus.ERROR,
+                "URL catalogue indisponible pour ouvrir Music.app.",
+            )
+
+        try:
+            self._applescript.open_catalog_url_for_manual(open_url, activate=False)
+        except RuntimeError as exc:
+            return AppleMusicAcquisitionOutcome(AppleMusicAcquisitionStatus.ERROR, str(exc))
+
+        return AppleMusicAcquisitionOutcome(
+            AppleMusicAcquisitionStatus.OPENED,
+            (
+                "Le morceau n'est pas encore dans votre bibliothèque Music.app. "
+                "La fiche catalogue a été ouverte — ajoutez-le à votre bibliothèque, "
+                "puis confirmez dans Resonance."
+            ),
+        )
+
+    def _acquire_legacy_experimental(self, candidate: CanonicalCandidate) -> AppleMusicAcquisitionOutcome:
         url = catalog_url_from_candidate(candidate)
         if not url:
             return AppleMusicAcquisitionOutcome(AppleMusicAcquisitionStatus.ERROR, "URL catalogue indisponible.")
@@ -121,6 +183,26 @@ class AppleMusicLibraryAcquisition:
             AppleMusicAcquisitionStatus.ERROR,
             detail or "Acquisition catalogue échouée.",
         )
+
+    def _try_quick_add_urls(self, *, url: str, track_id: str) -> str:
+        candidates: list[str] = []
+        if track_id:
+            candidates.append(f"itms://music.apple.com/song/id{track_id}")
+        if url.strip() and url not in candidates:
+            candidates.append(url.strip())
+        for candidate_url in candidates:
+            persistent_id = self._applescript.try_add_catalog_url(candidate_url)
+            if persistent_id:
+                return persistent_id
+        return ""
+
+    @staticmethod
+    def _preferred_open_url(*, url: str, track_id: str) -> str:
+        if url.strip():
+            return url.strip()
+        if track_id.strip():
+            return f"https://music.apple.com/song/id{track_id.strip()}"
+        return ""
 
 
 def _catalog_search_terms(artist: str, title: str) -> list[str]:

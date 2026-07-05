@@ -13,6 +13,7 @@ from playlist_builder.canonical.models import (
 )
 from playlist_builder.catalog.cache import JsonCache
 from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
+from playlist_builder.integration.apple_music.acquisition_policy import PRODUCTION_ADDED_LIBRARY_PROBE_ATTEMPTS
 from playlist_builder.integration.apple_music.library_acquisition import (
     AppleMusicAcquisitionStatus,
     AppleMusicLibraryAcquisition,
@@ -48,7 +49,7 @@ def _catalog_candidate(track: CanonicalTrack) -> CanonicalCandidate:
 
 def test_library_acquisition_exposes_opened_status_without_losing_legacy_unpacking():
     applescript = MagicMock()
-    applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte")
+    applescript.try_add_catalog_url.return_value = ""
     acquisition = AppleMusicLibraryAcquisition(
         applescript,
         settle_delay_seconds=0,
@@ -61,15 +62,15 @@ def test_library_acquisition_exposes_opened_status_without_losing_legacy_unpacki
     assert outcome.status == AppleMusicAcquisitionStatus.OPENED
     assert outcome.opened is True
     assert legacy_added is False
-    assert legacy_detail == "URL ouverte"
+    assert "bibliothèque Music.app" in legacy_detail
+    applescript.open_catalog_url_for_manual.assert_called_once()
+    applescript.acquire_song_from_url.assert_not_called()
 
 
-def test_resolver_automatic_acquisition_without_manual_prompt(tmp_path: Path, monkeypatch):
+def test_resolver_quick_add_without_manual_prompt(tmp_path: Path, monkeypatch):
     identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
     applescript = MagicMock()
     applescript.collect_candidates_batch.side_effect = [
-        [[]],
-        [[]],
         [[]],
         [
             [
@@ -82,10 +83,7 @@ def test_resolver_automatic_acquisition_without_manual_prompt(tmp_path: Path, mo
             ]
         ],
     ]
-    applescript.acquire_song_from_url.return_value = (
-        "duplicated",
-        "Duplication automatique vers la bibliothèque effectuée",
-    )
+    applescript.try_add_catalog_url.return_value = "PID-AUTO"
     monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
     input_mock = MagicMock()
     monkeypatch.setattr("builtins.input", input_mock)
@@ -105,6 +103,7 @@ def test_resolver_automatic_acquisition_without_manual_prompt(tmp_path: Path, mo
     assert outcome.persistent_id == "PID-AUTO"
     assert outcome.catalog_acquired is True
     input_mock.assert_not_called()
+    applescript.acquire_song_from_url.assert_not_called()
 
 
 def test_resolver_retries_after_manual_acquisition_confirmation(tmp_path: Path, monkeypatch):
@@ -115,10 +114,9 @@ def test_resolver_retries_after_manual_acquisition_confirmation(tmp_path: Path, 
         [[]],
         [[]],
         [[]],
-        [[]],
         [[AppleMusicTrack(persistent_id="PID-ONE", artist="Daft Punk", title="One More Time", query="One More Time")]],
     ]
-    applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
+    applescript.try_add_catalog_url.return_value = ""
     monkeypatch.setattr("builtins.input", lambda: "")
     monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
 
@@ -136,7 +134,8 @@ def test_resolver_retries_after_manual_acquisition_confirmation(tmp_path: Path, 
     assert outcome.persistent_id == "PID-ONE"
     assert outcome.catalog_acquired is True
     assert identity_cache.get(_track(), ProviderId.APPLE_MUSIC) is not None
-    assert applescript.collect_candidates_batch.call_count == 6
+    assert applescript.collect_candidates_batch.call_count == 5
+    applescript.acquire_song_from_url.assert_not_called()
 
 
 def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatch):
@@ -156,10 +155,7 @@ def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatc
     applescript = MagicMock()
     applescript.collect_candidates_batch.side_effect = [
         [[]],
-        [[]],
-        [[]],
         [
-            [],
             [
                 AppleMusicTrack(
                     persistent_id="PID-FEAT",
@@ -167,10 +163,10 @@ def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatc
                     title="Firestone (feat. Conrad Sewell)",
                     query="Firestone (feat. Conrad Sewell)",
                 )
-            ],
+            ]
         ],
     ]
-    applescript.acquire_song_from_url.return_value = ("added", "PID-FEAT")
+    applescript.try_add_catalog_url.return_value = "PID-FEAT"
     monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
 
     resolver = AppleMusicResolver(
@@ -185,6 +181,7 @@ def test_resolver_retries_using_catalog_title_variant(tmp_path: Path, monkeypatc
 
     assert outcome.status == AppleMusicResolutionStatus.RESOLVED
     assert outcome.persistent_id == "PID-FEAT"
+    applescript.acquire_song_from_url.assert_not_called()
 
 
 def test_resolver_acquires_when_library_has_only_false_positives(tmp_path: Path, monkeypatch):
@@ -210,7 +207,6 @@ def test_resolver_acquires_when_library_has_only_false_positives(tmp_path: Path,
             ]
         ],
         [[]],
-        [[]],
         [
             [
                 AppleMusicTrack(
@@ -222,10 +218,7 @@ def test_resolver_acquires_when_library_has_only_false_positives(tmp_path: Path,
             ]
         ],
     ]
-    applescript.acquire_song_from_url.return_value = (
-        "duplicated",
-        "Duplication automatique vers la bibliothèque effectuée",
-    )
+    applescript.try_add_catalog_url.return_value = "PID-KYO"
     monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
 
     resolver = AppleMusicResolver(
@@ -241,7 +234,8 @@ def test_resolver_acquires_when_library_has_only_false_positives(tmp_path: Path,
     assert outcome.status == AppleMusicResolutionStatus.RESOLVED
     assert outcome.persistent_id == "PID-KYO"
     assert outcome.catalog_acquired is True
-    assert applescript.acquire_song_from_url.called
+    applescript.try_add_catalog_url.called
+    applescript.acquire_song_from_url.assert_not_called()
     assert "Catalogue iTunes" not in outcome.error
 
 
@@ -250,14 +244,8 @@ def test_resolver_can_open_catalog_without_waiting(tmp_path: Path):
     applescript = MagicMock()
     applescript.collect_candidates_batch.side_effect = [
         [[]],
-        [[]],
-        [[]],
-        [[]],
-        [[]],
-        [[]],
-        [[]],
     ]
-    applescript.acquire_song_from_url.return_value = ("opened", "URL ouverte dans Music")
+    applescript.try_add_catalog_url.return_value = ""
 
     resolver = AppleMusicResolver(
         applescript,
@@ -270,4 +258,30 @@ def test_resolver_can_open_catalog_without_waiting(tmp_path: Path):
     outcome = resolver.resolve(_track())
 
     assert outcome.status == AppleMusicResolutionStatus.NOT_FOUND
-    assert "acquisition automatique" in outcome.error
+    assert "wait-for-acquisition" in outcome.error
+    assert applescript.collect_candidates_batch.call_count == 1
+    applescript.acquire_song_from_url.assert_not_called()
+
+
+def test_resolver_limits_added_library_probes_to_production_policy(tmp_path: Path, monkeypatch):
+    identity_cache = IdentityCache(JsonCache(tmp_path / "identity.json"))
+    applescript = MagicMock()
+    applescript.collect_candidates_batch.side_effect = [
+        [[]],
+        *[[] for _ in range(PRODUCTION_ADDED_LIBRARY_PROBE_ATTEMPTS)],
+    ]
+    applescript.try_add_catalog_url.return_value = "PID-PROBE"
+    monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
+
+    resolver = AppleMusicResolver(
+        applescript,
+        identity_cache,
+        catalog=FakeCatalog(_catalog_candidate(_track())),
+        acquire_missing=True,
+        wait_for_manual_catalog_add=False,
+    )
+
+    outcome = resolver.resolve(_track())
+
+    assert outcome.status == AppleMusicResolutionStatus.NOT_FOUND
+    assert applescript.collect_candidates_batch.call_count == 1 + PRODUCTION_ADDED_LIBRARY_PROBE_ATTEMPTS

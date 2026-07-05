@@ -103,6 +103,32 @@ reports/perf/acquisition_strategy_YYYYMMDD_HHMMSS.md
 
 ## Critères de décision (post-mesure)
 
+**Décision prise — juillet 2026.** Voir `wiki/Phase-5-3-3-Acquisition-Decision.md` et ADR-012.
+
+### Résultats macOS (Dwayne Johnson — You're Welcome, `6779424544`)
+
+| Stratégie | Résultat | Durée |
+|-----------|----------|-------|
+| S1 | Échec | 2.7 s |
+| S2 | Échec (-10006) | 84.2 s |
+| S4 | **Succès** (PID bibliothèque) | 33.3 s |
+
+### Décision retenue
+
+| Stratégie | Rôle production |
+|-----------|-----------------|
+| **S1** | Probe rapide (~3 s) avant manual |
+| **S2** | **Déclassé** — `LEGACY_EXPERIMENTAL` uniquement |
+| **S3** | Expérimental — non intégré |
+| **S4** | **Fallback principal fiable** (UX 5.2) |
+| Cache PID | Chemin rapide inchangé |
+
+Le produit Resonance implémente ADR-012 : plus d'attente ~80 s sur S2 avant la carte manuelle.
+
+---
+
+## Critères historiques (pré-mesure)
+
 Une stratégie est **retenue** pour la Phase 5.3.4 (implémentation) si :
 
 1. **Succès reproductible** sur 3 runs avec le même morceau test (puis 3 morceaux différents)
@@ -120,15 +146,13 @@ Une stratégie est **retenue** pour la Phase 5.3.4 (implémentation) si :
 
 ---
 
-## Recommandation attendue après mesure
+## Recommandation (Phase 5.3.3 — implémentée)
 
-Ce document sera complété après exécution macOS avec :
+- **Production** : S1 rapide → S4 manuel immédiat si échec ; cache inchangé.
+- **S2** : conservé dans `acquisition_experiments.py` et `LEGACY_EXPERIMENTAL` pour benchmarks.
+- **MusicKit** : recommandé pour évaluation future quand licence développeur disponible — pas dans cette phase.
 
-- stratégie gagnante (ou aucune)
-- tableau comparatif S1–S4
-- proposition ADR pour Phase 5.3.4
-
-**Le produit Resonance n'est pas modifié** tant que ce rapport n'est pas analysé.
+**Le produit Resonance est modifié** selon ADR-012 et `wiki/Phase-5-3-3-Acquisition-Decision.md`.
 
 ---
 
@@ -146,5 +170,6 @@ Ce document sera complété après exécution macOS avec :
 ## Références
 
 - `wiki/Phase-5-3-2-Acquisition-Investigation.md`
+- `docs/architecture/ADR-012-apple-catalog-acquisition-production-policy.md`
 - `docs/architecture/ADR-009-apple-catalog-acquisition-workflow.md`
 - [Apple Developer Forums — Add songs to Library](https://developer.apple.com/forums/thread/694200)

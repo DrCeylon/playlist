@@ -1,8 +1,8 @@
-# ADR-007 — Apple catalog acquisition workflow
+# ADR-009 — Apple catalog acquisition workflow
 
 ## Status
 
-Accepted
+Accepted — **production automatic S2 steps superseded by [ADR-012](ADR-012-apple-catalog-acquisition-production-policy.md)** (Phase 5.3.3, July 2026). Manual acquisition and identity cache behaviour remain valid.
 
 ## Context
 

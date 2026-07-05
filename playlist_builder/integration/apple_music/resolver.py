@@ -20,6 +20,7 @@ from playlist_builder.integration.apple_music.diagnostics import (
     AppleMusicResolutionTrace,
     trace_from_candidates,
 )
+from playlist_builder.integration.apple_music.acquisition_policy import PRODUCTION_ADDED_LIBRARY_PROBE_ATTEMPTS
 from playlist_builder.integration.apple_music.library_acquisition import AppleMusicAcquisitionStatus, AppleMusicLibraryAcquisition
 from playlist_builder.infrastructure.perf import perf_record, perf_span
 from playlist_builder.integration.apple_music.mapper import resolution_candidates_from_apple_music_tracks
@@ -294,59 +295,65 @@ class AppleMusicResolver:
         if acquisition.status == AppleMusicAcquisitionStatus.ERROR:
             return [], False, acquisition.detail, True
 
+        if acquisition.opened:
+            if self._wait_for_manual_catalog_add:
+                if self._manual_acquisition_hook is not None:
+                    self._manual_acquisition_hook(track, catalog_candidate, acquisition.detail)
+                else:
+                    self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
+                library_candidates = self._refresh_library_candidates_with_retries(
+                    legacy,
+                    catalog_candidate,
+                    max_attempts=_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS,
+                    show_progress=True,
+                )
+                if library_candidates:
+                    return library_candidates, True, acquisition.detail, True
+                return (
+                    [],
+                    False,
+                    (
+                        f"{acquisition.detail} "
+                        "Morceau toujours absent de la bibliothèque après confirmation "
+                        f"({_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
+                    ),
+                    True,
+                )
+            suffix = (
+                f"{acquisition.detail} "
+                "Ajoutez le morceau à votre bibliothèque Music.app, puis relancez l'import."
+            )
+            if not self._wait_for_manual_catalog_add:
+                suffix += " Utilisez --wait-for-acquisition pour l'ajout manuel interactif."
+            return [], False, suffix, True
+
         if acquisition.automatic_attempted:
             print(
                 f"📥 Acquisition catalogue→bibliothèque pour {track.artist.display_name} - {track.title}...",
                 flush=True,
             )
 
+        probe_attempts = (
+            PRODUCTION_ADDED_LIBRARY_PROBE_ATTEMPTS
+            if acquisition.added
+            else _AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS
+        )
         library_candidates = self._refresh_library_candidates_with_retries(
             legacy,
             catalog_candidate,
-            max_attempts=_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS,
+            max_attempts=probe_attempts,
             show_progress=acquisition.automatic_attempted,
         )
         if library_candidates:
             return library_candidates, True, acquisition.detail, True
 
-        if acquisition.opened and self._wait_for_manual_catalog_add:
-            if self._manual_acquisition_hook is not None:
-                self._manual_acquisition_hook(track, catalog_candidate, acquisition.detail)
-            else:
-                self._wait_until_user_added_track(track, catalog_candidate, acquisition.detail)
-            library_candidates = self._refresh_library_candidates_with_retries(
-                legacy,
-                catalog_candidate,
-                max_attempts=_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS,
-                show_progress=True,
-            )
-            if library_candidates:
-                return library_candidates, True, acquisition.detail, True
-            return (
-                [],
-                False,
-                (
-                    f"{acquisition.detail} "
-                    "Morceau toujours absent de la bibliothèque après confirmation "
-                    f"({_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
-                ),
-                True,
-            )
-
-        if acquisition.opened or acquisition.duplicated:
+        if acquisition.duplicated:
             suffix = (
                 f"{acquisition.detail} "
                 "Morceau toujours absent de la bibliothèque après acquisition automatique "
-                f"({_AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS} recherches)."
+                f"({probe_attempts} recherches)."
             )
-            if acquisition.opened and not self._wait_for_manual_catalog_add:
-                suffix += " Utilisez --wait-for-acquisition pour l'ajout manuel dans Music.app."
-            return (
-                [],
-                False,
-                suffix,
-                True,
-            )
+            return [], False, suffix, True
         return [], False, acquisition.detail, True
 
     def _refresh_library_candidates_with_retries(

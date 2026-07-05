@@ -39,6 +39,16 @@ end tell
             operation="ensure_running",
         )
 
+    def try_add_catalog_url(self, track_url: str) -> str:
+        """Production S1 — quick `add URL` without open/play/duplicate (Phase 5.3.3)."""
+        self.ensure_running(activate=False)
+        return self._try_add_url(track_url)
+
+    def open_catalog_url_for_manual(self, track_url: str, *, activate: bool = False) -> None:
+        """Production S4 prep — open the catalog page so the user can add to Library."""
+        self.ensure_running(activate=activate)
+        self._open_catalog_url(track_url)
+
     def ensure_playlist(self, name: str) -> None:
         escaped = apple_escape(name)
         run_applescript(
