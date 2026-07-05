@@ -48,6 +48,21 @@ cd ../.. && source .venv/bin/activate && python3.12 -m pytest -q
 
 Les rapports sont générés localement (`reports/` est gitignoré).
 
+## Phase 5.3.3 — Expériences acquisition
+
+Voir `wiki/Phase-5-3-3-Acquisition-Experiments.md`.
+
+```bash
+python3.12 scripts/perf/test_acquisition_strategies.py \
+  --url "https://music.apple.com/us/song/EXAMPLE/1234567890" \
+  --track-id 1234567890 \
+  --artist "Artist" \
+  --title "Title" \
+  --strategies S1,S2,S3,S4
+```
+
+Script **explicite macOS uniquement** — non intégré au workflow Resonance.
+
 ## Format trace `resonance-perf:`
 
 Chaque ligne stderr :
