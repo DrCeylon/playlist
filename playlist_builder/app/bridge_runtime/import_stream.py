@@ -3,11 +3,10 @@ from __future__ import annotations
 import time
 from collections.abc import Iterator
 
-from playlist_builder.app.factory import AppContext
+from playlist_builder.app.factory import AppContext, get_provider_import_port
 from playlist_builder.canonical.compat import canonical_playlist_from_legacy
-from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.core.models import PlaylistDefinition, TrackAddResult, TrackAddStatus
-from playlist_builder.integration.apple_music.resolver import AppleMusicResolutionStatus
+from playlist_builder.integration.ports.provider_import import ProviderImportResolutionStatus
 from playlist_builder.integration.compat import track_results_aligned_with_playlist
 from playlist_builder.ui.bridge.commands import ImportPlaylistResult
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
@@ -102,21 +101,13 @@ def stream_import_playlist(
             "L'import Apple Music nécessite macOS.",
         )
 
-    apple_gateway = context.registry.get(ProviderId.APPLE_MUSIC)
-    if apple_gateway is None:
-        raise BridgeError(
-            BridgeErrorCode.PROVIDER_UNAVAILABLE,
-            "Le fournisseur Apple Music n'est pas disponible.",
-        )
-
-    import_service = apple_gateway.import_service
-    resolver = import_service.resolver
-    applescript = resolver._applescript  # noqa: SLF001
+    import_port = get_provider_import_port(context)
+    labels = import_port.runtime_labels
 
     if context.settings.wait_for_manual_catalog_add:
         from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionGate
 
-        resolver._manual_acquisition_hook = ManualAcquisitionGate().hook  # noqa: SLF001
+        import_port.configure_manual_acquisition(ManualAcquisitionGate().hook)
     if checkpoint is not None:
         playlist = checkpoint.playlist
         request_id = checkpoint.request_id
@@ -146,10 +137,8 @@ def stream_import_playlist(
             write_json_diagnostics=write_json_diagnostics,
             session_store=session_store,
             checkpoint=checkpoint,
-            apple_gateway=apple_gateway,
-            import_service=import_service,
-            resolver=resolver,
-            applescript=applescript,
+            import_port=import_port,
+            labels=labels,
             canonical=canonical,
             rows=rows,
             total=total,
@@ -168,10 +157,8 @@ def _stream_import_playlist_body(
     write_json_diagnostics: bool,
     session_store: ImportSessionStore,
     checkpoint: ImportSessionCheckpoint | None,
-    apple_gateway,
-    import_service,
-    resolver,
-    applescript,
+    import_port,
+    labels,
     canonical,
     rows: list,
     total: int,
@@ -190,24 +177,24 @@ def _stream_import_playlist_body(
     yield diagnostic_event(
         request_id,
         phase="music_app",
-        message=_timed_message(import_started_at, "Connexion à Music.app via AppleScript…"),
+        message=_timed_message(import_started_at, labels.connect_message),
     )
-    _import_log("Music.app ensure_running")
+    _import_log(f"{labels.runtime_app_name} ensure_running")
     music_app_started = time.perf_counter()
     try:
-        applescript.ensure_running(activate=False)
+        import_port.ensure_runtime_ready(activate=False)
     except RuntimeError as exc:
-        _import_log(f"Music.app ensure_running failed: {exc}")
+        _import_log(f"{labels.runtime_app_name} ensure_running failed: {exc}")
         raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, str(exc)) from exc
     music_app_ms = int((time.perf_counter() - music_app_started) * 1000)
     perf_record("import", "music_app_ensure", music_app_ms)
-    _import_log(f"Music.app ensure_running OK ({music_app_ms} ms)")
+    _import_log(f"{labels.runtime_app_name} ensure_running OK ({music_app_ms} ms)")
     yield diagnostic_event(
         request_id,
         phase="music_app",
         message=_timed_message(
             import_started_at,
-            f"Music.app lancé en arrière-plan ({music_app_ms} ms, sans activer la fenêtre)",
+            labels.runtime_ready_message.format(duration_ms=music_app_ms),
         ),
     )
 
@@ -235,7 +222,7 @@ def _stream_import_playlist_body(
         for offset, (track, section_name) in enumerate(batch_rows):
             track_index = index + offset
             if checkpoint is not None and track_index < start_index:
-                outcomes.append((resolver.resolve(track, section=section_name), section_name))
+                outcomes.append((import_port.resolve(track, section=section_name), section_name))
                 continue
             batch_inputs.append((track_index, track, section_name))
 
@@ -267,7 +254,7 @@ def _stream_import_playlist_body(
                     batch_index=batch_number,
                     metadata={"batch_size": len(batch_inputs)},
                 ):
-                    resolved_batch = resolver.resolve_batch(
+                    resolved_batch = import_port.resolve_batch(
                         [(track, section_name) for _, track, section_name in batch_inputs]
                     )
             except ManualAcquisitionInterrupted as pause:
@@ -378,11 +365,11 @@ def _stream_import_playlist_body(
 
                 track_status = ImportTrackStatus.PENDING
                 track_message = "Résolu"
-                if outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
+                if outcome.status == ProviderImportResolutionStatus.NOT_FOUND:
                     not_found_count += 1
                     track_status = ImportTrackStatus.NOT_FOUND
-                    track_message = outcome.error or "Introuvable dans Apple Music"
-                elif outcome.status == AppleMusicResolutionStatus.ERROR:
+                    track_message = outcome.error or labels.not_found_message
+                elif outcome.status == ProviderImportResolutionStatus.ERROR:
                     error_count += 1
                     track_status = ImportTrackStatus.ERROR
                     track_message = outcome.error or "Erreur de résolution"
@@ -437,7 +424,7 @@ def _stream_import_playlist_body(
                         artist=artist_name,
                         title=title_name,
                     )
-                elif outcome.status == AppleMusicResolutionStatus.NOT_FOUND:
+                elif outcome.status == ProviderImportResolutionStatus.NOT_FOUND:
                     yield diagnostic_event(
                         request_id,
                         phase="catalog_lookup",
@@ -487,7 +474,7 @@ def _stream_import_playlist_body(
     yield diagnostic_event(
         request_id,
         phase="delivering",
-        message=f"Création/synchronisation de la playlist « {playlist.name} » dans Music.app…",
+        message=labels.delivery_start_message.format(playlist_name=playlist.name),
     )
     _import_log(f"ensure_playlist name={playlist.name!r}")
 
@@ -498,9 +485,9 @@ def _stream_import_playlist_body(
         delivery_progress_events.append((current_batch, total_batches))
 
     try:
-        import_service.delivery.ensure_playlist(playlist.name)
+        import_port.ensure_playlist(playlist.name)
         _import_log("sync_playlist starting")
-        report = import_service.delivery.sync_playlist(
+        report = import_port.deliver_playlist(
             canonical,
             [item[0] for item in outcomes],
             on_delivery_batch=on_delivery_batch,
@@ -525,7 +512,10 @@ def _stream_import_playlist_body(
             total_tracks=total,
             playlist_name=playlist.name,
             import_session_id=session_id,
-            current_track_label=f"Ajout Music.app — lot {batch_index}/{batch_count}",
+            current_track_label=labels.delivery_batch_message.format(
+                batch_index=batch_index,
+                batch_count=batch_count,
+            ),
             added_count=added_count,
             skipped_count=skipped_count,
             not_found_count=not_found_count,
@@ -534,7 +524,10 @@ def _stream_import_playlist_body(
         yield diagnostic_event(
             request_id,
             phase="delivering",
-            message=f"Ajout Music.app — lot {batch_index}/{batch_count}",
+            message=labels.delivery_batch_message.format(
+                batch_index=batch_index,
+                batch_count=batch_count,
+            ),
         )
 
     delivery_ms = int((time.perf_counter() - delivery_started) * 1000)
@@ -544,7 +537,7 @@ def _stream_import_playlist_body(
         phase="delivering",
         message=_timed_message(
             import_started_at,
-            f"Synchronisation Music.app terminée en {delivery_ms} ms",
+            labels.delivery_complete_message.format(duration_ms=delivery_ms),
         ),
     )
 
@@ -607,7 +600,7 @@ def _stream_import_playlist_body(
         yield diagnostic_event(
             request_id,
             phase="delivering",
-            message=f"Confirmation Music.app : {added_count} morceau(x) visible(s) dans la playlist",
+            message=labels.delivery_confirm_message.format(added_count=added_count),
         )
     if write_json_diagnostics:
         try:

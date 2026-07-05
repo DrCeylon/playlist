@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from playlist_builder.app.factory import AppContext
-from playlist_builder.canonical.compat import canonical_playlist_from_legacy, legacy_track_from_canonical
+from playlist_builder.app.factory import AppContext, get_provider_import_port
+from playlist_builder.canonical.compat import legacy_track_from_canonical
+from playlist_builder.canonical.compat import canonical_playlist_from_legacy
 from playlist_builder.core.models import PlaylistDefinition, TrackAddResult, TrackAddStatus
-from playlist_builder.integration.apple_music.resolver import AppleMusicResolutionStatus
 from playlist_builder.ui.bridge.commands import ImportPlaylistResult
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.bridge.events import BridgeEvent, diagnostic_event, progress_event
@@ -36,18 +36,8 @@ def stream_retry_import_tracks(
     if not track_indices:
         raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Aucun morceau à réessayer.")
 
-    from playlist_builder.canonical.enums import ProviderId
-
-    apple_gateway = context.registry.get(ProviderId.APPLE_MUSIC)
-    if apple_gateway is None:
-        raise BridgeError(
-            BridgeErrorCode.PROVIDER_UNAVAILABLE,
-            "Le fournisseur Apple Music n'est pas disponible.",
-        )
-
-    import_service = apple_gateway.import_service
-    resolver = import_service.resolver
-    delivery = import_service.delivery
+    import_port = get_provider_import_port(context)
+    labels = import_port.runtime_labels
     rows = _flatten_rows(canonical_playlist_from_legacy(playlist))
     total = len(rows)
     valid_indices = sorted({index for index in track_indices if 0 <= index < total})
@@ -91,7 +81,7 @@ def stream_retry_import_tracks(
             status=ImportTrackStatus.PENDING.value,
             message="Nouvelle recherche…",
         )
-        outcome = resolver.resolve(track, section=section_name)
+        outcome = import_port.resolve(track, section=section_name)
         yield _emit_track_progress(
             request_id,
             track_index=index,
@@ -111,8 +101,8 @@ def stream_retry_import_tracks(
             total_tracks=len(valid_indices),
             playlist_name=playlist.name,
         )
-        delivery.ensure_playlist(playlist.name)
-        canonical_result = delivery.add_resolved_track(
+        import_port.ensure_playlist(playlist.name)
+        canonical_result = import_port.add_resolved_track(
             playlist.name,
             outcome,
             section_name=section_name,
@@ -137,7 +127,7 @@ def stream_retry_import_tracks(
             section=section_name,
             step="completed",
             status=final_status.value,
-            message=merged[index].error or _status_message(final_status),
+            message=merged[index].error or _status_message(final_status, labels.not_found_message),
         )
 
     phase = _final_phase(merged)
@@ -181,10 +171,10 @@ def _map_track_status(status: TrackAddStatus) -> ImportTrackStatus:
     }[status]
 
 
-def _status_message(status: ImportTrackStatus) -> str:
+def _status_message(status: ImportTrackStatus, not_found_message: str) -> str:
     return {
         ImportTrackStatus.ADDED: "Ajouté",
         ImportTrackStatus.SKIPPED: "Déjà présent",
-        ImportTrackStatus.NOT_FOUND: "Introuvable dans Apple Music",
+        ImportTrackStatus.NOT_FOUND: not_found_message,
         ImportTrackStatus.ERROR: "Erreur",
     }[status]

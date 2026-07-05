@@ -66,9 +66,7 @@ class ManualAcquisitionGate:
         title = track.title
         catalog_label = catalog_candidate.track.label
         album = catalog_candidate.track.album.title if catalog_candidate.track.album else ""
-        from playlist_builder.integration.apple_music.catalog_ids import catalog_url_from_candidate
-
-        catalog_url = catalog_url_from_candidate(catalog_candidate)
+        catalog_url = _catalog_url_from_hints(catalog_candidate.provider_hints)
         instructions = (
             "Acquisition manuelle requise dans Music.app.\n"
             f"{detail}\n"
@@ -85,3 +83,10 @@ class ManualAcquisitionGate:
             catalog_url=catalog_url,
             album=album,
         )
+
+
+def _catalog_url_from_hints(hints: tuple[str, ...]) -> str:
+    for hint in hints:
+        if hint.startswith("http") or hint.startswith("music://"):
+            return hint.strip()
+    return ""

@@ -9,6 +9,38 @@ from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
 from playlist_builder.integration.apple_music.gateway import AppleMusicProviderGateway, build_apple_music_gateway
 from playlist_builder.integration.gateway.registry import ProviderGatewayRegistry
 from playlist_builder.integration.gateway.service import IntegrationGateway
+from playlist_builder.integration.ports.provider_import import ProviderImportPort
+from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
+
+
+def get_provider_import_port(
+    context: AppContext,
+    provider_id: ProviderId = ProviderId.APPLE_MUSIC,
+) -> ProviderImportPort:
+    """Resolve a streaming import port for the requested provider."""
+    gateway = context.registry.get(provider_id)
+    if gateway is None:
+        raise BridgeError(
+            BridgeErrorCode.PROVIDER_UNAVAILABLE,
+            f"Le fournisseur {provider_id.value} n'est pas disponible.",
+        )
+
+    import_service = getattr(gateway, "import_service", None)
+    if import_service is None:
+        raise BridgeError(
+            BridgeErrorCode.PROVIDER_UNAVAILABLE,
+            f"Le fournisseur {provider_id.value} ne supporte pas l'import streamé.",
+        )
+
+    if provider_id == ProviderId.APPLE_MUSIC:
+        from playlist_builder.integration.apple_music.provider_import_port import AppleMusicProviderImportPort
+
+        return AppleMusicProviderImportPort(import_service)
+
+    raise BridgeError(
+        BridgeErrorCode.PROVIDER_UNAVAILABLE,
+        f"Aucun ProviderImportPort enregistré pour {provider_id.value}.",
+    )
 
 
 @dataclass(frozen=True, slots=True)

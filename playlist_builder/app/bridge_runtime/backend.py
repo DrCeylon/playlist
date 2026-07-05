@@ -99,11 +99,10 @@ class RuntimeEngineBridgeBackend:
         if sys.platform != "darwin":
             return {"found": False, "message": "Disponible uniquement sur macOS."}
 
-        apple_gateway = self._context.registry.get(ProviderId.APPLE_MUSIC)
-        if apple_gateway is None:
-            return {"found": False, "message": "Apple Music indisponible."}
+        from playlist_builder.app.factory import get_provider_import_port
 
-        from playlist_builder.canonical.compat import canonical_playlist_from_legacy
+        import_port = get_provider_import_port(self._context)
+        labels = import_port.runtime_labels
 
         canonical = canonical_playlist_from_legacy(checkpoint.playlist)
         rows = []
@@ -114,10 +113,9 @@ class RuntimeEngineBridgeBackend:
             return {"found": False, "message": "Aucun morceau en attente."}
 
         track, section_name = rows[checkpoint.next_index]
-        resolver = apple_gateway.import_service.resolver
-        found = resolver.probe_library_presence(track, section=section_name)
+        found = import_port.probe_library_presence(track, section=section_name)
         message = (
-            "Morceau détecté dans la bibliothèque Music.app."
+            f"Morceau détecté dans la bibliothèque {labels.runtime_app_name}."
             if found
             else "Morceau pas encore visible dans la bibliothèque."
         )
