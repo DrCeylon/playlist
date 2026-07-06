@@ -49,8 +49,12 @@ struct KeywordTagField: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(palette.accentPrimary.opacity(0.14))
+        .background(keyword.isAutomatic ? palette.accentPrimary.opacity(0.14) : palette.backgroundSecondary)
         .foregroundStyle(palette.textPrimary)
+        .overlay(
+            Capsule()
+                .stroke(keyword.isAutomatic ? palette.accentPrimary.opacity(0.35) : palette.borderSubtle, lineWidth: 1)
+        )
         .clipShape(Capsule())
     }
 
@@ -106,7 +110,7 @@ struct KeywordTagField: View {
     private func addDraftKeyword() {
         let trimmed = draftQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let keyword = KeywordRef(id: trimmed.lowercased().replacingOccurrences(of: " ", with: "-"), label: trimmed)
+        let keyword = KeywordRef(id: trimmed.lowercased().replacingOccurrences(of: " ", with: "-"), label: trimmed, source: .manual)
         addKeyword(keyword)
     }
 

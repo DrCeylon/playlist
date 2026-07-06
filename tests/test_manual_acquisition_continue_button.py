@@ -10,6 +10,7 @@ from playlist_builder.app.bridge_runtime.import_session import ImportSessionStor
 from playlist_builder.app.bridge_runtime.import_stream import stream_import_playlist
 from playlist_builder.app.factory import build_app_context
 from playlist_builder.app.settings import AppSettings
+from playlist_builder.canonical.compat import canonical_playlist_from_legacy
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.canonical.models import (
     CanonicalArtist,
@@ -93,7 +94,36 @@ def _pause_for_manual_acquisition(monkeypatch, tmp_path) -> tuple[object, Import
     return context, store, _session_id(pause_events)
 
 
-def test_probe_manual_acquisition_returns_structured_diagnostics(monkeypatch, tmp_path):
+def test_probe_manual_acquisition_caches_identity_when_found(monkeypatch, tmp_path):
+    with patch.object(sys, "platform", "darwin"):
+        context, store, session_id = _pause_for_manual_acquisition(monkeypatch, tmp_path)
+        resolver = context.registry.get(ProviderId.APPLE_MUSIC).import_service.resolver
+        applescript = resolver._applescript
+        applescript.collect_candidates_batch = MagicMock(
+            return_value=[
+                [
+                    AppleMusicTrack(
+                        persistent_id="PID-MANUAL",
+                        artist="A$AP Ferg",
+                        title="Green Juice (feat. Pharrell Williams)",
+                        query="Green Juice",
+                    )
+                ]
+            ]
+        )
+        backend = RuntimeEngineBridgeBackend(context, session_store=store)
+        result = backend.probe_manual_acquisition({"import_session_id": session_id})
+
+    assert result["found"] is True
+    cached = resolver._identity_cache.get(
+        canonical_playlist_from_legacy(_playlist()).sections[0].tracks[0],
+        ProviderId.APPLE_MUSIC,
+    )
+    assert cached is not None
+    assert cached.external_id == "PID-MANUAL"
+
+
+def test_probe_manual_acquisition_includes_timing_diagnostics(monkeypatch, tmp_path):
     with patch.object(sys, "platform", "darwin"):
         context, store, session_id = _pause_for_manual_acquisition(monkeypatch, tmp_path)
         applescript = context.registry.get(ProviderId.APPLE_MUSIC).import_service.resolver._applescript
@@ -121,6 +151,9 @@ def test_probe_manual_acquisition_returns_structured_diagnostics(monkeypatch, tm
     assert diagnostics["provider_id"] == ProviderId.APPLE_MUSIC.value
     assert diagnostics["search_terms"]
     assert diagnostics["checkpoint_path"].endswith(f"{session_id}.json")
+    assert diagnostics["probe_duration_ms"] is not None
+    assert diagnostics["probe_started_at"] is not None
+    assert diagnostics["probe_finished_at"] is not None
 
 
 def test_probe_manual_acquisition_track_not_found_message(monkeypatch, tmp_path):

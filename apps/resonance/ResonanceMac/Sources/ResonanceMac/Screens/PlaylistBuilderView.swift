@@ -57,6 +57,7 @@ private struct PlaylistBuilderScreen: View {
                     progress: importViewModel.progress,
                     manualPrompt: importViewModel.manualPrompt,
                     manualPollStatus: importViewModel.manualPollStatus,
+                    manualAcquisitionStatus: importViewModel.manualAcquisitionStatus,
                     architectErrorDetail: importViewModel.architectErrorDetail,
                     architectManualDiagnostics: importViewModel.architectManualDiagnostics,
                     isContinueInProgress: importViewModel.isContinuingManual,

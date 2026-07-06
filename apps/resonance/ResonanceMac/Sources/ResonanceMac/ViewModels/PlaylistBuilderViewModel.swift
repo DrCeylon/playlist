@@ -120,8 +120,11 @@ final class PlaylistBuilderViewModel: ObservableObject {
         }
     }
 
-    func backToEditing() {
-        screenState = .editing
+    func mergeAutomaticKeywords() {
+        let suggested = KeywordSuggestionEngine.automaticKeywordRefs(
+            from: KeywordSuggestionInput(artist: seedArtist, track: seedTrack)
+        )
+        keywords = KeywordSuggestionEngine.mergeAutomaticKeywords(existing: keywords, suggested: suggested)
     }
 
     func loadFromHistory(_ request: PlaylistGenerationRequest) {

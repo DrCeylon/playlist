@@ -45,5 +45,6 @@ final class SmartInputFormEngines: ObservableObject {
     func pushToViewModel(_ viewModel: PlaylistBuilderViewModel) {
         viewModel.seedArtist = artistHolder.engine.selection.selected
         viewModel.seedTrack = trackHolder.engine.selection.selected
+        viewModel.mergeAutomaticKeywords()
     }
 }

@@ -123,6 +123,9 @@ public enum AutocompleteBridgeContracts {
             artworkURL = nil
         }
 
+        let genreName: String?
+        if case .string(let value) = object["primary_genre_name"] { genreName = value } else { genreName = nil }
+
         return TrackRef(
             id: id,
             title: title,
@@ -130,7 +133,8 @@ public enum AutocompleteBridgeContracts {
             albumTitle: albumTitle,
             releaseYear: releaseYear,
             durationMs: durationMs,
-            artworkURL: artworkURL
+            artworkURL: artworkURL,
+            genreName: genreName
         )
     }
 

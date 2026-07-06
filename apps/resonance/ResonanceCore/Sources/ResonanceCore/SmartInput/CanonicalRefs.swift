@@ -45,6 +45,7 @@ public struct TrackRef: CanonicalEntity {
     public var releaseYear: Int?
     public var durationMs: Int?
     public var artworkURL: URL?
+    public var genreName: String?
 
     public var displayLabel: String {
         if albumTitle?.isEmpty == false, let albumTitle {
@@ -60,7 +61,8 @@ public struct TrackRef: CanonicalEntity {
         albumTitle: String? = nil,
         releaseYear: Int? = nil,
         durationMs: Int? = nil,
-        artworkURL: URL? = nil
+        artworkURL: URL? = nil,
+        genreName: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -69,6 +71,7 @@ public struct TrackRef: CanonicalEntity {
         self.releaseYear = releaseYear
         self.durationMs = durationMs
         self.artworkURL = artworkURL
+        self.genreName = genreName
     }
 
     public var formattedDuration: String? {
@@ -101,11 +104,14 @@ public struct GenreRef: CanonicalEntity {
 public struct KeywordRef: CanonicalEntity {
     public var id: String
     public var label: String
+    public var source: KeywordSuggestionSource
 
     public var displayLabel: String { label }
+    public var isAutomatic: Bool { source == .automatic }
 
-    public init(id: String, label: String) {
+    public init(id: String, label: String, source: KeywordSuggestionSource = .manual) {
         self.id = id
         self.label = label
+        self.source = source
     }
 }

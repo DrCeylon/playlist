@@ -224,6 +224,7 @@ def track_suggestion_from_itunes_hit(hit: AppleITunesSearchHit) -> TrackSuggesti
         release_year=_release_year_from_hit(hit),
         duration_ms=hit.track_time_millis,
         artwork_url=hit.artwork_url,
+        primary_genre_name=hit.primary_genre_name,
     )
 
 

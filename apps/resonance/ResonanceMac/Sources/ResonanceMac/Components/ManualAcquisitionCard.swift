@@ -6,8 +6,9 @@ import SwiftUI
 struct ManualAcquisitionCard: View {
     let prompt: ManualAcquisitionPrompt
     let trackPositionLabel: String?
-    let pollStatus: String
+    let status: ManualAcquisitionUIStatus
     let isContinueInProgress: Bool
+    let architectDiagnostics: String?
     let palette: ThemePalette
     let onConfirmManual: () -> Void
     @State private var copiedLabel: String?
@@ -50,17 +51,7 @@ struct ManualAcquisitionCard: View {
                     .foregroundStyle(palette.statusSuccess)
             }
 
-            if !pollStatus.isEmpty {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                    SelectableText(
-                        text: pollStatus,
-                        font: .caption,
-                        foreground: palette.textSecondary
-                    )
-                }
-            }
+            verificationStatusSection
 
             HStack(spacing: 10) {
                 Button("Ouvrir dans Music") {
@@ -78,14 +69,62 @@ struct ManualAcquisitionCard: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)
 
-            Text("Resonance vérifie automatiquement la bibliothèque toutes les quelques secondes et reprend l'import dès que le morceau est détecté.")
+            Text("Ajoutez le morceau à votre bibliothèque dans Music.app, puis cliquez sur « J'ai ajouté le morceau, continuer ». Resonance vérifiera alors la bibliothèque et reprendra l'import si le morceau est détecté. Resonance peut aussi détecter automatiquement le morceau en arrière-plan, mais le bouton permet de relancer immédiatement la vérification.")
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
                 .textSelection(.enabled)
+
+            if ResonanceFeatureFlags.architectModeEnabled, let architectDiagnostics, !architectDiagnostics.isEmpty {
+                SelectableText(
+                    text: architectDiagnostics,
+                    font: .caption2.monospaced(),
+                    foreground: palette.textSecondary
+                )
+            }
         }
         .padding(16)
         .background(palette.backgroundSecondary)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var verificationStatusSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let clickLabel = status.lastUserClickLabel {
+                statusRow(title: "Dernier clic", value: "Vérification lancée à \(clickLabel)")
+            }
+            if !status.currentStep.isEmpty {
+                HStack(spacing: 8) {
+                    if isContinueInProgress {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    statusRow(title: "Étape en cours", value: status.currentStep)
+                }
+            }
+            if !status.lastVerificationResult.isEmpty {
+                statusRow(title: "Dernier résultat", value: status.lastVerificationResult)
+            }
+            if !status.userAdvice.isEmpty {
+                statusRow(title: "Conseil", value: status.userAdvice)
+            }
+        }
+        .padding(12)
+        .background(palette.backgroundPrimary.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func statusRow(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+            SelectableText(
+                text: value,
+                font: .caption,
+                foreground: palette.textPrimary
+            )
+        }
     }
 
     private var copyActions: some View {

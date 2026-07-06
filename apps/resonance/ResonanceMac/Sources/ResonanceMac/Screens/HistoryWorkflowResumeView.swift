@@ -74,6 +74,7 @@ struct HistoryWorkflowResumeView: View {
                         progress: workflow.importWorkflow.progress,
                         manualPrompt: workflow.importWorkflow.manualPrompt,
                         manualPollStatus: workflow.importWorkflow.manualPollStatus,
+                        manualAcquisitionStatus: workflow.importWorkflow.manualAcquisitionStatus,
                         architectErrorDetail: workflow.importWorkflow.architectErrorDetail,
                         architectManualDiagnostics: workflow.importWorkflow.architectManualDiagnostics,
                         isContinueInProgress: workflow.importWorkflow.isContinuingManual,

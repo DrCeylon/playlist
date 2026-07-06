@@ -190,16 +190,73 @@ class AppleMusicResolver:
         cached = self._identity_cache.get(track, self._provider_id)
         if cached is not None:
             return True, None
+
         legacy = legacy_track_from_canonical(track, section=section)
+        library_candidates, probe_error = self._collect_manual_probe_candidates(track, legacy, section=section)
+        if probe_error:
+            return False, probe_error
+        if not library_candidates:
+            return False, None
+
+        resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
+        decision = select_best_resolution(legacy, resolution_candidates)
+        if decision.selected is not None:
+            self._cache_probe_match(track, decision.selected)
+            return True, None
+
+        if self._catalog is not None:
+            catalog_candidate = catalog_lookup_for_track(
+                track,
+                self._catalog,
+                country_code=self._country_code,
+            )
+            if catalog_candidate is not None:
+                catalog_legacy = legacy_track_from_canonical(catalog_candidate.track, section=section)
+                catalog_decision = select_best_resolution(catalog_legacy, resolution_candidates)
+                if catalog_decision.selected is not None:
+                    self._cache_probe_match(track, catalog_decision.selected)
+                    return True, None
+
+        return False, None
+
+    def _collect_manual_probe_candidates(
+        self,
+        track: CanonicalTrack,
+        legacy,
+        *,
+        section: str,
+    ) -> tuple[list[AppleMusicTrack], str | None]:
+        if self._catalog is not None:
+            catalog_candidate = catalog_lookup_for_track(
+                track,
+                self._catalog,
+                country_code=self._country_code,
+            )
+            if catalog_candidate is not None:
+                try:
+                    refreshed = self._refresh_library_candidates(legacy, catalog_candidate)
+                except RuntimeError as exc:
+                    return [], str(exc)
+                if refreshed:
+                    return refreshed, None
+
         try:
             candidate_groups = self._applescript.collect_candidates_batch([legacy])
         except RuntimeError as exc:
-            return False, str(exc)
+            return [], str(exc)
         if not candidate_groups or not candidate_groups[0]:
-            return False, None
-        resolution_candidates = resolution_candidates_from_apple_music_tracks(list(candidate_groups[0]))
-        decision = select_best_resolution(legacy, resolution_candidates)
-        return decision.selected is not None, None
+            return [], None
+        return list(candidate_groups[0]), None
+
+    def _cache_probe_match(self, track: CanonicalTrack, selected: ResolutionCandidate) -> None:
+        if not selected.provider_key:
+            return
+        self._identity_cache.put_identity(
+            track,
+            provider_id=self._provider_id,
+            external_id=selected.provider_key,
+            confidence=float(selected.score),
+        )
 
     def _resolve_track(
         self,

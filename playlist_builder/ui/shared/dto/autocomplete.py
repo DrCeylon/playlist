@@ -72,6 +72,7 @@ class TrackSuggestion:
     release_year: int | None = None
     duration_ms: int | None = None
     artwork_url: str = ""
+    primary_genre_name: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -88,6 +89,8 @@ class TrackSuggestion:
             payload["duration_ms"] = self.duration_ms
         if self.artwork_url:
             payload["artwork_url"] = self.artwork_url
+        if self.primary_genre_name:
+            payload["primary_genre_name"] = self.primary_genre_name
         return payload
 
 

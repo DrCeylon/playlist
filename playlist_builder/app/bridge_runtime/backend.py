@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -171,12 +172,15 @@ class RuntimeEngineBridgeBackend:
         track, section_name = rows[checkpoint.next_index]
         legacy = legacy_track_from_canonical(track, section=section_name)
         search_terms = [variant.term for variant in generate_query_variants(legacy)]
+        probe_started_at = time.time()
         probe_detail = getattr(import_port, "probe_library_presence_detail", None)
         if callable(probe_detail):
             found, probe_error = probe_detail(track, section=section_name)
         else:
             found = import_port.probe_library_presence(track, section=section_name)
             probe_error = None
+        probe_finished_at = time.time()
+        probe_duration_ms = int((probe_finished_at - probe_started_at) * 1000)
 
         if probe_error:
             message = f"Erreur technique lors de la vérification bibliothèque : {probe_error}"
@@ -201,6 +205,9 @@ class RuntimeEngineBridgeBackend:
                 "search_terms": search_terms,
                 "provider_id": import_port.provider_id.value,
                 "probe_error": probe_error,
+                "probe_started_at": probe_started_at,
+                "probe_finished_at": probe_finished_at,
+                "probe_duration_ms": probe_duration_ms,
             },
         }
         if error_code is not None:

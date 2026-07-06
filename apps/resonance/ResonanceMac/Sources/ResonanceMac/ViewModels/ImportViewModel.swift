@@ -15,6 +15,7 @@ final class ImportViewModel: ObservableObject {
     @Published var progress = ImportProgressSnapshot()
     @Published var manualPrompt: ManualAcquisitionPrompt?
     @Published var manualPollStatus = ""
+    @Published var manualAcquisitionStatus = ManualAcquisitionUIStatus()
     @Published var report: ImportResultState?
     @Published var architectErrorDetail: String?
     @Published var architectManualDiagnostics: String?
@@ -89,29 +90,60 @@ final class ImportViewModel: ObservableObject {
         stopManualPolling()
         guard let importSessionID else {
             screenState = .failed("Session d'import introuvable.")
-            manualPollStatus = "Session d'import introuvable — relancez depuis l'historique ou Nouvelle Playlist."
+            updateManualStatus(
+                currentStep: "Session d'import introuvable",
+                lastVerificationResult: "Session d'import introuvable.",
+                userAdvice: "Relancez l'import depuis l'historique ou Nouvelle Playlist."
+            )
             return
         }
         let token = activeImportToken
+        let clickTime = Date()
         architectManualDiagnostics = nil
-        manualPollStatus = "Vérification de la bibliothèque Music.app…"
+        updateManualStatus(
+            lastUserClickAt: clickTime,
+            currentStep: "Recherche dans la bibliothèque Music.app…",
+            lastVerificationResult: "",
+            userAdvice: "Vérification en cours — patientez quelques secondes.",
+            backendMessage: nil,
+            backendErrorCode: nil
+        )
+        manualPollStatus = "Vérification lancée à \(ManualAcquisitionUIStatus.formattedClickTime(clickTime)) — recherche dans Music.app…"
         mutateProgress { snapshot in
-            snapshot.currentStep = "Vérification de la bibliothèque Music.app…"
+            snapshot.currentStep = "Recherche dans la bibliothèque Music.app…"
             snapshot.lastActivityAt = .now
         }
+        await Task.yield()
 
         do {
+            let probeStartedAt = Date()
+            updateManualStatus(lastProbeStartedAt: probeStartedAt)
             let probe = try await service.probeManualAcquisition(importSessionID: importSessionID)
-            applyProbeDiagnostics(probe)
+            let probeFinishedAt = Date()
+            applyProbeDiagnostics(probe, finishedAt: probeFinishedAt)
             guard token == nil || token == activeImportToken else { return }
 
             if probe.errorCode == "checkpoint_missing" {
+                updateManualStatus(
+                    currentStep: "Session expirée",
+                    lastVerificationResult: probe.message,
+                    userAdvice: "Relancez l'import depuis l'aperçu ou l'historique.",
+                    backendMessage: probe.message,
+                    backendErrorCode: probe.errorCode
+                )
                 manualPollStatus = probe.message
                 screenState = .waitingForManualAcquisition
                 return
             }
 
             if let probeError = probe.diagnostics?.probeError, !probeError.isEmpty {
+                updateManualStatus(
+                    currentStep: "Erreur technique",
+                    lastVerificationResult: probe.message,
+                    userAdvice: "Vérifiez Music.app et les autorisations Automatisation, puis réessayez.",
+                    backendMessage: probe.message,
+                    backendErrorCode: probe.errorCode ?? "probe_error"
+                )
                 manualPollStatus = probe.message
                 screenState = .waitingForManualAcquisition
                 startManualPolling()
@@ -119,18 +151,34 @@ final class ImportViewModel: ObservableObject {
             }
 
             if !probe.found {
-                manualPollStatus = probe.message.isEmpty
+                let message = probe.message.isEmpty
                     ? "Morceau pas encore détecté dans la bibliothèque. Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez."
                     : probe.message
+                updateManualStatus(
+                    currentStep: "Morceau non détecté",
+                    lastVerificationResult: message,
+                    userAdvice: "Ajoutez le morceau dans Music.app, puis cliquez à nouveau sur continuer.",
+                    backendMessage: message,
+                    backendErrorCode: probe.errorCode ?? "track_not_found"
+                )
+                manualPollStatus = message
                 screenState = .waitingForManualAcquisition
                 startManualPolling()
                 return
             }
 
-            screenState = .importing
-            manualPollStatus = probe.message.isEmpty
-                ? "Morceau détecté — reprise de l'import…"
+            let detectedMessage = probe.message.isEmpty
+                ? "Morceau détecté, reprise de l'import…"
                 : probe.message
+            updateManualStatus(
+                currentStep: "Morceau détecté — reprise de l'import…",
+                lastVerificationResult: detectedMessage,
+                userAdvice: "Import en cours — suivez la progression ci-dessus.",
+                backendMessage: detectedMessage,
+                backendErrorCode: nil
+            )
+            screenState = .importing
+            manualPollStatus = detectedMessage
             mutateProgress { snapshot in
                 snapshot.currentStep = "Reprise après ajout manuel…"
                 snapshot.lastActivityAt = .now
@@ -143,18 +191,42 @@ final class ImportViewModel: ObservableObject {
             await flushPendingImportEvents()
             guard token == nil || token == activeImportToken else { return }
             if result.phase == .waitingForManualAcquisition {
-                manualPollStatus = "Morceau pas encore détecté dans la bibliothèque. Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez."
+                let message = "Morceau pas encore détecté dans la bibliothèque. Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez."
+                updateManualStatus(
+                    currentStep: "Morceau non détecté",
+                    lastVerificationResult: message,
+                    userAdvice: "Ajoutez le morceau dans Music.app, puis réessayez.",
+                    backendMessage: message,
+                    backendErrorCode: "track_not_found"
+                )
+                manualPollStatus = message
             }
             finishImport(with: result)
         } catch let error as PlaylistImportError {
             guard token == nil || token == activeImportToken else { return }
-            manualPollStatus = ImportErrorHumanizer.message(for: error)
+            let message = ImportErrorHumanizer.message(for: error)
+            updateManualStatus(
+                currentStep: "Erreur technique",
+                lastVerificationResult: message,
+                userAdvice: "Corrigez le problème indiqué puis réessayez.",
+                backendMessage: message,
+                backendErrorCode: "bridge_error"
+            )
+            manualPollStatus = message
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
             screenState = .waitingForManualAcquisition
             startManualPolling()
         } catch {
             guard token == nil || token == activeImportToken else { return }
-            manualPollStatus = ImportErrorHumanizer.userMessage(for: error)
+            let message = ImportErrorHumanizer.userMessage(for: error)
+            updateManualStatus(
+                currentStep: "Erreur technique",
+                lastVerificationResult: message,
+                userAdvice: "Corrigez le problème indiqué puis réessayez.",
+                backendMessage: message,
+                backendErrorCode: "bridge_error"
+            )
+            manualPollStatus = message
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
             screenState = .waitingForManualAcquisition
             startManualPolling()
@@ -174,6 +246,13 @@ final class ImportViewModel: ObservableObject {
         self.report = report
         screenState = .waitingForManualAcquisition
         architectManualDiagnostics = nil
+        manualAcquisitionStatus = ManualAcquisitionUIStatus(
+            currentStep: "En attente d'ajout manuel",
+            lastVerificationResult: "",
+            userAdvice: report.canResumeManualAcquisition
+                ? "Ajoutez le morceau dans Music.app, puis cliquez sur continuer."
+                : "Relancez l'import depuis l'aperçu."
+        )
         manualPollStatus = report.canResumeManualAcquisition
             ? "Reprise depuis l'historique — ajoutez le morceau dans Music.app si nécessaire."
             : "La session d'import a expiré. Relancez l'import depuis l'aperçu."
@@ -197,6 +276,7 @@ final class ImportViewModel: ObservableObject {
         progress = ImportProgressSnapshot()
         manualPrompt = nil
         manualPollStatus = ""
+        manualAcquisitionStatus = ManualAcquisitionUIStatus()
         importSessionID = nil
         report = nil
         importedGeneration = nil
@@ -222,6 +302,7 @@ final class ImportViewModel: ObservableObject {
         architectManualDiagnostics = nil
         manualPrompt = nil
         manualPollStatus = ""
+        manualAcquisitionStatus = ManualAcquisitionUIStatus()
         importSessionID = nil
         report = nil
         progress = ImportProgressSnapshot(
@@ -271,8 +352,55 @@ final class ImportViewModel: ObservableObject {
         screenState = .failed(ImportErrorHumanizer.userMessage(for: error))
     }
 
-    private func applyProbeDiagnostics(_ probe: ManualAcquisitionProbeResult) {
-        architectManualDiagnostics = probe.architectSummary
+    private func updateManualStatus(
+        lastUserClickAt: Date? = nil,
+        currentStep: String? = nil,
+        lastVerificationResult: String? = nil,
+        userAdvice: String? = nil,
+        lastProbeStartedAt: Date? = nil,
+        lastProbeFinishedAt: Date? = nil,
+        lastProbeDurationMs: Int? = nil,
+        backendMessage: String? = nil,
+        backendErrorCode: String? = nil
+    ) {
+        var status = manualAcquisitionStatus
+        if let lastUserClickAt { status.lastUserClickAt = lastUserClickAt }
+        if let currentStep { status.currentStep = currentStep }
+        if let lastVerificationResult { status.lastVerificationResult = lastVerificationResult }
+        if let userAdvice { status.userAdvice = userAdvice }
+        if let lastProbeStartedAt { status.lastProbeStartedAt = lastProbeStartedAt }
+        if let lastProbeFinishedAt { status.lastProbeFinishedAt = lastProbeFinishedAt }
+        if let lastProbeDurationMs { status.lastProbeDurationMs = lastProbeDurationMs }
+        if let backendMessage { status.backendMessage = backendMessage }
+        if let backendErrorCode { status.backendErrorCode = backendErrorCode }
+        manualAcquisitionStatus = status
+    }
+
+    private func applyProbeDiagnostics(_ probe: ManualAcquisitionProbeResult, finishedAt: Date) {
+        let startedAt = probe.diagnostics?.probeStartedAt ?? manualAcquisitionStatus.lastProbeStartedAt ?? finishedAt
+        let durationMs = probe.diagnostics?.probeDurationMs
+            ?? Int(finishedAt.timeIntervalSince(startedAt) * 1000)
+        updateManualStatus(
+            lastProbeFinishedAt: probe.diagnostics?.probeFinishedAt ?? finishedAt,
+            lastProbeDurationMs: durationMs,
+            backendMessage: probe.message,
+            backendErrorCode: probe.errorCode
+        )
+
+        var architectLines: [String] = []
+        if let errorCode = probe.errorCode, !errorCode.isEmpty {
+            architectLines.append("backend_error_code: \(errorCode)")
+        }
+        if !probe.message.isEmpty {
+            architectLines.append("backend_message: \(probe.message)")
+        }
+        if let summary = probe.architectSummary {
+            architectLines.append(summary)
+        }
+        if let sessionID = probe.diagnostics?.importSessionID, !sessionID.isEmpty {
+            architectLines.append("import_session_id: \(sessionID)")
+        }
+        architectManualDiagnostics = architectLines.isEmpty ? nil : architectLines.joined(separator: "\n")
     }
 
     private func handle(event: BridgeEventMessage) {
@@ -371,6 +499,11 @@ final class ImportViewModel: ObservableObject {
                 snapshot.lastActivityAt = .now
             }
             screenState = .waitingForManualAcquisition
+            manualAcquisitionStatus = ManualAcquisitionUIStatus(
+                currentStep: "En attente d'ajout manuel",
+                lastVerificationResult: "",
+                userAdvice: "Ajoutez le morceau dans Music.app, puis cliquez sur continuer."
+            )
             startManualPolling()
         default:
             break
@@ -397,36 +530,74 @@ final class ImportViewModel: ObservableObject {
     private func probeManualAcquisition() async {
         guard let importSessionID, screenState == .waitingForManualAcquisition, !isContinuingManual else { return }
         do {
+            let probeStartedAt = Date()
+            updateManualStatus(
+                currentStep: "Vérification automatique de la bibliothèque…",
+                lastProbeStartedAt: probeStartedAt
+            )
             let probe = try await service.probeManualAcquisition(importSessionID: importSessionID)
-            applyProbeDiagnostics(probe)
+            applyProbeDiagnostics(probe, finishedAt: Date())
 
             if probe.errorCode == "checkpoint_missing" {
+                updateManualStatus(
+                    currentStep: "Session expirée",
+                    lastVerificationResult: probe.message,
+                    userAdvice: "Relancez l'import depuis l'aperçu."
+                )
                 manualPollStatus = probe.message
                 stopManualPolling()
                 return
             }
 
             if let probeError = probe.diagnostics?.probeError, !probeError.isEmpty {
+                updateManualStatus(
+                    currentStep: "Erreur technique",
+                    lastVerificationResult: probe.message,
+                    userAdvice: "Utilisez le bouton continuer pour relancer la vérification."
+                )
                 manualPollStatus = probe.message
                 return
             }
 
             if probe.found {
-                manualPollStatus = probe.message.isEmpty
+                let message = probe.message.isEmpty
                     ? "Morceau détecté — reprise automatique…"
                     : probe.message
+                updateManualStatus(
+                    currentStep: "Morceau détecté — reprise automatique…",
+                    lastVerificationResult: message,
+                    userAdvice: "Reprise de l'import en cours."
+                )
+                manualPollStatus = message
                 await confirmManualAcquisition()
-            } else if !probe.message.isEmpty {
-                manualPollStatus = probe.message
             } else {
-                manualPollStatus = "En attente de détection dans Music.app…"
+                let message = probe.message.isEmpty
+                    ? "En attente de détection dans Music.app…"
+                    : probe.message
+                updateManualStatus(
+                    currentStep: "Morceau non détecté",
+                    lastVerificationResult: message,
+                    userAdvice: "Ajoutez le morceau dans Music.app, puis cliquez sur continuer."
+                )
+                manualPollStatus = message
             }
         } catch let error as PlaylistImportError {
             let message = ImportErrorHumanizer.message(for: error)
+            updateManualStatus(
+                currentStep: "Erreur technique",
+                lastVerificationResult: message,
+                userAdvice: "Utilisez le bouton continuer pour relancer la vérification."
+            )
             manualPollStatus = message
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         } catch {
-            manualPollStatus = ImportErrorHumanizer.userMessage(for: error)
+            let message = ImportErrorHumanizer.userMessage(for: error)
+            updateManualStatus(
+                currentStep: "Erreur technique",
+                lastVerificationResult: message,
+                userAdvice: "Utilisez le bouton continuer pour relancer la vérification."
+            )
+            manualPollStatus = message
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         }
     }

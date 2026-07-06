@@ -6,6 +6,7 @@ struct ImportProgressView: View {
     let progress: ImportProgressSnapshot
     let manualPrompt: ManualAcquisitionPrompt?
     let manualPollStatus: String
+    let manualAcquisitionStatus: ManualAcquisitionUIStatus
     let architectErrorDetail: String?
     let architectManualDiagnostics: String?
     let isContinueInProgress: Bool
@@ -17,6 +18,7 @@ struct ImportProgressView: View {
         progress: ImportProgressSnapshot,
         manualPrompt: ManualAcquisitionPrompt?,
         manualPollStatus: String,
+        manualAcquisitionStatus: ManualAcquisitionUIStatus,
         architectErrorDetail: String?,
         architectManualDiagnostics: String? = nil,
         isContinueInProgress: Bool = false,
@@ -26,6 +28,7 @@ struct ImportProgressView: View {
         self.progress = progress
         self.manualPrompt = manualPrompt
         self.manualPollStatus = manualPollStatus
+        self.manualAcquisitionStatus = manualAcquisitionStatus
         self.architectErrorDetail = architectErrorDetail
         self.architectManualDiagnostics = architectManualDiagnostics
         self.isContinueInProgress = isContinueInProgress
@@ -65,8 +68,9 @@ struct ImportProgressView: View {
                 ManualAcquisitionCard(
                     prompt: manualPrompt,
                     trackPositionLabel: trackPositionLabel,
-                    pollStatus: manualPollStatus,
+                    status: manualAcquisitionStatus,
                     isContinueInProgress: isContinueInProgress,
+                    architectDiagnostics: architectManualDiagnostics,
                     palette: palette,
                     onConfirmManual: onConfirmManual
                 )

@@ -279,14 +279,28 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         guard let payload else { return nil }
         let searchTerms = payload["search_terms"]?.arrayValue?.compactMap(\.stringValue) ?? []
         let probeError = payload["probe_error"]?.stringValue
+        let probeStartedAt = Self.parseProbeTimestamp(payload["probe_started_at"])
+        let probeFinishedAt = Self.parseProbeTimestamp(payload["probe_finished_at"])
+        let probeDurationMs = payload["probe_duration_ms"]?.intValue
         return ManualAcquisitionProbeDiagnostics(
             importSessionID: payload["import_session_id"]?.stringValue ?? "",
             checkpointPath: payload["checkpoint_path"]?.stringValue ?? "",
             checkpointExists: payload["checkpoint_exists"]?.boolValue ?? false,
             searchTerms: searchTerms,
             providerID: payload["provider_id"]?.stringValue ?? "",
-            probeError: probeError?.isEmpty == true ? nil : probeError
+            probeError: probeError?.isEmpty == true ? nil : probeError,
+            probeStartedAt: probeStartedAt,
+            probeFinishedAt: probeFinishedAt,
+            probeDurationMs: probeDurationMs
         )
+    }
+
+    private static func parseProbeTimestamp(_ value: BridgeJSONValue?) -> Date? {
+        guard let number = value?.doubleValue ?? value?.intValue.map(Double.init) else {
+            return nil
+        }
+        return Date(timeIntervalSince1970: number)
+    }
     }
 
     public func retryImportTracks(

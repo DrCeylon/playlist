@@ -337,6 +337,56 @@ public struct ImportResultState: Hashable, Codable, Sendable {
     }
 }
 
+public struct ManualAcquisitionUIStatus: Equatable, Sendable {
+    public var lastUserClickAt: Date?
+    public var currentStep: String
+    public var lastVerificationResult: String
+    public var userAdvice: String
+    public var lastProbeStartedAt: Date?
+    public var lastProbeFinishedAt: Date?
+    public var lastProbeDurationMs: Int?
+    public var backendErrorCode: String?
+    public var backendMessage: String?
+
+    public init(
+        lastUserClickAt: Date? = nil,
+        currentStep: String = "",
+        lastVerificationResult: String = "",
+        userAdvice: String = "",
+        lastProbeStartedAt: Date? = nil,
+        lastProbeFinishedAt: Date? = nil,
+        lastProbeDurationMs: Int? = nil,
+        backendErrorCode: String? = nil,
+        backendMessage: String? = nil
+    ) {
+        self.lastUserClickAt = lastUserClickAt
+        self.currentStep = currentStep
+        self.lastVerificationResult = lastVerificationResult
+        self.userAdvice = userAdvice
+        self.lastProbeStartedAt = lastProbeStartedAt
+        self.lastProbeFinishedAt = lastProbeFinishedAt
+        self.lastProbeDurationMs = lastProbeDurationMs
+        self.backendErrorCode = backendErrorCode
+        self.backendMessage = backendMessage
+    }
+
+    public var lastUserClickLabel: String? {
+        guard let lastUserClickAt else { return nil }
+        return Self.formattedClickTime(lastUserClickAt)
+    }
+
+    public static func formattedClickTime(_ date: Date) -> String {
+        timestampFormatter.string(from: date)
+    }
+
+    private static let timestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
+}
+
 public struct ManualAcquisitionProbeDiagnostics: Equatable, Sendable {
     public var importSessionID: String
     public var checkpointPath: String
@@ -344,6 +394,9 @@ public struct ManualAcquisitionProbeDiagnostics: Equatable, Sendable {
     public var searchTerms: [String]
     public var providerID: String
     public var probeError: String?
+    public var probeStartedAt: Date?
+    public var probeFinishedAt: Date?
+    public var probeDurationMs: Int?
 
     public init(
         importSessionID: String = "",
@@ -351,7 +404,10 @@ public struct ManualAcquisitionProbeDiagnostics: Equatable, Sendable {
         checkpointExists: Bool = false,
         searchTerms: [String] = [],
         providerID: String = "",
-        probeError: String? = nil
+        probeError: String? = nil,
+        probeStartedAt: Date? = nil,
+        probeFinishedAt: Date? = nil,
+        probeDurationMs: Int? = nil
     ) {
         self.importSessionID = importSessionID
         self.checkpointPath = checkpointPath
@@ -359,6 +415,9 @@ public struct ManualAcquisitionProbeDiagnostics: Equatable, Sendable {
         self.searchTerms = searchTerms
         self.providerID = providerID
         self.probeError = probeError
+        self.probeStartedAt = probeStartedAt
+        self.probeFinishedAt = probeFinishedAt
+        self.probeDurationMs = probeDurationMs
     }
 
     public var architectSummary: String {
@@ -369,6 +428,15 @@ public struct ManualAcquisitionProbeDiagnostics: Equatable, Sendable {
             "search_terms: \(searchTerms.joined(separator: ", "))",
             "provider_id: \(providerID)",
         ]
+        if let probeStartedAt {
+            lines.append("last_probe_started_at: \(ISO8601DateFormatter().string(from: probeStartedAt))")
+        }
+        if let probeFinishedAt {
+            lines.append("last_probe_finished_at: \(ISO8601DateFormatter().string(from: probeFinishedAt))")
+        }
+        if let probeDurationMs {
+            lines.append("last_probe_duration_ms: \(probeDurationMs)")
+        }
         if let probeError, !probeError.isEmpty {
             lines.append("probe_error: \(probeError)")
         }
