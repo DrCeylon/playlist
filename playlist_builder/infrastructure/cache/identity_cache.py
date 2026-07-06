@@ -6,6 +6,7 @@ from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.canonical.models import CanonicalTrack, ProviderIdentity
 from playlist_builder.infrastructure.cache.keys import identity_entry_key
 from playlist_builder.infrastructure.cache.store import JsonCache
+from playlist_builder.infrastructure.manual_continue_trace import log as manual_continue_trace
 
 
 class IdentityCache:
@@ -20,10 +21,16 @@ class IdentityCache:
         self.store = store
 
     def get(self, track: CanonicalTrack, provider_id: ProviderId) -> ProviderIdentity | None:
+        manual_continue_trace(
+            f"ENTER IdentityCache.get identity_key={track.identity_key} provider={provider_id.value}"
+        )
         payload = self.store.get(identity_entry_key(provider_id, track.identity_key))
         if payload is None:
+            manual_continue_trace("RETURN IdentityCache.get hit=False")
             return None
-        return _deserialize_identity(payload)
+        identity = _deserialize_identity(payload)
+        manual_continue_trace(f"RETURN IdentityCache.get hit=True external_id={identity.external_id}")
+        return identity
 
     def put(self, track: CanonicalTrack, identity: ProviderIdentity) -> None:
         identity.validate()
@@ -41,6 +48,9 @@ class IdentityCache:
         confidence: float,
         resolved_at: datetime | None = None,
     ) -> ProviderIdentity:
+        manual_continue_trace(
+            f"ENTER IdentityCache.put_identity identity_key={track.identity_key} provider={provider_id.value} external_id={external_id}"
+        )
         identity = ProviderIdentity(
             provider_id=provider_id,
             external_id=external_id,
@@ -48,6 +58,7 @@ class IdentityCache:
             resolved_at=resolved_at or datetime.now(UTC),
         )
         self.put(track, identity)
+        manual_continue_trace("RETURN IdentityCache.put_identity")
         return identity
 
     def invalidate(self, track: CanonicalTrack, provider_id: ProviderId) -> bool:

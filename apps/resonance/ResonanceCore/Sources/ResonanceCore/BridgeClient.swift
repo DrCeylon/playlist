@@ -159,6 +159,10 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
         ]
         let bridgeStarted = Date()
         let requestLine = try Self.encodeJSONObject(payload)
+        if command == .probeManualAcquisition || command == .continueManualAcquisition {
+            ManualContinueTrace.log("ENTER BridgeClient.send command=\(command.rawValue) request_id=\(requestID)")
+            ManualContinueTrace.log("Bridge request JSON sent: \(requestLine)")
+        }
         bridgeLogger.info("Bridge send \(command.rawValue, privacy: .public) id=\(requestID, privacy: .public)")
         let lines = try await runProcess(requestLine: requestLine) { line in
             Self.dispatchStreamingLine(
@@ -177,10 +181,16 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             onDiagnostic?(message)
         }
         let bridgeRoundTripMS = max(0, Int(Date().timeIntervalSince(bridgeStarted) * 1000))
+        let conversation = try Self.parseConversation(requestID: requestID, lines: lines)
+        if command == .probeManualAcquisition || command == .continueManualAcquisition {
+            ManualContinueTrace.log(
+                "RETURN BridgeClient.send command=\(command.rawValue) round_trip_ms=\(bridgeRoundTripMS) ok=\(conversation.response.ok)"
+            )
+        }
         bridgeLogger.info(
             "resonance-perf: {\"phase\":\"bridge\",\"operation\":\"swift_round_trip\",\"duration_ms\":\(bridgeRoundTripMS),\"metadata\":{\"command\":\"\(command.rawValue)\"}}"
         )
-        return try Self.parseConversation(requestID: requestID, lines: lines)
+        return conversation
     }
 
     static func dispatchStreamingLine(

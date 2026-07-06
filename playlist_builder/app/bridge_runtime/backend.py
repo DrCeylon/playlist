@@ -30,6 +30,7 @@ from playlist_builder.app.bridge_runtime.diagnostics_snapshot import build_diagn
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionStore
 from playlist_builder.app.bridge_runtime.import_stream import stream_import_playlist
 from playlist_builder.app.bridge_runtime.manual_acquisition_workflow import ManualAcquisitionWorkflowCoordinator
+from playlist_builder.infrastructure.manual_continue_trace import log as manual_continue_trace
 from playlist_builder.app.bridge_runtime.mapping import (
     generated_playlist_to_ui_result,
     ui_request_to_playlist_request,
@@ -73,15 +74,21 @@ class RuntimeEngineBridgeBackend:
         params: dict,
     ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
         session_id = str(params.get("import_session_id", "")).strip()
+        manual_continue_trace(f"ENTER backend.continue_manual_acquisition_stream(session_id={session_id})")
         if not session_id:
             raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "import_session_id est requis.")
         checkpoint = self._session_store.load(session_id)
         if checkpoint is None:
+            manual_continue_trace("EXIT backend.continue_manual_acquisition_stream — checkpoint missing")
             raise BridgeError(
                 BridgeErrorCode.MANUAL_ACTION_REQUIRED,
                 "Session d'import introuvable ou expirée.",
             )
+        manual_continue_trace(
+            f"CALL backend.mark_resuming_import() checkpoint.next_index={checkpoint.next_index}"
+        )
         self._manual_workflow.mark_resuming_import()
+        manual_continue_trace("CALL stream_import_playlist(resume)")
         for item in stream_import_playlist(
             self._context,
             checkpoint.playlist,
@@ -92,12 +99,19 @@ class RuntimeEngineBridgeBackend:
             checkpoint=checkpoint,
         ):
             if isinstance(item, ImportPlaylistResult):
+                manual_continue_trace("YIELD backend.continue_manual_acquisition_stream ImportPlaylistResult")
                 yield self._attach_history_import_result(item, checkpoint.history_session_id)
                 continue
             yield item
+        manual_continue_trace("EXIT backend.continue_manual_acquisition_stream")
 
     def probe_manual_acquisition(self, params: dict) -> dict[str, object]:
-        return self._manual_workflow.probe_manual_acquisition(params)
+        manual_continue_trace("ENTER backend.probe_manual_acquisition()")
+        result = self._manual_workflow.probe_manual_acquisition(params)
+        manual_continue_trace(
+            f"RETURN backend.probe_manual_acquisition() found={result.get('found')} workflow_phase={result.get('workflow_phase')}"
+        )
+        return result
 
     def _continue_manual_acquisition_result(self, params: dict) -> ImportPlaylistResult:
         self._manual_workflow.mark_resuming_import()

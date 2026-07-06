@@ -237,9 +237,12 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         importSessionID: String,
         onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
     ) async throws -> ImportResultState {
+        ManualContinueTrace.log("ENTER PythonEngineBridgeService.continueManualAcquisition(importSessionID:)")
         guard let transport else {
+            ManualContinueTrace.log("ERROR PythonEngineBridgeService.continueManualAcquisition — bridge unavailable")
             throw PlaylistImportError.bridgeUnavailable
         }
+        ManualContinueTrace.log("CALL BridgeClient.send command=continue_manual_acquisition")
         let (response, _) = try await transport.send(
             command: .continueManualAcquisition,
             params: ["import_session_id": .string(importSessionID)],
@@ -248,33 +251,43 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                 bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
             }
         )
+        ManualContinueTrace.log("RETURN BridgeClient.send command=continue_manual_acquisition")
         guard let importObject = response.result["import"]?.objectValue else {
+            ManualContinueTrace.log("ERROR PythonEngineBridgeService.continueManualAcquisition — invalid response")
             throw PlaylistImportError.invalidResponse
         }
-        return try BridgePayloadBuilder.importResult(from: ["import": .object(importObject)])
+        let result = try BridgePayloadBuilder.importResult(from: ["import": .object(importObject)])
+        ManualContinueTrace.log("RETURN PythonEngineBridgeService.continueManualAcquisition(importSessionID:) phase=\(result.phase.rawValue)")
+        return result
     }
 
     public func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+        ManualContinueTrace.log("ENTER PythonEngineBridgeService.probeManualAcquisition(importSessionID:)")
         guard let transport else {
+            ManualContinueTrace.log("ERROR PythonEngineBridgeService.probeManualAcquisition — bridge unavailable")
             throw PlaylistImportError.bridgeUnavailable
         }
+        ManualContinueTrace.log("CALL BridgeClient.send command=probe_manual_acquisition")
         let (response, _) = try await transport.send(
             command: .probeManualAcquisition,
             params: ["import_session_id": .string(importSessionID)],
             onEvent: { _ in }
         )
+        ManualContinueTrace.log("RETURN BridgeClient.send command=probe_manual_acquisition")
         let found = response.result["found"]?.boolValue ?? false
         let message = response.result["message"]?.stringValue ?? ""
         let errorCode = response.result["error_code"]?.stringValue
         let workflowPhase = response.result["workflow_phase"]?.stringValue
         let diagnostics = Self.manualProbeDiagnostics(from: response.result["diagnostics"]?.objectValue)
-        return ManualAcquisitionProbeResult(
+        let result = ManualAcquisitionProbeResult(
             found: found,
             message: message,
             errorCode: errorCode,
             workflowPhase: workflowPhase,
             diagnostics: diagnostics
         )
+        ManualContinueTrace.log("RETURN PythonEngineBridgeService.probeManualAcquisition found=\(found) errorCode=\(errorCode ?? "nil")")
+        return result
     }
 
     private static func manualProbeDiagnostics(from payload: BridgeJSONObject?) -> ManualAcquisitionProbeDiagnostics? {
@@ -302,7 +315,6 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             return nil
         }
         return Date(timeIntervalSince1970: number)
-    }
     }
 
     public func retryImportTracks(

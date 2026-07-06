@@ -24,6 +24,7 @@ from playlist_builder.ui.bridge.commands import (
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode, InvalidBridgeRequestError
 from playlist_builder.ui.bridge.events import BridgeEvent, completed_event, started_event
 from playlist_builder.ui.bridge.protocol import EngineBridge, EngineBridgeBackend
+from playlist_builder.infrastructure.manual_continue_trace import begin_session, log as manual_continue_trace
 from playlist_builder.ui.shared.dto import ImportResultState, ProviderOption, default_provider_options
 from playlist_builder.ui.shared.validation.generation import validate_playlist_generation_request
 
@@ -95,6 +96,11 @@ class JsonRpcEngineBridge(EngineBridge):
         if request.command == BridgeCommand.CONTINUE_MANUAL_ACQUISITION:
             if self.backend is None or not hasattr(self.backend, "continue_manual_acquisition_stream"):
                 raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'import non configuré.")
+            session_id = str(request.params.get("import_session_id", "")).strip()
+            begin_session(session_id)
+            manual_continue_trace(
+                f"ENTER json_rpc CONTINUE_MANUAL_ACQUISITION request_id={request.id} params={json.dumps(request.params, ensure_ascii=False)}"
+            )
             yield started_event(request.id, command=request.command.value).to_dict()
             final_result: ImportPlaylistResult | None = None
             for item in self.backend.continue_manual_acquisition_stream(request.params):
@@ -104,6 +110,7 @@ class JsonRpcEngineBridge(EngineBridge):
                     final_result = item
             if final_result is None:
                 raise BridgeError(BridgeErrorCode.ENGINE_ERROR, "Reprise d'import sans résultat.")
+            manual_continue_trace("RETURN json_rpc CONTINUE_MANUAL_ACQUISITION — yielding final response")
             yield completed_event(request.id, summary=final_result.to_dict()).to_dict()
             yield BridgeResponse(
                 id=request.id,
@@ -115,7 +122,15 @@ class JsonRpcEngineBridge(EngineBridge):
         if request.command == BridgeCommand.PROBE_MANUAL_ACQUISITION:
             if self.backend is None or not hasattr(self.backend, "probe_manual_acquisition"):
                 raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'import non configuré.")
+            session_id = str(request.params.get("import_session_id", "")).strip()
+            begin_session(session_id)
+            manual_continue_trace(
+                f"ENTER json_rpc PROBE_MANUAL_ACQUISITION request_id={request.id} params={json.dumps(request.params, ensure_ascii=False)}"
+            )
             result = self.backend.probe_manual_acquisition(request.params)
+            manual_continue_trace(
+                f"RETURN json_rpc PROBE_MANUAL_ACQUISITION found={result.get('found')} workflow_phase={result.get('workflow_phase')}"
+            )
             yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
             return
 

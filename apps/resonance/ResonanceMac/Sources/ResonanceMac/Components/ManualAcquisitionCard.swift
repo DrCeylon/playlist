@@ -59,7 +59,10 @@ struct ManualAcquisitionCard: View {
                 }
                 .buttonStyle(.bordered)
 
-                Button("J'ai ajouté le morceau, continuer", action: onConfirmManual)
+                Button("J'ai ajouté le morceau, continuer") {
+                    ManualContinueTrace.log("ENTER SwiftUI Button \"J'ai ajouté le morceau, continuer\"")
+                    onConfirmManual()
+                }
                     .buttonStyle(.borderedProminent)
                     .tint(palette.accentPrimary)
                     .disabled(isContinueInProgress)

@@ -11,6 +11,8 @@ from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.resolver.query import generate_query_variants
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 
+from playlist_builder.infrastructure.manual_continue_trace import log as manual_continue_trace
+
 if TYPE_CHECKING:
     from playlist_builder.app.bridge_runtime.import_session import ImportSessionStore
     from playlist_builder.app.factory import AppContext
@@ -118,6 +120,7 @@ class ManualAcquisitionWorkflowCoordinator:
 
     def probe_manual_acquisition(self, params: dict) -> dict[str, object]:
         session_id = str(params.get("import_session_id", "")).strip()
+        manual_continue_trace(f"ENTER ManualAcquisitionWorkflowCoordinator.probe_manual_acquisition(session_id={session_id})")
         if not session_id:
             raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "import_session_id est requis.")
 
@@ -169,6 +172,9 @@ class ManualAcquisitionWorkflowCoordinator:
 
         import_port = get_provider_import_port(self.context)
         labels = import_port.runtime_labels
+        manual_continue_trace(
+            f"CALL ProviderImportPort.probe_library_presence_detail provider={import_port.provider_id.value}"
+        )
         checkpoint = self.session_store.load(session_id)
         if checkpoint is None:
             self.transition(ManualAcquisitionWorkflowPhase.CHECKPOINT_EXPIRED)
@@ -220,6 +226,9 @@ class ManualAcquisitionWorkflowCoordinator:
         else:
             found = import_port.probe_library_presence(track, section=section_name)
             probe_error = None
+        manual_continue_trace(
+            f"RETURN ProviderImportPort.probe_library_presence found={found} probe_error={probe_error!r}"
+        )
 
         probe_finished_at = time.time()
         probe_duration_ms = int((probe_finished_at - probe_started_at) * 1000)
@@ -270,7 +279,9 @@ class ManualAcquisitionWorkflowCoordinator:
         )
 
     def mark_resuming_import(self) -> None:
+        manual_continue_trace("ENTER ManualAcquisitionWorkflowCoordinator.mark_resuming_import()")
         self.transition(ManualAcquisitionWorkflowPhase.RESUMING_IMPORT)
+        manual_continue_trace("RETURN ManualAcquisitionWorkflowCoordinator.mark_resuming_import()")
 
     @staticmethod
     def _probe_payload(

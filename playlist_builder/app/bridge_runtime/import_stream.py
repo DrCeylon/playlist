@@ -21,6 +21,7 @@ from playlist_builder.infrastructure.perf import PerfSession, perf_record, perf_
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionCheckpoint, ImportSessionStore, new_session_id
 from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionInterrupted
 from playlist_builder.app.bridge_runtime.mapping import track_add_results_to_import_state
+from playlist_builder.infrastructure.manual_continue_trace import log as manual_continue_trace
 from playlist_builder.ui.shared.dto.enums import ImportPhase, ImportTrackStatus
 
 RESOLVE_BATCH_SIZE = 5
@@ -116,6 +117,9 @@ def stream_import_playlist(
         else:
             import_port.configure_manual_acquisition(confirmed_manual_acquisition_hook)
     if checkpoint is not None:
+        manual_continue_trace(
+            f"ENTER stream_import_playlist(resume) session_id={checkpoint.session_id} next_index={checkpoint.next_index}"
+        )
         playlist = checkpoint.playlist
         request_id = checkpoint.request_id
         sync = checkpoint.sync

@@ -11,6 +11,7 @@ from playlist_builder.integration.gateway.registry import ProviderGatewayRegistr
 from playlist_builder.integration.gateway.service import IntegrationGateway
 from playlist_builder.integration.ports.provider_import import ProviderImportPort
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
+from playlist_builder.infrastructure.manual_continue_trace import log as manual_continue_trace
 
 
 def get_provider_import_port(
@@ -18,6 +19,7 @@ def get_provider_import_port(
     provider_id: ProviderId = ProviderId.APPLE_MUSIC,
 ) -> ProviderImportPort:
     """Resolve a streaming import port for the requested provider."""
+    manual_continue_trace(f"ENTER get_provider_import_port(provider_id={provider_id.value})")
     gateway = context.registry.get(provider_id)
     if gateway is None:
         raise BridgeError(
@@ -35,7 +37,9 @@ def get_provider_import_port(
     if provider_id == ProviderId.APPLE_MUSIC:
         from playlist_builder.integration.apple_music.provider_import_port import AppleMusicProviderImportPort
 
-        return AppleMusicProviderImportPort(import_service)
+        port = AppleMusicProviderImportPort(import_service)
+        manual_continue_trace(f"RETURN get_provider_import_port -> AppleMusicProviderImportPort")
+        return port
 
     raise BridgeError(
         BridgeErrorCode.PROVIDER_UNAVAILABLE,

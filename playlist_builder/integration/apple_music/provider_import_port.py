@@ -17,6 +17,7 @@ from playlist_builder.integration.ports.provider_import import (
     ProviderImportResolutionStatus,
     ProviderImportRuntimeLabels,
 )
+from playlist_builder.infrastructure.manual_continue_trace import log as manual_continue_trace
 
 _APPLE_RUNTIME_LABELS = ProviderImportRuntimeLabels(
     provider_display_name="Apple Music",
@@ -78,7 +79,14 @@ class AppleMusicProviderImportPort:
         *,
         section: str = "Playlist",
     ) -> tuple[bool, str | None]:
-        return self._resolver.probe_library_presence_detail(track, section=section)
+        manual_continue_trace(
+            f"ENTER AppleMusicProviderImportPort.probe_library_presence_detail artist={track.artist.name!r} title={track.title!r}"
+        )
+        result = self._resolver.probe_library_presence_detail(track, section=section)
+        manual_continue_trace(
+            f"RETURN AppleMusicProviderImportPort.probe_library_presence_detail found={result[0]} error={result[1]!r}"
+        )
+        return result
 
     def ensure_playlist(self, name: str) -> None:
         self._import_service.delivery.ensure_playlist(name)

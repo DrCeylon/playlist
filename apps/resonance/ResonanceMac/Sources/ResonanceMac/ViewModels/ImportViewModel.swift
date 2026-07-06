@@ -85,8 +85,13 @@ final class ImportViewModel: ObservableObject {
     }
 
     func confirmManualAcquisition() async {
-        guard !isContinuingManual else { return }
+        ManualContinueTrace.log("ENTER confirmManualAcquisition()")
+        guard !isContinuingManual else {
+            ManualContinueTrace.log("EXIT confirmManualAcquisition() early — isContinuingManual=true")
+            return
+        }
         guard let importSessionID else {
+            ManualContinueTrace.log("EXIT confirmManualAcquisition() early — importSessionID nil")
             screenState = .failed("Session d'import introuvable.")
             syncManualWorkflow(manualWorkflow.applyBridgeError(
                 "Session d'import introuvable.",
@@ -94,10 +99,13 @@ final class ImportViewModel: ObservableObject {
             ))
             return
         }
+        ManualContinueTrace.beginSession(importSessionID: importSessionID)
         let token = activeImportToken
         architectManualDiagnostics = nil
         stopManualPolling()
+        ManualContinueTrace.log("CALL ManualAcquisitionWorkflowCoordinator.beginUserConfirmation()")
         syncManualWorkflow(manualWorkflow.beginUserConfirmation())
+        ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.beginUserConfirmation()")
         mutateProgress { snapshot in
             snapshot.currentStep = manualAcquisitionStatus.currentStep
             snapshot.lastActivityAt = .now
@@ -105,33 +113,54 @@ final class ImportViewModel: ObservableObject {
         await Task.yield()
 
         do {
+            ManualContinueTrace.log("CALL PythonEngineBridgeService.probeManualAcquisition(importSessionID:)")
             let probe = try await service.probeManualAcquisition(importSessionID: importSessionID)
+            ManualContinueTrace.log("RETURN PythonEngineBridgeService.probeManualAcquisition found=\(probe.found)")
+            ManualContinueTrace.log("CALL ManualAcquisitionWorkflowCoordinator.applyProbeResult(userInitiated=true)")
             var (snapshot, action) = manualWorkflow.applyProbeResult(probe, userInitiated: true)
+            ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyProbeResult action=\(String(describing: action))")
             syncManualWorkflow(snapshot)
 
-            guard token == nil || token == activeImportToken else { return }
+            guard token == nil || token == activeImportToken else {
+                ManualContinueTrace.log("EXIT confirmManualAcquisition() — stale import token after probe")
+                return
+            }
 
             if case .resumeImport(let sessionID) = action {
+                ManualContinueTrace.log("CALL ManualAcquisitionWorkflowCoordinator.beginResumingImport()")
                 syncManualWorkflow(manualWorkflow.beginResumingImport())
+                ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.beginResumingImport()")
                 mutateProgress { snapshot in
                     snapshot.currentStep = manualAcquisitionStatus.currentStep
                     snapshot.lastActivityAt = .now
                 }
+                ManualContinueTrace.log("CALL PythonEngineBridgeService.continueManualAcquisition(importSessionID:)")
                 let result = try await service.continueManualAcquisition(
                     importSessionID: sessionID,
                     onEvent: importEventHandler
                 )
+                ManualContinueTrace.log("RETURN PythonEngineBridgeService.continueManualAcquisition phase=\(result.phase.rawValue)")
                 await flushPendingImportEvents()
-                guard token == nil || token == activeImportToken else { return }
+                guard token == nil || token == activeImportToken else {
+                    ManualContinueTrace.log("EXIT confirmManualAcquisition() — stale import token after continue")
+                    return
+                }
+                ManualContinueTrace.log("CALL ManualAcquisitionWorkflowCoordinator.applyContinueResult()")
                 (snapshot, action) = manualWorkflow.applyContinueResult(result)
+                ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyContinueResult action=\(String(describing: action))")
                 syncManualWorkflow(snapshot)
                 if case .finishImport(let importResult) = action {
+                    ManualContinueTrace.log("CALL finishImport(with:)")
                     finishImport(with: importResult)
+                    ManualContinueTrace.log("RETURN finishImport(with:)")
                 }
             } else if manualWorkflow.snapshot.shouldPoll {
+                ManualContinueTrace.log("CALL startManualPolling() — probe not ready for resume")
                 startManualPolling()
             }
+            ManualContinueTrace.log("EXIT confirmManualAcquisition() success")
         } catch let error as PlaylistImportError {
+            ManualContinueTrace.log("ERROR confirmManualAcquisition() PlaylistImportError: \(ImportErrorHumanizer.message(for: error))")
             guard token == nil || token == activeImportToken else { return }
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
             syncManualWorkflow(manualWorkflow.applyBridgeError(
@@ -141,6 +170,7 @@ final class ImportViewModel: ObservableObject {
             screenState = .waitingForManualAcquisition
             startManualPolling()
         } catch {
+            ManualContinueTrace.log("ERROR confirmManualAcquisition() \(error.localizedDescription)")
             guard token == nil || token == activeImportToken else { return }
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
             syncManualWorkflow(manualWorkflow.applyBridgeError(

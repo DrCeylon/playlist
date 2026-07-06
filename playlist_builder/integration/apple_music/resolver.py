@@ -11,6 +11,7 @@ from playlist_builder.canonical.contracts import CatalogSearchPort
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.canonical.models import CanonicalCandidate, CanonicalTrack
 from playlist_builder.infrastructure.cache.identity_cache import IdentityCache
+from playlist_builder.infrastructure.manual_continue_trace import log as manual_continue_trace
 from playlist_builder.integration.apple_music.applescript_client import AppleScriptClient
 from playlist_builder.integration.apple_music.catalog_fallback import (
     catalog_lookup_for_track,
@@ -187,12 +188,22 @@ class AppleMusicResolver:
         section: str = "Playlist",
     ) -> tuple[bool, str | None]:
         """Read-only library check with optional technical error detail."""
+        manual_continue_trace(
+            f"ENTER AppleMusicResolver.probe_library_presence_detail artist={track.artist.name!r} title={track.title!r}"
+        )
         cached = self._identity_cache.get(track, self._provider_id)
         if cached is not None:
+            manual_continue_trace(
+                f"RETURN AppleMusicResolver.probe_library_presence_detail found=True (IdentityCache hit external_id={cached.external_id})"
+            )
             return True, None
 
         legacy = legacy_track_from_canonical(track, section=section)
+        manual_continue_trace("CALL AppleMusicResolver._collect_manual_probe_candidates()")
         library_candidates, probe_error = self._collect_manual_probe_candidates(track, legacy, section=section)
+        manual_continue_trace(
+            f"RETURN AppleMusicResolver._collect_manual_probe_candidates count={len(library_candidates)} probe_error={probe_error!r}"
+        )
         if probe_error:
             return False, probe_error
         if not library_candidates:
@@ -201,7 +212,9 @@ class AppleMusicResolver:
         resolution_candidates = resolution_candidates_from_apple_music_tracks(library_candidates)
         decision = select_best_resolution(legacy, resolution_candidates)
         if decision.selected is not None:
+            manual_continue_trace("CALL AppleMusicResolver._cache_probe_match()")
             self._cache_probe_match(track, decision.selected)
+            manual_continue_trace("RETURN AppleMusicResolver.probe_library_presence_detail found=True (library match)")
             return True, None
 
         if self._catalog is not None:
@@ -214,9 +227,12 @@ class AppleMusicResolver:
                 catalog_legacy = legacy_track_from_canonical(catalog_candidate.track, section=section)
                 catalog_decision = select_best_resolution(catalog_legacy, resolution_candidates)
                 if catalog_decision.selected is not None:
+                    manual_continue_trace("CALL AppleMusicResolver._cache_probe_match() via catalog alignment")
                     self._cache_probe_match(track, catalog_decision.selected)
+                    manual_continue_trace("RETURN AppleMusicResolver.probe_library_presence_detail found=True (catalog alignment)")
                     return True, None
 
+        manual_continue_trace("RETURN AppleMusicResolver.probe_library_presence_detail found=False")
         return False, None
 
     def _collect_manual_probe_candidates(
@@ -251,12 +267,16 @@ class AppleMusicResolver:
     def _cache_probe_match(self, track: CanonicalTrack, selected: ResolutionCandidate) -> None:
         if not selected.provider_key:
             return
+        manual_continue_trace(
+            f"CALL IdentityCache.put_identity external_id={selected.provider_key} score={selected.score}"
+        )
         self._identity_cache.put_identity(
             track,
             provider_id=self._provider_id,
             external_id=selected.provider_key,
             confidence=float(selected.score),
         )
+        manual_continue_trace("RETURN IdentityCache.put_identity")
 
     def _resolve_track(
         self,

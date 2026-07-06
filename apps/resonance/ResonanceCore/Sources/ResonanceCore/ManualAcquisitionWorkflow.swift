@@ -165,7 +165,11 @@ public final class ManualAcquisitionWorkflowCoordinator {
     }
 
     public func beginUserConfirmation(at clickTime: Date = .now) -> ManualAcquisitionWorkflowSnapshot {
-        guard !snapshot.isBusy else { return snapshot }
+        ManualContinueTrace.log("ENTER ManualAcquisitionWorkflowCoordinator.beginUserConfirmation()")
+        guard !snapshot.isBusy else {
+            ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.beginUserConfirmation() — already busy")
+            return snapshot
+        }
         transition(to: .verifyingLibrary)
         snapshot.isBusy = true
         snapshot.phase = phase
@@ -180,10 +184,12 @@ public final class ManualAcquisitionWorkflowCoordinator {
             lastProbeStartedAt: clickTime
         )
         snapshot.shouldPoll = false
+        ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.beginUserConfirmation() phase=\(phase.rawValue)")
         return snapshot
     }
 
     public func beginBackgroundProbe() -> ManualAcquisitionWorkflowSnapshot {
+        ManualContinueTrace.log("ENTER ManualAcquisitionWorkflowCoordinator.beginBackgroundProbe()")
         guard !snapshot.isBusy, phase == .waitingForUser else { return snapshot }
         transition(to: .verifyingLibrary)
         let startedAt = Date()
@@ -191,6 +197,7 @@ public final class ManualAcquisitionWorkflowCoordinator {
         snapshot.uiStatus.currentStep = "Vérification automatique de la bibliothèque…"
         snapshot.uiStatus.phase = phase
         snapshot.uiStatus.phaseEnteredAt = phaseEnteredAt
+        ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.beginBackgroundProbe() phase=\(phase.rawValue)")
         return snapshot
     }
 
@@ -199,6 +206,7 @@ public final class ManualAcquisitionWorkflowCoordinator {
         finishedAt: Date = .now,
         userInitiated: Bool
     ) -> (snapshot: ManualAcquisitionWorkflowSnapshot, action: ManualAcquisitionWorkflowAction) {
+        ManualContinueTrace.log("ENTER ManualAcquisitionWorkflowCoordinator.applyProbeResult(found=\(probe.found), userInitiated=\(userInitiated))")
         let startedAt = probe.diagnostics?.probeStartedAt ?? snapshot.uiStatus.lastProbeStartedAt ?? finishedAt
         let durationMs = probe.diagnostics?.probeDurationMs
             ?? Int(finishedAt.timeIntervalSince(startedAt) * 1000)
@@ -234,6 +242,7 @@ public final class ManualAcquisitionWorkflowCoordinator {
             snapshot.shouldPoll = false
             snapshot.isBusy = false
             snapshot.phase = phase
+            ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyProbeResult() action=none phase=checkpoint_expired")
             return (snapshot, .none)
         }
 
@@ -248,6 +257,7 @@ public final class ManualAcquisitionWorkflowCoordinator {
             snapshot.shouldPoll = true
             snapshot.isBusy = false
             snapshot.phase = phase
+            ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyProbeResult() action=none phase=failed probe_error=\(probeError)")
             return (snapshot, .none)
         }
 
@@ -265,8 +275,10 @@ public final class ManualAcquisitionWorkflowCoordinator {
             snapshot.isBusy = true
             snapshot.phase = phase
             if let sessionID = probe.diagnostics?.importSessionID, !sessionID.isEmpty {
+                ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyProbeResult() action=resumeImport session=\(sessionID)")
                 return (snapshot, .resumeImport(importSessionID: sessionID))
             }
+            ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyProbeResult() action=none phase=track_found (missing session id)")
             return (snapshot, .none)
         }
 
@@ -285,10 +297,12 @@ public final class ManualAcquisitionWorkflowCoordinator {
         snapshot.shouldPoll = true
         snapshot.isBusy = false
         snapshot.phase = phase
+        ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyProbeResult() action=none phase=waiting_for_user")
         return (snapshot, .none)
     }
 
     public func beginResumingImport() -> ManualAcquisitionWorkflowSnapshot {
+        ManualContinueTrace.log("ENTER ManualAcquisitionWorkflowCoordinator.beginResumingImport()")
         transition(to: .resumingImport)
         snapshot.phase = phase
         snapshot.uiStatus.phase = phase
@@ -296,10 +310,12 @@ public final class ManualAcquisitionWorkflowCoordinator {
         snapshot.uiStatus.currentStep = "Reprise après ajout manuel…"
         snapshot.uiStatus.userAdvice = "Import en cours — suivez la progression ci-dessus."
         snapshot.isBusy = true
+        ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.beginResumingImport() phase=\(phase.rawValue)")
         return snapshot
     }
 
     public func applyContinueResult(_ result: ImportResultState) -> (snapshot: ManualAcquisitionWorkflowSnapshot, action: ManualAcquisitionWorkflowAction) {
+        ManualContinueTrace.log("ENTER ManualAcquisitionWorkflowCoordinator.applyContinueResult(phase=\(result.phase.rawValue))")
         snapshot.isBusy = false
         if result.phase == .waitingForManualAcquisition {
             transition(to: .waitingForUser)
@@ -312,15 +328,18 @@ public final class ManualAcquisitionWorkflowCoordinator {
             snapshot.pollStatus = message
             snapshot.shouldPoll = true
             snapshot.phase = phase
+            ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyContinueResult() action=none still waiting")
             return (snapshot, .none)
         }
         transition(to: .completed)
         snapshot.phase = phase
         snapshot.shouldPoll = false
+        ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyContinueResult() action=finishImport")
         return (snapshot, .finishImport(result))
     }
 
     public func applyBridgeError(_ message: String, architectDetail: String?) -> ManualAcquisitionWorkflowSnapshot {
+        ManualContinueTrace.log("ENTER ManualAcquisitionWorkflowCoordinator.applyBridgeError(\(message))")
         transition(to: .failed)
         snapshot.uiStatus.phase = phase
         snapshot.uiStatus.phaseEnteredAt = phaseEnteredAt
@@ -334,6 +353,7 @@ public final class ManualAcquisitionWorkflowCoordinator {
         snapshot.shouldPoll = true
         snapshot.isBusy = false
         snapshot.phase = phase
+        ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyBridgeError() phase=failed")
         return snapshot
     }
 
