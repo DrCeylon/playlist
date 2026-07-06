@@ -1,0 +1,66 @@
+import XCTest
+@testable import ResonanceCore
+
+@MainActor
+final class ManualAcquisitionWorkflowTests: XCTestCase {
+    func testIllegalTransitionsAreRejected() {
+        XCTAssertTrue(ManualAcquisitionWorkflow.canTransition(from: .waitingForUser, to: .verifyingLibrary))
+        XCTAssertFalse(ManualAcquisitionWorkflow.canTransition(from: .completed, to: .verifyingLibrary))
+        XCTAssertFalse(ManualAcquisitionWorkflow.canTransition(from: .waitingForUser, to: .completed))
+    }
+
+    func testCoordinatorOrchestratesUserConfirmationFlow() {
+        let coordinator = ManualAcquisitionWorkflowCoordinator()
+        _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
+
+        let confirming = coordinator.beginUserConfirmation(at: Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertEqual(confirming.phase, .verifyingLibrary)
+        XCTAssertEqual(confirming.uiStatus.currentStep, "Recherche dans la bibliothèque Music.app…")
+        XCTAssertTrue(confirming.isBusy)
+
+        let probe = ManualAcquisitionProbeResult(
+            found: false,
+            message: "Morceau pas encore détecté dans la bibliothèque. Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez.",
+            errorCode: "track_not_found",
+            workflowPhase: ManualAcquisitionWorkflowPhase.waitingForUser.rawValue,
+            diagnostics: ManualAcquisitionProbeDiagnostics(importSessionID: "session-1")
+        )
+        let (snapshot, action) = coordinator.applyProbeResult(probe, userInitiated: true)
+        XCTAssertEqual(action, .none)
+        XCTAssertEqual(snapshot.phase, .waitingForUser)
+        XCTAssertEqual(snapshot.uiStatus.currentStep, "Morceau non détecté")
+        XCTAssertTrue(snapshot.shouldPoll)
+        XCTAssertFalse(snapshot.isBusy)
+    }
+
+    func testCoordinatorResumesWhenTrackFound() {
+        let coordinator = ManualAcquisitionWorkflowCoordinator()
+        _ = coordinator.enterWaiting(importSessionID: "session-2", canResume: true, fromHistory: false)
+        _ = coordinator.beginUserConfirmation()
+
+        let probe = ManualAcquisitionProbeResult(
+            found: true,
+            message: "Morceau détecté dans la bibliothèque Music.app.",
+            diagnostics: ManualAcquisitionProbeDiagnostics(importSessionID: "session-2")
+        )
+        let (snapshot, action) = coordinator.applyProbeResult(probe, userInitiated: true)
+        XCTAssertEqual(snapshot.phase, .trackFound)
+        if case .resumeImport(let sessionID) = action {
+            XCTAssertEqual(sessionID, "session-2")
+        } else {
+            XCTFail("Expected resumeImport action")
+        }
+    }
+
+    func testHistoryAndFreshImportShareCoordinatorType() {
+        let freshCoordinator = ManualAcquisitionWorkflowCoordinator()
+        let historyCoordinator = ManualAcquisitionWorkflowCoordinator()
+
+        let fresh = freshCoordinator.enterWaiting(importSessionID: "a", canResume: true, fromHistory: false)
+        let history = historyCoordinator.enterWaiting(importSessionID: "b", canResume: true, fromHistory: true)
+
+        XCTAssertEqual(fresh.phase, .waitingForUser)
+        XCTAssertEqual(history.phase, .waitingForUser)
+        XCTAssertTrue(history.pollStatus.contains("historique"))
+    }
+}

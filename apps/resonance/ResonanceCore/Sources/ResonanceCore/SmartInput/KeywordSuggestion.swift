@@ -1,8 +1,24 @@
 import Foundation
 
-public enum KeywordSuggestionSource: String, Sendable {
-    case manual
-    case automatic
+public enum KeywordSuggestionSource: String, Sendable, Codable {
+    case manual = "MANUAL"
+    case autoArtist = "AUTO_ARTIST"
+    case autoTrack = "AUTO_TRACK"
+    case autoAlbum = "AUTO_ALBUM"
+    case autoGenre = "AUTO_GENRE"
+    case autoYear = "AUTO_YEAR"
+    case autoProvider = "AUTO_PROVIDER"
+    /// Legacy alias retained for backward compatibility in persisted keyword refs.
+    case automatic = "AUTOMATIC"
+
+    public var isAutomatic: Bool {
+        switch self {
+        case .manual:
+            return false
+        default:
+            return true
+        }
+    }
 }
 
 public struct KeywordSuggestionInput: Sendable {
@@ -65,51 +81,62 @@ public enum KeywordSuggestionEngine {
     ]
 
     public static func suggestKeywords(from input: KeywordSuggestionInput) -> [String] {
-        var suggestions: [String] = []
+        suggestKeywordRefs(from: input).map(\.label)
+    }
 
-        func add(_ value: String) {
+    public static func suggestKeywordRefs(from input: KeywordSuggestionInput) -> [KeywordRef] {
+        var suggestions: [KeywordRef] = []
+
+        func add(_ value: String, source: KeywordSuggestionSource) {
             let normalized = normalizeKeyword(value)
-            guard !normalized.isEmpty, !suggestions.contains(normalized) else { return }
-            suggestions.append(normalized)
+            guard !normalized.isEmpty else { return }
+            guard !suggestions.contains(where: { normalizeKeyword($0.label) == normalized }) else { return }
+            suggestions.append(
+                KeywordRef(
+                    id: "auto:\(normalized.replacingOccurrences(of: " ", with: "-"))",
+                    label: normalized,
+                    source: source
+                )
+            )
         }
 
         if !input.primaryGenreName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            add(input.primaryGenreName)
+            add(input.primaryGenreName, source: .autoGenre)
             for keyword in genreHints(from: input.primaryGenreName) {
-                add(keyword)
+                add(keyword, source: .autoGenre)
             }
         }
 
         for keyword in titleKeywords(input.trackTitle) {
-            add(keyword)
+            add(keyword, source: .autoTrack)
         }
 
         if !input.albumTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             for keyword in titleKeywords(input.albumTitle, maxTokens: 2) {
-                add(keyword)
+                add(keyword, source: .autoAlbum)
             }
         }
 
         if let releaseYear = input.releaseYear, releaseYear >= 1900 {
             let decade = (releaseYear / 10) * 10
-            add("\(decade)s")
+            add("\(decade)s", source: .autoYear)
         }
 
         let haystack = "\(input.trackTitle) \(input.albumTitle)".lowercased()
         for (mood, triggers) in moodKeywords {
             if triggers.contains(where: { haystack.contains($0) }) {
-                add(mood)
+                add(mood, source: .autoTrack)
             }
         }
 
         let artistType = input.artistType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if ["band", "group", "orchestra"].contains(artistType) {
-            add(artistType)
+            add(artistType, source: .autoArtist)
         }
 
         if suggestions.isEmpty, !input.artistName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             for keyword in titleKeywords(input.artistName, maxTokens: 1) {
-                add(keyword)
+                add(keyword, source: .autoArtist)
             }
         }
 
@@ -117,13 +144,7 @@ public enum KeywordSuggestionEngine {
     }
 
     public static func automaticKeywordRefs(from input: KeywordSuggestionInput) -> [KeywordRef] {
-        suggestKeywords(from: input).map { label in
-            KeywordRef(
-                id: "auto:\(label.lowercased().replacingOccurrences(of: " ", with: "-"))",
-                label: label,
-                source: .automatic
-            )
-        }
+        suggestKeywordRefs(from: input)
     }
 
     public static func mergeAutomaticKeywords(
@@ -131,10 +152,10 @@ public enum KeywordSuggestionEngine {
         suggested: [KeywordRef]
     ) -> [KeywordRef] {
         var merged = existing
-        let manualLabels = Set(existing.filter { $0.source == .manual }.map { normalizeKeyword($0.label) })
+        let manualLabels = Set(existing.filter { !$0.source.isAutomatic }.map { normalizeKeyword($0.label) })
         let existingLabels = Set(existing.map { normalizeKeyword($0.label) })
 
-        for keyword in suggested {
+        for keyword in suggested where keyword.source.isAutomatic {
             let normalized = normalizeKeyword(keyword.label)
             guard !normalized.isEmpty else { continue }
             if manualLabels.contains(normalized) || existingLabels.contains(normalized) {

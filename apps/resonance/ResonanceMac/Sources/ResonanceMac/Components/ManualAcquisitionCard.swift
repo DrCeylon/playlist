@@ -90,6 +90,10 @@ struct ManualAcquisitionCard: View {
     @ViewBuilder
     private var verificationStatusSection: some View {
         VStack(alignment: .leading, spacing: 8) {
+            statusRow(title: "Phase", value: status.phase.userFacingStep)
+            if let elapsed = status.elapsedSincePhaseEnteredLabel {
+                statusRow(title: "Temps écoulé", value: elapsed)
+            }
             if let clickLabel = status.lastUserClickLabel {
                 statusRow(title: "Dernier clic", value: "Vérification lancée à \(clickLabel)")
             }
@@ -99,14 +103,14 @@ struct ManualAcquisitionCard: View {
                         ProgressView()
                             .controlSize(.small)
                     }
-                    statusRow(title: "Étape en cours", value: status.currentStep)
+                    statusRow(title: "Action en cours", value: status.currentStep)
                 }
             }
             if !status.lastVerificationResult.isEmpty {
                 statusRow(title: "Dernier résultat", value: status.lastVerificationResult)
             }
-            if !status.userAdvice.isEmpty {
-                statusRow(title: "Conseil", value: status.userAdvice)
+            if !status.nextStepHint.isEmpty {
+                statusRow(title: "Prochaine étape", value: status.nextStepHint)
             }
         }
         .padding(12)

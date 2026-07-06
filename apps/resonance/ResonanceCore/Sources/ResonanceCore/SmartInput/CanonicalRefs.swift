@@ -107,7 +107,7 @@ public struct KeywordRef: CanonicalEntity {
     public var source: KeywordSuggestionSource
 
     public var displayLabel: String { label }
-    public var isAutomatic: Bool { source == .automatic }
+    public var isAutomatic: Bool { source.isAutomatic }
 
     public init(id: String, label: String, source: KeywordSuggestionSource = .manual) {
         self.id = id

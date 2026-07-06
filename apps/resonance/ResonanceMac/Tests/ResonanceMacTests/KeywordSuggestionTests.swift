@@ -25,15 +25,31 @@ final class KeywordSuggestionTests: XCTestCase {
             KeywordRef(id: "manual-chill", label: "chill", source: .manual),
         ]
         let suggested = [
-            KeywordRef(id: "auto:dance", label: "dance", source: .automatic),
-            KeywordRef(id: "auto:summer", label: "summer", source: .automatic),
+            KeywordRef(id: "auto:dance", label: "dance", source: .autoGenre),
+            KeywordRef(id: "auto:summer", label: "summer", source: .autoTrack),
         ]
 
         let merged = KeywordSuggestionEngine.mergeAutomaticKeywords(existing: existing, suggested: suggested)
 
         XCTAssertEqual(merged.filter { $0.label.lowercased() == "summer" }.count, 1)
-        XCTAssertTrue(merged.contains(where: { $0.label == "dance" }))
+        XCTAssertTrue(merged.contains(where: { $0.label == "dance" && $0.source == .autoGenre }))
         XCTAssertTrue(merged.contains(where: { $0.label == "chill" }))
+    }
+
+    func testSuggestKeywordRefsTagSourcesExplicitly() {
+        let input = KeywordSuggestionInput(
+            artistName: "Calvin Harris",
+            trackTitle: "Summer",
+            albumTitle: "Motion",
+            releaseYear: 2014,
+            primaryGenreName: "Dance"
+        )
+
+        let refs = KeywordSuggestionEngine.suggestKeywordRefs(from: input)
+
+        XCTAssertTrue(refs.contains(where: { $0.label == "dance" && $0.source == .autoGenre }))
+        XCTAssertTrue(refs.contains(where: { $0.label == "summer" && $0.source == .autoTrack }))
+        XCTAssertTrue(refs.contains(where: { $0.label == "2010s" && $0.source == .autoYear }))
     }
 
     func testPlaylistBuilderAddsAutomaticKeywordsAfterSelection() {

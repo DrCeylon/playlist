@@ -338,7 +338,9 @@ public struct ImportResultState: Hashable, Codable, Sendable {
 }
 
 public struct ManualAcquisitionUIStatus: Equatable, Sendable {
+    public var phase: ManualAcquisitionWorkflowPhase
     public var lastUserClickAt: Date?
+    public var phaseEnteredAt: Date?
     public var currentStep: String
     public var lastVerificationResult: String
     public var userAdvice: String
@@ -349,7 +351,9 @@ public struct ManualAcquisitionUIStatus: Equatable, Sendable {
     public var backendMessage: String?
 
     public init(
+        phase: ManualAcquisitionWorkflowPhase = .waitingForUser,
         lastUserClickAt: Date? = nil,
+        phaseEnteredAt: Date? = nil,
         currentStep: String = "",
         lastVerificationResult: String = "",
         userAdvice: String = "",
@@ -359,7 +363,9 @@ public struct ManualAcquisitionUIStatus: Equatable, Sendable {
         backendErrorCode: String? = nil,
         backendMessage: String? = nil
     ) {
+        self.phase = phase
         self.lastUserClickAt = lastUserClickAt
+        self.phaseEnteredAt = phaseEnteredAt
         self.currentStep = currentStep
         self.lastVerificationResult = lastVerificationResult
         self.userAdvice = userAdvice
@@ -368,6 +374,18 @@ public struct ManualAcquisitionUIStatus: Equatable, Sendable {
         self.lastProbeDurationMs = lastProbeDurationMs
         self.backendErrorCode = backendErrorCode
         self.backendMessage = backendMessage
+    }
+
+    public var elapsedSincePhaseEnteredLabel: String? {
+        guard let phaseEnteredAt else { return nil }
+        let seconds = max(0, Int(Date().timeIntervalSince(phaseEnteredAt)))
+        if seconds <= 1 { return "Démarré à l'instant" }
+        return "En cours depuis \(seconds) s"
+    }
+
+    public var nextStepHint: String {
+        if !userAdvice.isEmpty { return userAdvice }
+        return phase.nextStepHint
     }
 
     public var lastUserClickLabel: String? {
@@ -448,17 +466,20 @@ public struct ManualAcquisitionProbeResult: Equatable, Sendable {
     public var found: Bool
     public var message: String
     public var errorCode: String?
+    public var workflowPhase: String?
     public var diagnostics: ManualAcquisitionProbeDiagnostics?
 
     public init(
         found: Bool,
         message: String = "",
         errorCode: String? = nil,
+        workflowPhase: String? = nil,
         diagnostics: ManualAcquisitionProbeDiagnostics? = nil
     ) {
         self.found = found
         self.message = message
         self.errorCode = errorCode
+        self.workflowPhase = workflowPhase
         self.diagnostics = diagnostics
     }
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -28,8 +27,9 @@ from playlist_builder.ui.bridge.commands import (
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.bridge.events import BridgeEvent
 from playlist_builder.app.bridge_runtime.diagnostics_snapshot import build_diagnostics_snapshot
-from playlist_builder.app.bridge_runtime.import_stream import stream_import_playlist
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionStore
+from playlist_builder.app.bridge_runtime.import_stream import stream_import_playlist
+from playlist_builder.app.bridge_runtime.manual_acquisition_workflow import ManualAcquisitionWorkflowCoordinator
 from playlist_builder.app.bridge_runtime.mapping import (
     generated_playlist_to_ui_result,
     ui_request_to_playlist_request,
@@ -51,6 +51,10 @@ class RuntimeEngineBridgeBackend:
     def __init__(self, context: AppContext, *, session_store: ImportSessionStore | None = None) -> None:
         self._context = context
         self._session_store = session_store or ImportSessionStore()
+        self._manual_workflow = ManualAcquisitionWorkflowCoordinator(
+            context=context,
+            session_store=self._session_store,
+        )
         self._generation_engine = self._build_generation_engine(context)
         self._history = SessionHistoryService(SessionHistoryRepository(Path("data/history/sessions.json")))
         self._autocomplete = AutocompleteSearchUseCase(context.gateway)
@@ -77,6 +81,7 @@ class RuntimeEngineBridgeBackend:
                 BridgeErrorCode.MANUAL_ACTION_REQUIRED,
                 "Session d'import introuvable ou expirée.",
             )
+        self._manual_workflow.mark_resuming_import()
         for item in stream_import_playlist(
             self._context,
             checkpoint.playlist,
@@ -92,129 +97,10 @@ class RuntimeEngineBridgeBackend:
             yield item
 
     def probe_manual_acquisition(self, params: dict) -> dict[str, object]:
-        session_id = str(params.get("import_session_id", "")).strip()
-        if not session_id:
-            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "import_session_id est requis.")
-
-        checkpoint_path = str(self._session_store.path_for(session_id).resolve())
-        checkpoint_exists = self._session_store.exists(session_id)
-        if not checkpoint_exists:
-            return {
-                "found": False,
-                "message": "La session d'import a expiré. Relancez l'import depuis l'aperçu.",
-                "error_code": "checkpoint_missing",
-                "diagnostics": {
-                    "import_session_id": session_id,
-                    "checkpoint_path": checkpoint_path,
-                    "checkpoint_exists": False,
-                    "search_terms": [],
-                    "provider_id": ProviderId.APPLE_MUSIC.value,
-                    "probe_error": None,
-                },
-            }
-        if sys.platform != "darwin":
-            return {
-                "found": False,
-                "message": "Disponible uniquement sur macOS.",
-                "error_code": "platform_unavailable",
-                "diagnostics": {
-                    "import_session_id": session_id,
-                    "checkpoint_path": checkpoint_path,
-                    "checkpoint_exists": True,
-                    "search_terms": [],
-                    "provider_id": ProviderId.APPLE_MUSIC.value,
-                    "probe_error": None,
-                },
-            }
-
-        from playlist_builder.app.factory import get_provider_import_port
-        from playlist_builder.canonical.compat import legacy_track_from_canonical
-        from playlist_builder.resolver.query import generate_query_variants
-
-        import_port = get_provider_import_port(self._context)
-        labels = import_port.runtime_labels
-        checkpoint = self._session_store.load(session_id)
-        if checkpoint is None:
-            return {
-                "found": False,
-                "message": "La session d'import a expiré. Relancez l'import depuis l'aperçu.",
-                "error_code": "checkpoint_missing",
-                "diagnostics": {
-                    "import_session_id": session_id,
-                    "checkpoint_path": checkpoint_path,
-                    "checkpoint_exists": False,
-                    "search_terms": [],
-                    "provider_id": import_port.provider_id.value,
-                    "probe_error": None,
-                },
-            }
-
-        canonical = canonical_playlist_from_legacy(checkpoint.playlist)
-        rows = []
-        for section in canonical.sections:
-            for track in section.tracks:
-                rows.append((track, section.name))
-        if checkpoint.next_index >= len(rows):
-            return {
-                "found": False,
-                "message": "Aucun morceau en attente.",
-                "error_code": "no_pending_track",
-                "diagnostics": {
-                    "import_session_id": session_id,
-                    "checkpoint_path": checkpoint_path,
-                    "checkpoint_exists": True,
-                    "search_terms": [],
-                    "provider_id": import_port.provider_id.value,
-                    "probe_error": None,
-                },
-            }
-
-        track, section_name = rows[checkpoint.next_index]
-        legacy = legacy_track_from_canonical(track, section=section_name)
-        search_terms = [variant.term for variant in generate_query_variants(legacy)]
-        probe_started_at = time.time()
-        probe_detail = getattr(import_port, "probe_library_presence_detail", None)
-        if callable(probe_detail):
-            found, probe_error = probe_detail(track, section=section_name)
-        else:
-            found = import_port.probe_library_presence(track, section=section_name)
-            probe_error = None
-        probe_finished_at = time.time()
-        probe_duration_ms = int((probe_finished_at - probe_started_at) * 1000)
-
-        if probe_error:
-            message = f"Erreur technique lors de la vérification bibliothèque : {probe_error}"
-            error_code = "probe_error"
-        elif found:
-            message = f"Morceau détecté dans la bibliothèque {labels.runtime_app_name}."
-            error_code = None
-        else:
-            message = (
-                "Morceau pas encore détecté dans la bibliothèque. "
-                "Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez."
-            )
-            error_code = "track_not_found"
-
-        payload: dict[str, object] = {
-            "found": found,
-            "message": message,
-            "diagnostics": {
-                "import_session_id": session_id,
-                "checkpoint_path": checkpoint_path,
-                "checkpoint_exists": True,
-                "search_terms": search_terms,
-                "provider_id": import_port.provider_id.value,
-                "probe_error": probe_error,
-                "probe_started_at": probe_started_at,
-                "probe_finished_at": probe_finished_at,
-                "probe_duration_ms": probe_duration_ms,
-            },
-        }
-        if error_code is not None:
-            payload["error_code"] = error_code
-        return payload
+        return self._manual_workflow.probe_manual_acquisition(params)
 
     def _continue_manual_acquisition_result(self, params: dict) -> ImportPlaylistResult:
+        self._manual_workflow.mark_resuming_import()
         session_id = str(params.get("import_session_id", "")).strip()
         if not session_id:
             raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "import_session_id est requis.")

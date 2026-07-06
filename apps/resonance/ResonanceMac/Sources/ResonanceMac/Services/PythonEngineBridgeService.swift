@@ -266,11 +266,13 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         let found = response.result["found"]?.boolValue ?? false
         let message = response.result["message"]?.stringValue ?? ""
         let errorCode = response.result["error_code"]?.stringValue
+        let workflowPhase = response.result["workflow_phase"]?.stringValue
         let diagnostics = Self.manualProbeDiagnostics(from: response.result["diagnostics"]?.objectValue)
         return ManualAcquisitionProbeResult(
             found: found,
             message: message,
             errorCode: errorCode,
+            workflowPhase: workflowPhase,
             diagnostics: diagnostics
         )
     }
