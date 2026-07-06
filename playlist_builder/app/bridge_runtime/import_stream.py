@@ -105,9 +105,15 @@ def stream_import_playlist(
     labels = import_port.runtime_labels
 
     if context.settings.wait_for_manual_catalog_add:
-        from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionGate
+        from playlist_builder.app.bridge_runtime.manual_gate import (
+            ManualAcquisitionGate,
+            confirmed_manual_acquisition_hook,
+        )
 
-        import_port.configure_manual_acquisition(ManualAcquisitionGate().hook)
+        if checkpoint is None:
+            import_port.configure_manual_acquisition(ManualAcquisitionGate().hook)
+        else:
+            import_port.configure_manual_acquisition(confirmed_manual_acquisition_hook)
     if checkpoint is not None:
         playlist = checkpoint.playlist
         request_id = checkpoint.request_id

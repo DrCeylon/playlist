@@ -7,6 +7,7 @@ from typing import Any
 
 from playlist_builder import __version__
 from playlist_builder.app.factory import AppContext
+from playlist_builder.canonical.compat import canonical_playlist_from_legacy
 from playlist_builder.catalog.cache import JsonCache
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.core.models import PlaylistDefinition

@@ -90,3 +90,16 @@ def _catalog_url_from_hints(hints: tuple[str, ...]) -> str:
         if hint.startswith("http") or hint.startswith("music://"):
             return hint.strip()
     return ""
+
+
+def confirmed_manual_acquisition_hook(
+    track: CanonicalTrack,
+    catalog_candidate: CanonicalCandidate,
+    detail: str,
+) -> None:
+    """No-op hook after the user confirms manual acquisition in the bridge UI.
+
+    ADR-012 step 5 expects the resolver to probe the library after confirmation.
+    The raising ``ManualAcquisitionGate.hook`` is only for the initial pause.
+    """
+    del track, catalog_candidate, detail
