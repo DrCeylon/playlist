@@ -58,6 +58,8 @@ private struct PlaylistBuilderScreen: View {
                     manualPrompt: importViewModel.manualPrompt,
                     manualPollStatus: importViewModel.manualPollStatus,
                     architectErrorDetail: importViewModel.architectErrorDetail,
+                    architectManualDiagnostics: importViewModel.architectManualDiagnostics,
+                    isContinueInProgress: importViewModel.isContinuingManual,
                     embeddedInPanel: true,
                     onConfirmManual: {
                         Task { await importViewModel.confirmManualAcquisition() }

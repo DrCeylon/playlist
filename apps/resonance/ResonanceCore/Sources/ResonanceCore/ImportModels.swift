@@ -337,13 +337,72 @@ public struct ImportResultState: Hashable, Codable, Sendable {
     }
 }
 
+public struct ManualAcquisitionProbeDiagnostics: Equatable, Sendable {
+    public var importSessionID: String
+    public var checkpointPath: String
+    public var checkpointExists: Bool
+    public var searchTerms: [String]
+    public var providerID: String
+    public var probeError: String?
+
+    public init(
+        importSessionID: String = "",
+        checkpointPath: String = "",
+        checkpointExists: Bool = false,
+        searchTerms: [String] = [],
+        providerID: String = "",
+        probeError: String? = nil
+    ) {
+        self.importSessionID = importSessionID
+        self.checkpointPath = checkpointPath
+        self.checkpointExists = checkpointExists
+        self.searchTerms = searchTerms
+        self.providerID = providerID
+        self.probeError = probeError
+    }
+
+    public var architectSummary: String {
+        var lines = [
+            "import_session_id: \(importSessionID)",
+            "checkpoint_path: \(checkpointPath)",
+            "checkpoint_exists: \(checkpointExists)",
+            "search_terms: \(searchTerms.joined(separator: ", "))",
+            "provider_id: \(providerID)",
+        ]
+        if let probeError, !probeError.isEmpty {
+            lines.append("probe_error: \(probeError)")
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
 public struct ManualAcquisitionProbeResult: Equatable, Sendable {
     public var found: Bool
     public var message: String
+    public var errorCode: String?
+    public var diagnostics: ManualAcquisitionProbeDiagnostics?
 
-    public init(found: Bool, message: String = "") {
+    public init(
+        found: Bool,
+        message: String = "",
+        errorCode: String? = nil,
+        diagnostics: ManualAcquisitionProbeDiagnostics? = nil
+    ) {
         self.found = found
         self.message = message
+        self.errorCode = errorCode
+        self.diagnostics = diagnostics
+    }
+
+    public var architectSummary: String? {
+        var lines: [String] = []
+        if let errorCode, !errorCode.isEmpty {
+            lines.append("error_code: \(errorCode)")
+        }
+        if let diagnostics {
+            lines.append(diagnostics.architectSummary)
+        }
+        return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
 }
 

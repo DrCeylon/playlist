@@ -7,6 +7,7 @@ struct ManualAcquisitionCard: View {
     let prompt: ManualAcquisitionPrompt
     let trackPositionLabel: String?
     let pollStatus: String
+    let isContinueInProgress: Bool
     let palette: ThemePalette
     let onConfirmManual: () -> Void
     @State private var copiedLabel: String?
@@ -70,6 +71,7 @@ struct ManualAcquisitionCard: View {
                 Button("J'ai ajouté le morceau, continuer", action: onConfirmManual)
                     .buttonStyle(.borderedProminent)
                     .tint(palette.accentPrimary)
+                    .disabled(isContinueInProgress)
             }
 
             Text("Music.app ne s'ouvre que si vous touchez « Ouvrir dans Music ». Resonance ne reprend plus le focus automatiquement.")

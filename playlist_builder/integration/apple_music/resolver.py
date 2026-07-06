@@ -177,19 +177,29 @@ class AppleMusicResolver:
         section: str = "Playlist",
     ) -> bool:
         """Read-only library check used while waiting for manual acquisition."""
+        found, _probe_error = self.probe_library_presence_detail(track, section=section)
+        return found
+
+    def probe_library_presence_detail(
+        self,
+        track: CanonicalTrack,
+        *,
+        section: str = "Playlist",
+    ) -> tuple[bool, str | None]:
+        """Read-only library check with optional technical error detail."""
         cached = self._identity_cache.get(track, self._provider_id)
         if cached is not None:
-            return True
+            return True, None
         legacy = legacy_track_from_canonical(track, section=section)
         try:
             candidate_groups = self._applescript.collect_candidates_batch([legacy])
-        except RuntimeError:
-            return False
+        except RuntimeError as exc:
+            return False, str(exc)
         if not candidate_groups or not candidate_groups[0]:
-            return False
+            return False, None
         resolution_candidates = resolution_candidates_from_apple_music_tracks(list(candidate_groups[0]))
         decision = select_best_resolution(legacy, resolution_candidates)
-        return decision.selected is not None
+        return decision.selected is not None, None
 
     def _resolve_track(
         self,
@@ -289,6 +299,25 @@ class AppleMusicResolver:
                     f"({catalog_candidate.raw_confidence:.0f} < {self._catalog_acquisition_min_confidence:.0f})."
                 ),
                 False,
+            )
+
+        if self._manual_acquisition_hook is not None and self._is_manual_resume_confirmed():
+            library_candidates = self._refresh_library_candidates_with_retries(
+                legacy,
+                catalog_candidate,
+                max_attempts=_MANUAL_ACQUISITION_LIBRARY_ATTEMPTS,
+                show_progress=True,
+            )
+            if library_candidates:
+                return library_candidates, True, "Morceau confirmé en bibliothèque.", True
+            return (
+                [],
+                False,
+                (
+                    "Morceau pas encore détecté dans la bibliothèque. "
+                    "Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez."
+                ),
+                True,
             )
 
         acquisition = self._acquisition.acquire_from_catalog_candidate(catalog_candidate)
@@ -413,6 +442,11 @@ class AppleMusicResolver:
                 seen.add(persistent_id)
                 merged.append(candidate)
         return merged
+
+    def _is_manual_resume_confirmed(self) -> bool:
+        from playlist_builder.app.bridge_runtime.manual_gate import confirmed_manual_acquisition_hook
+
+        return self._manual_acquisition_hook is confirmed_manual_acquisition_hook
 
     @staticmethod
     def _wait_until_user_added_track(

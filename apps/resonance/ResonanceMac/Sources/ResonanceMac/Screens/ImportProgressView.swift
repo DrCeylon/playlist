@@ -7,6 +7,8 @@ struct ImportProgressView: View {
     let manualPrompt: ManualAcquisitionPrompt?
     let manualPollStatus: String
     let architectErrorDetail: String?
+    let architectManualDiagnostics: String?
+    let isContinueInProgress: Bool
     let embeddedInPanel: Bool
     let onConfirmManual: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
@@ -16,6 +18,8 @@ struct ImportProgressView: View {
         manualPrompt: ManualAcquisitionPrompt?,
         manualPollStatus: String,
         architectErrorDetail: String?,
+        architectManualDiagnostics: String? = nil,
+        isContinueInProgress: Bool = false,
         embeddedInPanel: Bool = false,
         onConfirmManual: @escaping () -> Void
     ) {
@@ -23,6 +27,8 @@ struct ImportProgressView: View {
         self.manualPrompt = manualPrompt
         self.manualPollStatus = manualPollStatus
         self.architectErrorDetail = architectErrorDetail
+        self.architectManualDiagnostics = architectManualDiagnostics
+        self.isContinueInProgress = isContinueInProgress
         self.embeddedInPanel = embeddedInPanel
         self.onConfirmManual = onConfirmManual
     }
@@ -60,6 +66,7 @@ struct ImportProgressView: View {
                     prompt: manualPrompt,
                     trackPositionLabel: trackPositionLabel,
                     pollStatus: manualPollStatus,
+                    isContinueInProgress: isContinueInProgress,
                     palette: palette,
                     onConfirmManual: onConfirmManual
                 )
@@ -72,6 +79,14 @@ struct ImportProgressView: View {
             if ResonanceFeatureFlags.architectModeEnabled, let architectErrorDetail {
                 SelectableText(
                     text: architectErrorDetail,
+                    font: .caption2.monospaced(),
+                    foreground: palette.textSecondary
+                )
+            }
+
+            if ResonanceFeatureFlags.architectModeEnabled, let architectManualDiagnostics {
+                SelectableText(
+                    text: architectManualDiagnostics,
                     font: .caption2.monospaced(),
                     foreground: palette.textSecondary
                 )

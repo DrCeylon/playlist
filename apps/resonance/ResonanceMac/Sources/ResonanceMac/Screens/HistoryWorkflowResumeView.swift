@@ -75,6 +75,8 @@ struct HistoryWorkflowResumeView: View {
                         manualPrompt: workflow.importWorkflow.manualPrompt,
                         manualPollStatus: workflow.importWorkflow.manualPollStatus,
                         architectErrorDetail: workflow.importWorkflow.architectErrorDetail,
+                        architectManualDiagnostics: workflow.importWorkflow.architectManualDiagnostics,
+                        isContinueInProgress: workflow.importWorkflow.isContinuingManual,
                         embeddedInPanel: true,
                         onConfirmManual: onConfirmManual
                     )

@@ -262,4 +262,145 @@ final class ImportViewModelTests: XCTestCase {
         XCTAssertTrue(result.canResumeManualAcquisition)
         XCTAssertNotNil(result.manualPrompt)
     }
+
+    func testConfirmManualAcquisitionProbesBeforeContinue() async {
+        final class ProbeFirstService: PlaylistImportServing {
+            private(set) var probeCount = 0
+            private(set) var continueCount = 0
+
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                ImportResultState(playlistName: result.playlistName, phase: .completed)
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                continueCount += 1
+                return ImportResultState(playlistName: "Demo", phase: .completed)
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                probeCount += 1
+                return ManualAcquisitionProbeResult(
+                    found: true,
+                    message: "Morceau détecté dans la bibliothèque Music.app.",
+                    diagnostics: ManualAcquisitionProbeDiagnostics(
+                        importSessionID: importSessionID,
+                        checkpointPath: "/tmp/checkpoint.json",
+                        checkpointExists: true,
+                        searchTerms: ["Artist Title"],
+                        providerID: "apple_music"
+                    )
+                )
+            }
+        }
+
+        let service = ProbeFirstService()
+        let viewModel = ImportViewModel(service: service)
+        viewModel.restoreManualAcquisition(
+            from: ImportResultState(
+                playlistName: "Demo",
+                outcomes: [],
+                phase: .waitingForManualAcquisition,
+                importSessionID: "session-1",
+                manualArtist: "Artist",
+                manualTitle: "Title"
+            ),
+            generation: nil
+        )
+
+        await viewModel.confirmManualAcquisition()
+
+        XCTAssertEqual(service.probeCount, 1)
+        XCTAssertEqual(service.continueCount, 1)
+        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertNotNil(viewModel.architectManualDiagnostics)
+    }
+
+    func testConfirmManualAcquisitionDoesNotContinueWhenTrackMissing() async {
+        final class MissingTrackService: PlaylistImportServing {
+            private(set) var continueCount = 0
+
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                ImportResultState(playlistName: result.playlistName, phase: .completed)
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                continueCount += 1
+                return ImportResultState(playlistName: "Demo", phase: .completed)
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(
+                    found: false,
+                    message: "Morceau pas encore détecté dans la bibliothèque. Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez.",
+                    errorCode: "track_not_found"
+                )
+            }
+        }
+
+        let viewModel = ImportViewModel(service: MissingTrackService())
+        viewModel.restoreManualAcquisition(
+            from: ImportResultState(
+                playlistName: "Demo",
+                outcomes: [],
+                phase: .waitingForManualAcquisition,
+                importSessionID: "session-1",
+                manualArtist: "Artist",
+                manualTitle: "Title"
+            ),
+            generation: nil
+        )
+
+        await viewModel.confirmManualAcquisition()
+
+        XCTAssertEqual(viewModel.screenState, .waitingForManualAcquisition)
+        XCTAssertTrue(viewModel.manualPollStatus.contains("pas encore détecté"))
+    }
+
+    func testConfirmManualAcquisitionIgnoresDuplicateClicks() async {
+        final class SlowContinueService: PlaylistImportServing {
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                ImportResultState(playlistName: result.playlistName, phase: .completed)
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                try await Task.sleep(nanoseconds: 200_000_000)
+                return ImportResultState(playlistName: "Demo", phase: .completed)
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                try await Task.sleep(nanoseconds: 200_000_000)
+                return ManualAcquisitionProbeResult(found: true, message: "ok")
+            }
+        }
+
+        let viewModel = ImportViewModel(service: SlowContinueService())
+        viewModel.restoreManualAcquisition(
+            from: ImportResultState(
+                playlistName: "Demo",
+                outcomes: [],
+                phase: .waitingForManualAcquisition,
+                importSessionID: "session-1",
+                manualArtist: "Artist",
+                manualTitle: "Title"
+            ),
+            generation: nil
+        )
+
+        async let first: Void = viewModel.confirmManualAcquisition()
+        await Task.yield()
+        XCTAssertTrue(viewModel.isContinuingManual)
+        await viewModel.confirmManualAcquisition()
+        await first
+
+        XCTAssertEqual(viewModel.screenState, .report)
+    }
 }

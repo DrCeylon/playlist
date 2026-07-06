@@ -72,6 +72,14 @@ class AppleMusicProviderImportPort:
     def probe_library_presence(self, track: CanonicalTrack, *, section: str = "Playlist") -> bool:
         return self._resolver.probe_library_presence(track, section=section)
 
+    def probe_library_presence_detail(
+        self,
+        track: CanonicalTrack,
+        *,
+        section: str = "Playlist",
+    ) -> tuple[bool, str | None]:
+        return self._resolver.probe_library_presence_detail(track, section=section)
+
     def ensure_playlist(self, name: str) -> None:
         self._import_service.delivery.ensure_playlist(name)
 

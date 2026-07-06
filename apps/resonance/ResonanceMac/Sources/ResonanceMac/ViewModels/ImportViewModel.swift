@@ -17,14 +17,15 @@ final class ImportViewModel: ObservableObject {
     @Published var manualPollStatus = ""
     @Published var report: ImportResultState?
     @Published var architectErrorDetail: String?
+    @Published var architectManualDiagnostics: String?
     @Published private(set) var activeHistorySessionID: String = ""
+    @Published private(set) var isContinuingManual = false
 
     private let service: any PlaylistImportServing
     private var importSessionID: String?
     private var manualPollTask: Task<Void, Never>?
     private var importedGeneration: PlaylistGenerationResult?
     private var activeImportToken: UUID?
-    private var isContinuingManual = false
 
     init(service: any PlaylistImportServing = MockPlaylistImportService()) {
         self.service = service
@@ -92,14 +93,49 @@ final class ImportViewModel: ObservableObject {
             return
         }
         let token = activeImportToken
-        screenState = .importing
-        manualPollStatus = ""
+        architectManualDiagnostics = nil
+        manualPollStatus = "Vérification de la bibliothèque Music.app…"
         mutateProgress { snapshot in
-            snapshot.currentStep = "Reprise après ajout manuel…"
+            snapshot.currentStep = "Vérification de la bibliothèque Music.app…"
             snapshot.lastActivityAt = .now
         }
 
         do {
+            let probe = try await service.probeManualAcquisition(importSessionID: importSessionID)
+            applyProbeDiagnostics(probe)
+            guard token == nil || token == activeImportToken else { return }
+
+            if probe.errorCode == "checkpoint_missing" {
+                manualPollStatus = probe.message
+                screenState = .waitingForManualAcquisition
+                return
+            }
+
+            if let probeError = probe.diagnostics?.probeError, !probeError.isEmpty {
+                manualPollStatus = probe.message
+                screenState = .waitingForManualAcquisition
+                startManualPolling()
+                return
+            }
+
+            if !probe.found {
+                manualPollStatus = probe.message.isEmpty
+                    ? "Morceau pas encore détecté dans la bibliothèque. Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez."
+                    : probe.message
+                screenState = .waitingForManualAcquisition
+                startManualPolling()
+                return
+            }
+
+            screenState = .importing
+            manualPollStatus = probe.message.isEmpty
+                ? "Morceau détecté — reprise de l'import…"
+                : probe.message
+            mutateProgress { snapshot in
+                snapshot.currentStep = "Reprise après ajout manuel…"
+                snapshot.lastActivityAt = .now
+            }
+
             let result = try await service.continueManualAcquisition(
                 importSessionID: importSessionID,
                 onEvent: importEventHandler
@@ -107,17 +143,21 @@ final class ImportViewModel: ObservableObject {
             await flushPendingImportEvents()
             guard token == nil || token == activeImportToken else { return }
             if result.phase == .waitingForManualAcquisition {
-                manualPollStatus = "Morceau pas encore visible dans Music.app — ajoutez-le puis réessayez."
+                manualPollStatus = "Morceau pas encore détecté dans la bibliothèque. Vérifiez qu'il a bien été ajouté dans Music.app, puis réessayez."
             }
             finishImport(with: result)
         } catch let error as PlaylistImportError {
             guard token == nil || token == activeImportToken else { return }
             manualPollStatus = ImportErrorHumanizer.message(for: error)
-            failImport(error)
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
+            screenState = .waitingForManualAcquisition
+            startManualPolling()
         } catch {
             guard token == nil || token == activeImportToken else { return }
             manualPollStatus = ImportErrorHumanizer.userMessage(for: error)
-            failImport(error)
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
+            screenState = .waitingForManualAcquisition
+            startManualPolling()
         }
     }
 
@@ -133,9 +173,10 @@ final class ImportViewModel: ObservableObject {
         manualPrompt = report.manualPrompt
         self.report = report
         screenState = .waitingForManualAcquisition
+        architectManualDiagnostics = nil
         manualPollStatus = report.canResumeManualAcquisition
             ? "Reprise depuis l'historique — ajoutez le morceau dans Music.app si nécessaire."
-            : "Checkpoint d'import indisponible — relancez l'import complet."
+            : "La session d'import a expiré. Relancez l'import depuis l'aperçu."
         progress = ImportProgressSnapshot(
             playlistName: report.playlistName,
             totalTracks: max(report.outcomes.count, 1),
@@ -160,6 +201,7 @@ final class ImportViewModel: ObservableObject {
         report = nil
         importedGeneration = nil
         architectErrorDetail = nil
+        architectManualDiagnostics = nil
         activeHistorySessionID = ""
     }
 
@@ -177,6 +219,7 @@ final class ImportViewModel: ObservableObject {
         activeHistorySessionID = historySessionID
         screenState = .importing
         architectErrorDetail = nil
+        architectManualDiagnostics = nil
         manualPrompt = nil
         manualPollStatus = ""
         importSessionID = nil
@@ -226,6 +269,10 @@ final class ImportViewModel: ObservableObject {
         stopManualPolling()
         architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         screenState = .failed(ImportErrorHumanizer.userMessage(for: error))
+    }
+
+    private func applyProbeDiagnostics(_ probe: ManualAcquisitionProbeResult) {
+        architectManualDiagnostics = probe.architectSummary
     }
 
     private func handle(event: BridgeEventMessage) {
@@ -351,6 +398,19 @@ final class ImportViewModel: ObservableObject {
         guard let importSessionID, screenState == .waitingForManualAcquisition, !isContinuingManual else { return }
         do {
             let probe = try await service.probeManualAcquisition(importSessionID: importSessionID)
+            applyProbeDiagnostics(probe)
+
+            if probe.errorCode == "checkpoint_missing" {
+                manualPollStatus = probe.message
+                stopManualPolling()
+                return
+            }
+
+            if let probeError = probe.diagnostics?.probeError, !probeError.isEmpty {
+                manualPollStatus = probe.message
+                return
+            }
+
             if probe.found {
                 manualPollStatus = probe.message.isEmpty
                     ? "Morceau détecté — reprise automatique…"
@@ -359,7 +419,7 @@ final class ImportViewModel: ObservableObject {
             } else if !probe.message.isEmpty {
                 manualPollStatus = probe.message
             } else {
-                manualPollStatus = "Vérification bibliothèque en arrière-plan… morceau pas encore visible."
+                manualPollStatus = "En attente de détection dans Music.app…"
             }
         } catch let error as PlaylistImportError {
             let message = ImportErrorHumanizer.message(for: error)
@@ -367,7 +427,7 @@ final class ImportViewModel: ObservableObject {
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         } catch {
             manualPollStatus = ImportErrorHumanizer.userMessage(for: error)
-            architectErrorDetail = String(describing: error)
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         }
     }
 

@@ -72,8 +72,9 @@ def test_probe_manual_acquisition_reports_missing_checkpoint(tmp_path):
         result = backend.probe_manual_acquisition({"import_session_id": "missing"})
 
     assert result["found"] is False
-    assert "introuvable" in result["message"].lower()
+    assert "introuvable" in result["message"].lower() or "expiré" in result["message"].lower()
     assert result.get("error_code") == "checkpoint_missing"
+    assert result["diagnostics"]["checkpoint_exists"] is False
 
 
 def test_import_session_store_uses_persistent_data_directory(tmp_path, monkeypatch):

@@ -74,8 +74,14 @@ class ImportSessionStore:
             history_session_id=str(payload.get("history_session_id", "")),
         )
 
+    def path_for(self, session_id: str) -> Path:
+        return self._root / f"{session_id}.json"
+
+    def exists(self, session_id: str) -> bool:
+        return self.path_for(session_id).exists()
+
     def delete(self, session_id: str) -> None:
-        path = self._root / f"{session_id}.json"
+        path = self.path_for(session_id)
         if path.exists():
             path.unlink()
 

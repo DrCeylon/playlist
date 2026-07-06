@@ -265,7 +265,28 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         )
         let found = response.result["found"]?.boolValue ?? false
         let message = response.result["message"]?.stringValue ?? ""
-        return ManualAcquisitionProbeResult(found: found, message: message)
+        let errorCode = response.result["error_code"]?.stringValue
+        let diagnostics = Self.manualProbeDiagnostics(from: response.result["diagnostics"]?.objectValue)
+        return ManualAcquisitionProbeResult(
+            found: found,
+            message: message,
+            errorCode: errorCode,
+            diagnostics: diagnostics
+        )
+    }
+
+    private static func manualProbeDiagnostics(from payload: BridgeJSONObject?) -> ManualAcquisitionProbeDiagnostics? {
+        guard let payload else { return nil }
+        let searchTerms = payload["search_terms"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        let probeError = payload["probe_error"]?.stringValue
+        return ManualAcquisitionProbeDiagnostics(
+            importSessionID: payload["import_session_id"]?.stringValue ?? "",
+            checkpointPath: payload["checkpoint_path"]?.stringValue ?? "",
+            checkpointExists: payload["checkpoint_exists"]?.boolValue ?? false,
+            searchTerms: searchTerms,
+            providerID: payload["provider_id"]?.stringValue ?? "",
+            probeError: probeError?.isEmpty == true ? nil : probeError
+        )
     }
 
     public func retryImportTracks(
