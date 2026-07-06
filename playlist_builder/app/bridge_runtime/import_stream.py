@@ -92,6 +92,7 @@ def stream_import_playlist(
     write_json_diagnostics: bool,
     session_store: ImportSessionStore,
     checkpoint: ImportSessionCheckpoint | None = None,
+    history_session_id: str = "",
 ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
     import sys
 
@@ -121,6 +122,7 @@ def stream_import_playlist(
         write_json_diagnostics = checkpoint.write_json_diagnostics
         start_index = checkpoint.next_index
         session_id = checkpoint.session_id
+        history_session_id = checkpoint.history_session_id or history_session_id
     else:
         start_index = 0
         session_id = new_session_id()
@@ -150,6 +152,7 @@ def stream_import_playlist(
             total=total,
             start_index=start_index,
             session_id=session_id,
+            history_session_id=history_session_id,
             perf_session=perf_session,
         )
 
@@ -170,6 +173,7 @@ def _stream_import_playlist_body(
     total: int,
     start_index: int,
     session_id: str,
+    history_session_id: str,
     perf_session: PerfSession,
 ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
     import_started_at = time.perf_counter()
@@ -281,6 +285,7 @@ def _stream_import_playlist_body(
                         request_id=request_id,
                         sync=sync,
                         write_json_diagnostics=write_json_diagnostics,
+                        history_session_id=history_session_id,
                     )
                 )
                 yield manual_acquisition_required_event(
@@ -325,6 +330,14 @@ def _stream_import_playlist_body(
                         ),
                     ),
                     phase=ImportPhase.WAITING_FOR_MANUAL_ACQUISITION,
+                    import_session_id=session_id,
+                    manual_token=pause.token,
+                    manual_artist=pause.artist,
+                    manual_title=pause.title,
+                    manual_instructions=pause.instructions,
+                    manual_catalog_label=pause.catalog_label,
+                    manual_catalog_url=pause.catalog_url,
+                    manual_album=pause.album,
                 )
                 yield ImportPlaylistResult(import_result=import_state)
                 return

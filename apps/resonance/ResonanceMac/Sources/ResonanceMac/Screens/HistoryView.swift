@@ -194,6 +194,12 @@ struct HistoryView: View {
                         onConfirmManual: {
                             Task { await workflow.importWorkflow.confirmManualAcquisition() }
                         },
+                        onResumeManualImport: {
+                            if let detail = viewModel.selectedDetail {
+                                workflow.resumeManualImportFromHistory(detail: detail)
+                                selection = workflow.activeRoute
+                            }
+                        },
                         onDismissLiveImport: {
                             workflow.importWorkflow.reset()
                         },

@@ -423,7 +423,15 @@ public enum BridgePayloadBuilder {
             playlistName: playlistName,
             outcomes: outcomes,
             phase: phase,
-            historySessionID: historySessionID
+            historySessionID: historySessionID,
+            importSessionID: importObject["import_session_id"]?.stringValue ?? "",
+            manualToken: importObject["manual_token"]?.stringValue ?? "",
+            manualArtist: importObject["manual_artist"]?.stringValue ?? "",
+            manualTitle: importObject["manual_title"]?.stringValue ?? "",
+            manualInstructions: importObject["manual_instructions"]?.stringValue ?? "",
+            manualCatalogLabel: importObject["manual_catalog_label"]?.stringValue ?? "",
+            manualCatalogURL: importObject["manual_catalog_url"]?.stringValue ?? "",
+            manualAlbum: importObject["manual_album"]?.stringValue ?? ""
         )
     }
 

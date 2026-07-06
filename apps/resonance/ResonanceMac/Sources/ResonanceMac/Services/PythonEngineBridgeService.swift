@@ -254,7 +254,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return try BridgePayloadBuilder.importResult(from: ["import": .object(importObject)])
     }
 
-    public func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+    public func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
         guard let transport else {
             throw PlaylistImportError.bridgeUnavailable
         }
@@ -263,7 +263,9 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             params: ["import_session_id": .string(importSessionID)],
             onEvent: { _ in }
         )
-        return response.result["found"]?.boolValue ?? false
+        let found = response.result["found"]?.boolValue ?? false
+        let message = response.result["message"]?.stringValue ?? ""
+        return ManualAcquisitionProbeResult(found: found, message: message)
     }
 
     public func retryImportTracks(

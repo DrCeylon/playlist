@@ -226,8 +226,8 @@ private final class ControllableImportService: PlaylistImportServing, @unchecked
         throw PlaylistImportError.bridgeUnavailable
     }
 
-    func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+    func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
         _ = importSessionID
-        return false
+        return ManualAcquisitionProbeResult(found: false)
     }
 }

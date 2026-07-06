@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import json
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
-from tempfile import gettempdir
 
 from playlist_builder.core.models import PlaylistDefinition
 
@@ -17,13 +16,14 @@ class ImportSessionCheckpoint:
     request_id: str
     sync: bool
     write_json_diagnostics: bool
+    history_session_id: str = ""
 
 
 class ImportSessionStore:
     """Persists in-flight imports so Resonance can resume after manual acquisition."""
 
     def __init__(self, root: Path | None = None) -> None:
-        self._root = root or Path(gettempdir()) / "resonance_bridge_imports"
+        self._root = root or Path("data/imports/checkpoints")
         self._root.mkdir(parents=True, exist_ok=True)
 
     def save(self, checkpoint: ImportSessionCheckpoint) -> str:
@@ -35,6 +35,7 @@ class ImportSessionStore:
             "request_id": checkpoint.request_id,
             "sync": checkpoint.sync,
             "write_json_diagnostics": checkpoint.write_json_diagnostics,
+            "history_session_id": checkpoint.history_session_id,
         }
         path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         return checkpoint.session_id
@@ -70,6 +71,7 @@ class ImportSessionStore:
             request_id=str(payload.get("request_id", session_id)),
             sync=bool(payload.get("sync", True)),
             write_json_diagnostics=bool(payload.get("write_json_diagnostics", True)),
+            history_session_id=str(payload.get("history_session_id", "")),
         )
 
     def delete(self, session_id: str) -> None:

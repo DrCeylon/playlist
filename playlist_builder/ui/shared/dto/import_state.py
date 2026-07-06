@@ -40,6 +40,14 @@ class ImportResultState:
     playlist_name: str
     outcomes: tuple[ImportTrackOutcome, ...] = ()
     phase: ImportPhase = ImportPhase.COMPLETED
+    import_session_id: str = ""
+    manual_token: str = ""
+    manual_artist: str = ""
+    manual_title: str = ""
+    manual_instructions: str = ""
+    manual_catalog_label: str = ""
+    manual_catalog_url: str = ""
+    manual_album: str = ""
 
     @property
     def added_count(self) -> int:

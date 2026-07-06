@@ -88,10 +88,12 @@ final class ImportViewModel: ObservableObject {
         stopManualPolling()
         guard let importSessionID else {
             screenState = .failed("Session d'import introuvable.")
+            manualPollStatus = "Session d'import introuvable — relancez depuis l'historique ou Nouvelle Playlist."
             return
         }
         let token = activeImportToken
         screenState = .importing
+        manualPollStatus = ""
         mutateProgress { snapshot in
             snapshot.currentStep = "Reprise après ajout manuel…"
             snapshot.lastActivityAt = .now
@@ -104,13 +106,46 @@ final class ImportViewModel: ObservableObject {
             )
             await flushPendingImportEvents()
             guard token == nil || token == activeImportToken else { return }
+            if result.phase == .waitingForManualAcquisition {
+                manualPollStatus = "Morceau pas encore visible dans Music.app — ajoutez-le puis réessayez."
+            }
             finishImport(with: result)
         } catch let error as PlaylistImportError {
             guard token == nil || token == activeImportToken else { return }
+            manualPollStatus = ImportErrorHumanizer.message(for: error)
             failImport(error)
         } catch {
             guard token == nil || token == activeImportToken else { return }
+            manualPollStatus = ImportErrorHumanizer.userMessage(for: error)
             failImport(error)
+        }
+    }
+
+    func restoreManualAcquisition(
+        from report: ImportResultState,
+        generation: PlaylistGenerationResult?,
+        historySessionID: String = ""
+    ) {
+        importedGeneration = generation
+        activeImportToken = UUID()
+        activeHistorySessionID = historySessionID.isEmpty ? report.historySessionID : historySessionID
+        importSessionID = report.importSessionID
+        manualPrompt = report.manualPrompt
+        self.report = report
+        screenState = .waitingForManualAcquisition
+        manualPollStatus = report.canResumeManualAcquisition
+            ? "Reprise depuis l'historique — ajoutez le morceau dans Music.app si nécessaire."
+            : "Checkpoint d'import indisponible — relancez l'import complet."
+        progress = ImportProgressSnapshot(
+            playlistName: report.playlistName,
+            totalTracks: max(report.outcomes.count, 1),
+            processedTracks: report.outcomes.filter { $0.status == .added }.count,
+            currentStep: "Ajout manuel requis — reprise depuis l'historique",
+            phase: .waitingForManualAcquisition,
+            lastActivityAt: .now
+        )
+        if report.canResumeManualAcquisition {
+            startManualPolling()
         }
     }
 
@@ -158,7 +193,13 @@ final class ImportViewModel: ObservableObject {
     private func finishImport(with result: ImportResultState) {
         if result.phase == .waitingForManualAcquisition {
             screenState = .waitingForManualAcquisition
-            report = result
+            self.report = result
+            if importSessionID == nil, !result.importSessionID.isEmpty {
+                importSessionID = result.importSessionID
+            }
+            if manualPrompt == nil, let prompt = result.manualPrompt {
+                manualPrompt = prompt
+            }
             startManualPolling()
             return
         }
@@ -309,15 +350,24 @@ final class ImportViewModel: ObservableObject {
     private func probeManualAcquisition() async {
         guard let importSessionID, screenState == .waitingForManualAcquisition, !isContinuingManual else { return }
         do {
-            let found = try await service.probeManualAcquisition(importSessionID: importSessionID)
-            if found {
-                manualPollStatus = "Morceau détecté — reprise automatique…"
+            let probe = try await service.probeManualAcquisition(importSessionID: importSessionID)
+            if probe.found {
+                manualPollStatus = probe.message.isEmpty
+                    ? "Morceau détecté — reprise automatique…"
+                    : probe.message
                 await confirmManualAcquisition()
+            } else if !probe.message.isEmpty {
+                manualPollStatus = probe.message
             } else {
                 manualPollStatus = "Vérification bibliothèque en arrière-plan… morceau pas encore visible."
             }
+        } catch let error as PlaylistImportError {
+            let message = ImportErrorHumanizer.message(for: error)
+            manualPollStatus = message
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         } catch {
-            manualPollStatus = "Vérification bibliothèque indisponible."
+            manualPollStatus = ImportErrorHumanizer.userMessage(for: error)
+            architectErrorDetail = String(describing: error)
         }
     }
 

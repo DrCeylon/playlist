@@ -135,6 +135,17 @@ final class AppWorkflowCoordinator: ObservableObject {
         await importWorkflow.importPlaylist(generation)
     }
 
+    func resumeManualImportFromHistory(detail: SessionHistoryDetail) {
+        guard let report = try? HistoryPayloadMapper.importResult(from: detail.importResult) else { return }
+        let generation = try? HistoryPayloadMapper.generationResult(from: detail.generationResult)
+        importWorkflow.restoreManualAcquisition(
+            from: report,
+            generation: generation,
+            historySessionID: detail.summary.sessionID
+        )
+        activeRoute = .newPlaylist
+    }
+
     func applyPendingEditIfNeeded() {
         guard let request = pendingEditRequest else { return }
         playlistBuilder.loadFromHistory(request)

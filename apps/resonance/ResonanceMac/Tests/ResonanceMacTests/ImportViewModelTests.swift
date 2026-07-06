@@ -51,8 +51,8 @@ final class ImportViewModelTests: XCTestCase {
                 ImportResultState(playlistName: "Demo", phase: .completed)
             }
 
-            func probeManualAcquisition(importSessionID: String) async throws -> Bool {
-                false
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(found: false)
             }
         }
 
@@ -81,8 +81,8 @@ final class ImportViewModelTests: XCTestCase {
                 throw PlaylistImportError.invalidResponse
             }
 
-            func probeManualAcquisition(importSessionID: String) async throws -> Bool {
-                false
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(found: false)
             }
         }
 
@@ -128,8 +128,8 @@ final class ImportViewModelTests: XCTestCase {
                 ImportResultState(playlistName: "Demo", phase: .completed)
             }
 
-            func probeManualAcquisition(importSessionID: String) async throws -> Bool {
-                false
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(found: false)
             }
         }
 
@@ -173,8 +173,8 @@ final class ImportViewModelTests: XCTestCase {
                 ImportResultState(playlistName: "Demo", phase: .completed)
             }
 
-            func probeManualAcquisition(importSessionID: String) async throws -> Bool {
-                false
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(found: false)
             }
         }
 
@@ -215,5 +215,51 @@ final class ImportViewModelTests: XCTestCase {
         XCTAssertEqual(result.phase, .partialSuccess)
         XCTAssertEqual(result.addedCount, 1)
         XCTAssertEqual(result.notFoundCount, 1)
+    }
+
+    func testRestoreManualAcquisitionFromHistoryReport() {
+        let viewModel = ImportViewModel()
+        let report = ImportResultState(
+            playlistName: "Test au lit",
+            outcomes: [
+                ImportTrackOutcome(
+                    artist: "Artist",
+                    title: "Title",
+                    section: "Main",
+                    status: .acquiring,
+                    message: "Ajoutez dans Music.app"
+                ),
+            ],
+            phase: .waitingForManualAcquisition,
+            historySessionID: "hist-1",
+            importSessionID: "bridge-session-1",
+            manualToken: "token",
+            manualArtist: "Artist",
+            manualTitle: "Title",
+            manualInstructions: "instructions",
+            manualCatalogURL: "https://music.apple.com/song/1"
+        )
+
+        viewModel.restoreManualAcquisition(from: report, generation: nil, historySessionID: "hist-1")
+
+        XCTAssertEqual(viewModel.screenState, .waitingForManualAcquisition)
+        XCTAssertEqual(viewModel.manualPrompt?.artist, "Artist")
+        XCTAssertTrue(viewModel.manualPollStatus.contains("historique"))
+    }
+
+    func testImportResultCanResumeManualAcquisitionFlag() throws {
+        let payload: BridgeJSONObject = [
+            "import": .object([
+                "playlist_name": .string("Demo"),
+                "phase": .string("waiting_for_manual_acquisition"),
+                "import_session_id": .string("bridge-session-1"),
+                "manual_artist": .string("Artist"),
+                "manual_title": .string("Title"),
+                "outcomes": .array([]),
+            ]),
+        ]
+        let result = try BridgePayloadBuilder.importResult(from: payload)
+        XCTAssertTrue(result.canResumeManualAcquisition)
+        XCTAssertNotNil(result.manualPrompt)
     }
 }

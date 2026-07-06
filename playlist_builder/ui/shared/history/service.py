@@ -163,7 +163,7 @@ def _status_from_import_phase(phase: str) -> HistorySessionStatus:
 
 
 def _import_result_dict(result: ImportResultState) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "playlist_name": result.playlist_name,
         "phase": result.phase.value,
         "outcomes": [
@@ -177,4 +177,21 @@ def _import_result_dict(result: ImportResultState) -> dict[str, Any]:
             for item in result.outcomes
         ],
     }
+    if result.import_session_id:
+        payload["import_session_id"] = result.import_session_id
+    if result.manual_token:
+        payload["manual_token"] = result.manual_token
+    if result.manual_artist:
+        payload["manual_artist"] = result.manual_artist
+    if result.manual_title:
+        payload["manual_title"] = result.manual_title
+    if result.manual_instructions:
+        payload["manual_instructions"] = result.manual_instructions
+    if result.manual_catalog_label:
+        payload["manual_catalog_label"] = result.manual_catalog_label
+    if result.manual_catalog_url:
+        payload["manual_catalog_url"] = result.manual_catalog_url
+    if result.manual_album:
+        payload["manual_album"] = result.manual_album
+    return payload
 

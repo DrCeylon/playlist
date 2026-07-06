@@ -50,8 +50,8 @@ public struct MockPlaylistImportService: PlaylistImportServing {
         throw PlaylistImportError.bridgeUnavailable
     }
 
-    public func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+    public func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
         _ = importSessionID
-        return false
+        return ManualAcquisitionProbeResult(found: false, message: "Mock probe indisponible.")
     }
 }

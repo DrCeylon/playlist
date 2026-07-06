@@ -7,6 +7,8 @@ struct HistoryWorkflowResumeView: View {
         case none
         case preview(PlaylistGenerationResult)
         case importReport(ImportResultState)
+        case manualAcquisitionWaiting(ImportResultState)
+        case manualAcquisitionUnavailable(ImportResultState, hasRequest: Bool, playlistName: String)
         case liveImport
         case liveGeneration(playlistName: String)
         case liveImportFailed(message: String)
@@ -23,6 +25,7 @@ struct HistoryWorkflowResumeView: View {
     let onRetryImport: (PlaylistGenerationResult) -> Void
     let onExport: () -> Void
     let onConfirmManual: () -> Void
+    let onResumeManualImport: () -> Void
     let onDismissLiveImport: () -> Void
     let onOpenNewPlaylist: () -> Void
     @EnvironmentObject private var themeManager: ThemeManager
@@ -56,6 +59,15 @@ struct HistoryWorkflowResumeView: View {
                         actionsDisabledReason: actionsDisabledReason,
                         onRetryTrack: { index in onRetryTrack(index) },
                         onClose: {}
+                    )
+                case .manualAcquisitionWaiting(let report):
+                    manualAcquisitionResumePanel(report: report, palette: palette)
+                case .manualAcquisitionUnavailable(let report, let hasRequest, let playlistName):
+                    manualAcquisitionUnavailablePanel(
+                        report: report,
+                        hasRequest: hasRequest,
+                        playlistName: playlistName,
+                        palette: palette
                     )
                 case .liveImport:
                     ImportProgressView(
@@ -301,6 +313,95 @@ struct HistoryWorkflowResumeView: View {
         guard let detail else { return nil }
         guard !detail.generationResult.isEmpty else { return nil }
         return try? HistoryPayloadMapper.generationResult(from: detail.generationResult)
+    }
+
+    @ViewBuilder
+    private func manualAcquisitionResumePanel(report: ImportResultState, palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Ajout manuel en attente", systemImage: "hand.raised")
+                .font(.headline)
+                .foregroundStyle(palette.statusWarning)
+
+            if let prompt = report.manualPrompt {
+                ManualAcquisitionCard(
+                    prompt: prompt,
+                    trackPositionLabel: report.outcomes.first.map { $0.searchLine },
+                    pollStatus: "",
+                    palette: palette,
+                    onConfirmManual: onResumeManualImport
+                )
+            } else if let outcome = report.outcomes.first {
+                CopyableField(label: "Morceau", value: outcome.searchLine, palette: palette)
+                SelectableText(
+                    text: outcome.message,
+                    font: .callout,
+                    foreground: palette.textSecondary
+                )
+            }
+
+            Button {
+                onResumeManualImport()
+            } label: {
+                Label("Reprendre l'ajout manuel", systemImage: "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(palette.accentPrimary)
+            .disabled(isBusy)
+            .opacity(isBusy ? 0.55 : 1)
+
+            Text("Cette action rouvre le workflow d'import actif — identique à Nouvelle Playlist.")
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(16)
+        .background(palette.backgroundSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func manualAcquisitionUnavailablePanel(
+        report: ImportResultState,
+        hasRequest: Bool,
+        playlistName: String,
+        palette: ThemePalette
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Reprise indisponible", systemImage: "exclamationmark.triangle")
+                .font(.headline)
+                .foregroundStyle(palette.statusWarning)
+            Text(
+                "La session «\(playlistName)» nécessite un ajout manuel, mais le checkpoint d'import n'est plus disponible."
+            )
+            .foregroundStyle(palette.textSecondary)
+
+            if let outcome = report.outcomes.first {
+                CopyableField(label: "Morceau", value: outcome.searchLine, palette: palette)
+            }
+
+            if hasRequest {
+                Button("Modifier le formulaire", action: onEditForm)
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accentPrimary)
+                    .disabled(isBusy)
+            } else if let generation = generationResultForDetail() {
+                Button {
+                    onRetryImport(generation)
+                } label: {
+                    Label("Réessayer l'import", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(palette.accentPrimary)
+                .disabled(isBusy)
+            } else {
+                Button("Ouvrir Nouvelle Playlist", action: onOpenNewPlaylist)
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.accentPrimary)
+                    .disabled(isBusy)
+            }
+        }
+        .padding(16)
+        .background(palette.backgroundSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func statusTint(for status: SessionHistoryStatus, palette: ThemePalette) -> Color {

@@ -85,6 +85,9 @@ class RuntimeEngineBridgeBackend:
             session_store=self._session_store,
             checkpoint=checkpoint,
         ):
+            if isinstance(item, ImportPlaylistResult):
+                yield self._attach_history_import_result(item, checkpoint.history_session_id)
+                continue
             yield item
 
     def probe_manual_acquisition(self, params: dict) -> dict[str, object]:
@@ -93,10 +96,14 @@ class RuntimeEngineBridgeBackend:
             raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "import_session_id est requis.")
         checkpoint = self._session_store.load(session_id)
         if checkpoint is None:
-            raise BridgeError(
-                BridgeErrorCode.MANUAL_ACTION_REQUIRED,
-                "Session d'import introuvable ou expirée.",
-            )
+            return {
+                "found": False,
+                "message": (
+                    "Session d'import introuvable ou expirée. "
+                    "Relancez l'import depuis l'historique ou depuis Nouvelle Playlist."
+                ),
+                "error_code": "checkpoint_missing",
+            }
         if sys.platform != "darwin":
             return {"found": False, "message": "Disponible uniquement sur macOS."}
 
@@ -249,19 +256,10 @@ class RuntimeEngineBridgeBackend:
             sync=True,
             write_json_diagnostics=write_json_diagnostics,
             session_store=self._session_store,
+            history_session_id=history_session_id or "",
         ):
             if isinstance(item, ImportPlaylistResult):
-                diagnostics = HistoryDiagnosticsSummary()
-                if item.import_result.phase.value == "failed":
-                    diagnostics = HistoryDiagnosticsSummary(errors=1, last_message="Import failed")
-                updated = self._history.attach_import_result(
-                    session_id=history_session_id,
-                    playlist_name=item.import_result.playlist_name,
-                    provider_id=ProviderId.APPLE_MUSIC,
-                    result=item.import_result,
-                    diagnostics=diagnostics,
-                )
-                yield ImportPlaylistResult(import_result=item.import_result, history_session_id=updated.session_id)
+                yield self._attach_history_import_result(item, history_session_id)
                 continue
             yield item
 
@@ -319,6 +317,25 @@ class RuntimeEngineBridgeBackend:
 
         request = playlist_generation_request_from_dict(request_payload)
         return self.generate_playlist(request, request_id=request_id)
+
+    def _attach_history_import_result(
+        self,
+        item: ImportPlaylistResult,
+        history_session_id: str | None,
+    ) -> ImportPlaylistResult:
+        diagnostics = HistoryDiagnosticsSummary()
+        if item.import_result.phase.value == "failed":
+            diagnostics = HistoryDiagnosticsSummary(errors=1, last_message="Import failed")
+        updated = self._history.attach_import_result(
+            session_id=history_session_id,
+            playlist_name=item.import_result.playlist_name,
+            provider_id=ProviderId.APPLE_MUSIC,
+            result=item.import_result,
+            diagnostics=diagnostics,
+        )
+        if item.import_result.phase.value != "waiting_for_manual_acquisition":
+            self._session_store.delete(item.import_result.import_session_id)
+        return ImportPlaylistResult(import_result=item.import_result, history_session_id=updated.session_id)
 
     @staticmethod
     def _build_generation_engine(context: AppContext) -> GenerationSessionEngine:

@@ -261,17 +261,59 @@ public struct ImportResultState: Hashable, Codable, Sendable {
     public var outcomes: [ImportTrackOutcome]
     public var phase: ImportPhase
     public var historySessionID: String
+    public var importSessionID: String
+    public var manualToken: String
+    public var manualArtist: String
+    public var manualTitle: String
+    public var manualInstructions: String
+    public var manualCatalogLabel: String
+    public var manualCatalogURL: String
+    public var manualAlbum: String
 
     public init(
         playlistName: String,
         outcomes: [ImportTrackOutcome] = [],
         phase: ImportPhase = .completed,
-        historySessionID: String = ""
+        historySessionID: String = "",
+        importSessionID: String = "",
+        manualToken: String = "",
+        manualArtist: String = "",
+        manualTitle: String = "",
+        manualInstructions: String = "",
+        manualCatalogLabel: String = "",
+        manualCatalogURL: String = "",
+        manualAlbum: String = ""
     ) {
         self.playlistName = playlistName
         self.outcomes = outcomes
         self.phase = phase
         self.historySessionID = historySessionID
+        self.importSessionID = importSessionID
+        self.manualToken = manualToken
+        self.manualArtist = manualArtist
+        self.manualTitle = manualTitle
+        self.manualInstructions = manualInstructions
+        self.manualCatalogLabel = manualCatalogLabel
+        self.manualCatalogURL = manualCatalogURL
+        self.manualAlbum = manualAlbum
+    }
+
+    public var manualPrompt: ManualAcquisitionPrompt? {
+        guard phase == .waitingForManualAcquisition else { return nil }
+        guard !manualArtist.isEmpty || !manualTitle.isEmpty else { return nil }
+        return ManualAcquisitionPrompt(
+            token: manualToken,
+            artist: manualArtist,
+            title: manualTitle,
+            instructions: manualInstructions,
+            catalogLabel: manualCatalogLabel,
+            album: manualAlbum,
+            catalogURL: manualCatalogURL
+        )
+    }
+
+    public var canResumeManualAcquisition: Bool {
+        phase == .waitingForManualAcquisition && !importSessionID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     public var addedCount: Int {
@@ -295,6 +337,16 @@ public struct ImportResultState: Hashable, Codable, Sendable {
     }
 }
 
+public struct ManualAcquisitionProbeResult: Equatable, Sendable {
+    public var found: Bool
+    public var message: String
+
+    public init(found: Bool, message: String = "") {
+        self.found = found
+        self.message = message
+    }
+}
+
 public protocol PlaylistImportServing: Sendable {
     func importPlaylist(
         _ result: PlaylistGenerationResult,
@@ -303,7 +355,7 @@ public protocol PlaylistImportServing: Sendable {
 
     func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState
 
-    func probeManualAcquisition(importSessionID: String) async throws -> Bool
+    func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult
 
     func retryImportTracks(
         _ generationResult: PlaylistGenerationResult,
@@ -323,9 +375,9 @@ public extension PlaylistImportServing {
         _ = onEvent
         throw PlaylistImportError.bridgeUnavailable
     }
-    func probeManualAcquisition(importSessionID: String) async throws -> Bool {
+    func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
         _ = importSessionID
-        return false
+        return ManualAcquisitionProbeResult(found: false, message: "Probe indisponible.")
     }
 
     func continueManualAcquisition(

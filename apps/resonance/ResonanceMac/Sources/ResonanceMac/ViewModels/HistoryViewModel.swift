@@ -44,9 +44,20 @@ final class HistoryViewModel: ObservableObject {
         guard let detail = selectedDetail else { return .none }
 
         switch detail.summary.status {
-        case .imported, .partialSuccess, .waitingForManualAcquisition:
+        case .imported, .partialSuccess:
             if let report = importReport(from: detail) {
                 return .importReport(report)
+            }
+        case .waitingForManualAcquisition:
+            if let report = importReport(from: detail) {
+                if report.canResumeManualAcquisition {
+                    return .manualAcquisitionWaiting(report)
+                }
+                return .manualAcquisitionUnavailable(
+                    report: report,
+                    hasRequest: editRequestForSelectedSession() != nil,
+                    playlistName: detail.summary.playlistName
+                )
             }
         case .generated:
             if let preview = previewResult(from: detail) {
@@ -76,6 +87,11 @@ final class HistoryViewModel: ObservableObject {
     func generationResultForSelectedSession() -> PlaylistGenerationResult? {
         guard let detail = selectedDetail else { return nil }
         return previewResult(from: detail)
+    }
+
+    func importReportForSelectedSession() -> ImportResultState? {
+        guard let detail = selectedDetail else { return nil }
+        return importReport(from: detail)
     }
 
     func refresh() async {
