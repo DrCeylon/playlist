@@ -420,7 +420,18 @@ final class ImportViewModelTests: XCTestCase {
 
             func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
                 continueCount += 1
-                return ImportResultState(playlistName: "Demo", phase: .completed, addedCount: 1)
+                return ImportResultState(
+                    playlistName: "Demo",
+                    outcomes: [
+                        ImportTrackOutcome(
+                            artist: "Artist",
+                            title: "Title",
+                            section: "Main",
+                            status: .added
+                        ),
+                    ],
+                    phase: .completed
+                )
             }
 
             func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
