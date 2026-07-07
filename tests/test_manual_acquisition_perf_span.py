@@ -5,8 +5,6 @@ from unittest.mock import MagicMock, patch
 
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionStore
 from playlist_builder.app.bridge_runtime.import_stream import stream_import_playlist
-from playlist_builder.app.factory import build_app_context
-from playlist_builder.app.settings import AppSettings
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.canonical.models import (
     CanonicalArtist,
@@ -18,18 +16,22 @@ from playlist_builder.canonical.models import (
 from playlist_builder.core.models import PlaylistDefinition, PlaylistSection, TrackRef
 from playlist_builder.ui.bridge.commands import ImportPlaylistResult
 from playlist_builder.ui.shared.dto.enums import ImportPhase
+from tests.manual_acquisition_test_support import (
+    build_isolated_manual_context,
+    install_explicit_manual_interruption_hook,
+    stub_manual_acquisition_prerequisites,
+)
 
 
-def test_manual_acquisition_survives_perf_span_context_manager():
+def test_manual_acquisition_survives_perf_span_context_manager(monkeypatch, tmp_path):
     """Regression: frozen dataclass exceptions broke perf_span __exit__ traceback attach."""
     with patch.object(sys, "platform", "darwin"):
-        context = build_app_context(AppSettings(wait_for_manual_catalog_add=True))
+        context = build_isolated_manual_context(tmp_path)
         resolver = context.registry.get(ProviderId.APPLE_MUSIC).import_service.resolver
         applescript = resolver._applescript
         applescript.ensure_running = MagicMock()
-        applescript.collect_candidates_batch = MagicMock(return_value=[[]])
-        applescript.try_add_catalog_url = MagicMock(return_value="")
-        applescript.open_catalog_url_for_manual = MagicMock()
+        stub_manual_acquisition_prerequisites(applescript)
+        install_explicit_manual_interruption_hook(monkeypatch)
 
         catalog_track = CanonicalTrack(
             artist=CanonicalArtist(name="Dwayne Johnson"),
@@ -70,7 +72,7 @@ def test_manual_acquisition_survives_perf_span_context_manager():
                 "req-1",
                 sync=True,
                 write_json_diagnostics=False,
-                session_store=ImportSessionStore(),
+                session_store=ImportSessionStore(tmp_path / "checkpoints"),
             )
         )
 

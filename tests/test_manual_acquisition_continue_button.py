@@ -23,6 +23,12 @@ from playlist_builder.core.models import PlaylistDefinition, PlaylistSection, Tr
 from playlist_builder.integration.apple_music.models import AppleMusicTrack
 from playlist_builder.ui.bridge.commands import ImportPlaylistResult
 from playlist_builder.ui.shared.dto.enums import ImportPhase
+from tests.manual_acquisition_test_support import (
+    assert_identity_cache_miss,
+    build_isolated_manual_context,
+    install_explicit_manual_interruption_hook,
+    stub_manual_acquisition_prerequisites,
+)
 
 
 def _playlist() -> PlaylistDefinition:
@@ -70,27 +76,36 @@ def _session_id(events: list[object]) -> str:
     raise AssertionError("import_session_id missing from stream events")
 
 
+def _canonical_pause_track() -> CanonicalTrack:
+    return canonical_playlist_from_legacy(_playlist()).sections[0].tracks[0]
+
+
 def _pause_for_manual_acquisition(monkeypatch, tmp_path) -> tuple[object, ImportSessionStore, str]:
     store = ImportSessionStore(tmp_path / "checkpoints")
-    context = build_app_context(AppSettings(wait_for_manual_catalog_add=True))
+    context = build_isolated_manual_context(tmp_path)
     applescript = _configure_catalog(context)
-    applescript.collect_candidates_batch = MagicMock(return_value=[[]])
-    applescript.try_add_catalog_url = MagicMock(return_value="")
-    applescript.open_catalog_url_for_manual = MagicMock()
+    stub_manual_acquisition_prerequisites(applescript)
     monkeypatch.setattr("playlist_builder.integration.apple_music.resolver.time.sleep", lambda _: None)
+    install_explicit_manual_interruption_hook(monkeypatch)
 
-    pause_events = list(
-        stream_import_playlist(
-            context,
-            _playlist(),
-            "req-1",
-            sync=True,
-            write_json_diagnostics=False,
-            session_store=store,
+    pause_track = _canonical_pause_track()
+    assert_identity_cache_miss(context, pause_track)
+
+    with patch.object(sys, "platform", "darwin"):
+        pause_events = list(
+            stream_import_playlist(
+                context,
+                _playlist(),
+                "req-1",
+                sync=True,
+                write_json_diagnostics=False,
+                session_store=store,
+            )
         )
-    )
     pause_final = next(item for item in pause_events if isinstance(item, ImportPlaylistResult))
     assert pause_final.import_result.phase == ImportPhase.WAITING_FOR_MANUAL_ACQUISITION
+    applescript.try_add_catalog_url.assert_called()
+    applescript.open_catalog_url_for_manual.assert_called_once()
     return context, store, _session_id(pause_events)
 
 
