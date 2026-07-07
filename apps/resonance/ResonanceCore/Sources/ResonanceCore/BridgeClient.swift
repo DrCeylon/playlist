@@ -1,7 +1,13 @@
 import Foundation
-import os
+private struct BridgeRuntimeLogger {
+    let category: String
 
-private let bridgeLogger = Logger(subsystem: "com.resonance.mac", category: "Bridge")
+    func info(_ message: String) { print("[\(category)] INFO: \(message)") }
+    func warning(_ message: String) { print("[\(category)] WARN: \(message)") }
+    func debug(_ message: String) { print("[\(category)] DEBUG: \(message)") }
+}
+
+private let bridgeLogger = BridgeRuntimeLogger(category: "Bridge")
 
 public struct BridgeClientConfiguration: Sendable {
     public var pythonExecutable: String
@@ -163,7 +169,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             ManualContinueTrace.log("ENTER BridgeClient.send command=\(command.rawValue) request_id=\(requestID)")
             ManualContinueTrace.log("Bridge request JSON sent: \(requestLine)")
         }
-        bridgeLogger.info("Bridge send \(command.rawValue, privacy: .public) id=\(requestID, privacy: .public)")
+        bridgeLogger.info("Bridge send \(command.rawValue) id=\(requestID)")
         let lines = try await runProcess(requestLine: requestLine) { line in
             Self.dispatchStreamingLine(
                 line: line,
@@ -173,11 +179,11 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             )
         } onStderrLine: { line in
             if line.hasPrefix("resonance-perf:") {
-                bridgeLogger.info("\(line, privacy: .public)")
+                bridgeLogger.info(line)
                 return
             }
             let message = "[stderr] \(line)"
-            bridgeLogger.warning("\(message, privacy: .public)")
+            bridgeLogger.warning(message)
             onDiagnostic?(message)
         }
         let bridgeRoundTripMS = max(0, Int(Date().timeIntervalSince(bridgeStarted) * 1000))
@@ -201,7 +207,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
     ) {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        bridgeLogger.debug("Bridge stdout: \(trimmed, privacy: .public)")
+        bridgeLogger.debug("Bridge stdout: \(trimmed)")
 
         if let object = try? BridgeResponseParser.parseJSONObject(trimmed),
            object["type"]?.stringValue == "event",
@@ -232,7 +238,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
             guard let object = try? BridgeResponseParser.parseJSONObject(line) else {
                 skippedNonJSONLines += 1
                 bridgeLogger.warning(
-                    "Bridge stdout ignored (non-JSON): \(line, privacy: .public)"
+                    "Bridge stdout ignored (non-JSON): \(line)"
                 )
                 continue
             }
@@ -251,7 +257,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
 
         if skippedNonJSONLines > 0 {
             bridgeLogger.warning(
-                "Bridge conversation skipped \(skippedNonJSONLines, privacy: .public) non-JSON stdout line(s)"
+                "Bridge conversation skipped \(skippedNonJSONLines) non-JSON stdout line(s)"
             )
         }
 
@@ -317,7 +323,7 @@ public final class BridgeClient: BridgeTransport, @unchecked Sendable {
                 onStderrLine: onStderrLine
             )
             let runState = BridgeProcessRunState()
-            let deadline = Date().addingTimeInterval(configuration.timeoutSeconds)
+            let deadline = Date().addingTimeInterval(self.configuration.timeoutSeconds)
 
             outputPipe.fileHandleForReading.readabilityHandler = { @Sendable handle in
                 let data = handle.availableData

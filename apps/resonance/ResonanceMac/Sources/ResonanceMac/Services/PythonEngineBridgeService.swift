@@ -1,8 +1,11 @@
 import Foundation
-import os
 import ResonanceCore
 
-private let bridgeServiceLogger = Logger(subsystem: "com.resonance.mac", category: "BridgeService")
+private struct BridgeServiceLogger {
+    func debug(_ message: String) { print("[BridgeService] DEBUG: \(message)") }
+}
+
+private let bridgeServiceLogger = BridgeServiceLogger()
 
 public enum ResonancePaths {
     public static func repoRoot(
@@ -206,7 +209,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                 ],
                 onEvent: onEvent,
                 onDiagnostic: { line in
-                    bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
+                    bridgeServiceLogger.debug("Bridge stderr: \(line)")
                 }
             )
             let bridgeMS = max(0, Int(Date().timeIntervalSince(bridgeStarted) * 1000))
@@ -248,7 +251,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             params: ["import_session_id": .string(importSessionID)],
             onEvent: onEvent,
             onDiagnostic: { line in
-                bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
+                bridgeServiceLogger.debug("Bridge stderr: \(line)")
             }
         )
         ManualContinueTrace.log("RETURN BridgeClient.send command=continue_manual_acquisition")
@@ -334,7 +337,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             ],
             onEvent: onEvent,
             onDiagnostic: { line in
-                bridgeServiceLogger.debug("Bridge stderr: \(line, privacy: .public)")
+                bridgeServiceLogger.debug("Bridge stderr: \(line)")
             }
         )
         return try BridgePayloadBuilder.importResult(from: response.result)

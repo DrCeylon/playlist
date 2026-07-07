@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 public typealias BridgeJSONObject = [String: BridgeJSONValue]
 
