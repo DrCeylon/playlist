@@ -72,7 +72,7 @@ private struct PlaylistBuilderScreen: View {
                         Task { await importViewModel.retryImportTrack(at: index) }
                     }) {
                         importViewModel.reset()
-                        viewModel.backToEditing()
+                        viewModel.screenState = .editing
                         syncDraftFromViewModel()
                     }
                 }
@@ -128,7 +128,7 @@ private struct PlaylistBuilderScreen: View {
                     result: result,
                     previewSourceLabel: viewModel.previewSourceLabel,
                     onEdit: {
-                        viewModel.backToEditing()
+                        viewModel.screenState = .editing
                         syncDraftFromViewModel()
                     },
                     onImport: {
