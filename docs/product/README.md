@@ -15,6 +15,7 @@ Phase 4 — Product discovery & UI contracts.
 | [phase-4-import-ux.md](phase-4-import-ux.md) | Import UX + bridge runtime (Phase 4.6) |
 | [phase-4-diagnostics-lab.md](phase-4-diagnostics-lab.md) | Diagnostics laboratory (Phase 4.7) |
 | [phase-4-session-history.md](phase-4-session-history.md) | Session history (Phase 4.8) |
+| [phase-6-repertoire.md](phase-6-repertoire.md) | Répertoire — playlist library (Phase 6 — conception) |
 | [phase-4-6-bridge-runtime.md](phase-4-6-bridge-runtime.md) | Bridge runtime technical notes |
 | [ios-planned-structure.md](ios-planned-structure.md) | Future iOS layout |
 

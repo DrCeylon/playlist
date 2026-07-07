@@ -20,6 +20,10 @@ This directory contains the long-lived architectural documentation for Playlist 
 | [ADR-011-cross-platform-product-ui.md](ADR-011-cross-platform-product-ui.md) | Cross-platform product UI architecture (Phase 4.0) |
 | [ADR-012-apple-catalog-acquisition-production-policy.md](ADR-012-apple-catalog-acquisition-production-policy.md) | Apple catalog acquisition production policy (Phase 5.3.3) |
 | [ADR-013-multi-provider-platform-vision.md](ADR-013-multi-provider-platform-vision.md) | Multi-provider platform vision (Phase 5.4) |
+| [ADR-014-repertoire-as-first-class-playlist-library.md](ADR-014-repertoire-as-first-class-playlist-library.md) | Répertoire as first-class playlist library (Phase 6 — proposed) |
+| [ADR-015-playlist-publication-as-provider-destination.md](ADR-015-playlist-publication-as-provider-destination.md) | Playlist publication as provider destination (Phase 6 — proposed) |
+| [ADR-016-playlist-export-formats.md](ADR-016-playlist-export-formats.md) | Playlist export formats M3U/CSV/JSON (Phase 6 — proposed) |
+| [ADR-017-playlist-lineage-without-versioning.md](ADR-017-playlist-lineage-without-versioning.md) | Playlist lineage without versioning (Phase 6 — proposed) |
 | [phase-4-ui-architecture.md](phase-4-ui-architecture.md) | Phase 4 UI implementation notes |
 
 ## Product (Phase 4)
@@ -46,7 +50,13 @@ See [../product/README.md](../product/README.md).
 | PR 4.2–4.9 | UI implementation roadmap | Largely done (macOS shell, import UX, history) |
 | PR 5.3 | Performance + acquisition policy (ADR-012) | Done |
 | PR 5.4 | Architecture consolidation (ADR-013, no runtime change) | Done |
-| PR 5.5+ | ProviderImportPort, bridge decoupling | Planned |
+| PR 5.4 | Architecture consolidation (ADR-013, no runtime change) | Done |
+| PR 5.5+ | ProviderImportPort, manual acquisition, validation branch | In progress |
+| PR 6.0+ | Répertoire — playlist library (ADR-014–017, docs first) | Planned |
+
+## Product (Phase 6)
+
+See [../product/phase-6-repertoire.md](../product/phase-6-repertoire.md).
 
 ## Rules
 
