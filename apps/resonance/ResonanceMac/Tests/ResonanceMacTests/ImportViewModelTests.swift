@@ -244,7 +244,8 @@ final class ImportViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.screenState, .waitingForManualAcquisition)
         XCTAssertEqual(viewModel.manualPrompt?.artist, "Artist")
-        XCTAssertTrue(viewModel.manualPollStatus.contains("historique"))
+        let pollStatus = viewModel.manualPollStatus
+        XCTAssertTrue(pollStatus.contains("historique"))
     }
 
     func testImportResultCanResumeManualAcquisitionFlag() throws {
@@ -359,7 +360,8 @@ final class ImportViewModelTests: XCTestCase {
         await viewModel.confirmManualAcquisition()
 
         XCTAssertEqual(viewModel.screenState, .waitingForManualAcquisition)
-        XCTAssertTrue(viewModel.manualPollStatus.contains("pas encore détecté"))
+        let pollStatus = viewModel.manualPollStatus
+        XCTAssertTrue(pollStatus.contains("pas encore détecté"))
     }
 
     func testConfirmManualAcquisitionIgnoresDuplicateClicks() async {
@@ -397,7 +399,8 @@ final class ImportViewModelTests: XCTestCase {
 
         async let first: Void = viewModel.confirmManualAcquisition()
         await Task.yield()
-        XCTAssertTrue(viewModel.isContinuingManual)
+        let isContinuing = viewModel.isContinuingManual
+        XCTAssertTrue(isContinuing)
         await viewModel.confirmManualAcquisition()
         await first
 

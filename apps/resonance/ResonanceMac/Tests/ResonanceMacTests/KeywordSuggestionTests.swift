@@ -52,6 +52,7 @@ final class KeywordSuggestionTests: XCTestCase {
         XCTAssertTrue(refs.contains(where: { $0.label == "2010s" && $0.source == .autoYear }))
     }
 
+    @MainActor
     func testPlaylistBuilderAddsAutomaticKeywordsAfterSelection() {
         let viewModel = PlaylistBuilderViewModel()
         viewModel.seedArtist = ArtistRef(id: "1", displayName: "Muse")
@@ -66,13 +67,14 @@ final class KeywordSuggestionTests: XCTestCase {
 
         viewModel.mergeAutomaticKeywords()
 
-        XCTAssertFalse(viewModel.keywords.isEmpty)
-        XCTAssertTrue(viewModel.keywords.contains(where: \.isAutomatic))
+        let keywords = viewModel.keywords
+        XCTAssertFalse(keywords.isEmpty)
+        XCTAssertTrue(keywords.contains(where: \.isAutomatic))
     }
 }
 
+@MainActor
 final class ManualAcquisitionStatusTests: XCTestCase {
-    @MainActor
     func testConfirmManualAcquisitionRecordsClickTimestamp() async {
         final class ProbeService: PlaylistImportServing {
             func importPlaylist(
@@ -110,9 +112,12 @@ final class ManualAcquisitionStatusTests: XCTestCase {
 
         await viewModel.confirmManualAcquisition()
 
-        XCTAssertNotNil(viewModel.manualAcquisitionStatus.lastUserClickAt)
-        XCTAssertTrue(viewModel.manualAcquisitionStatus.currentStep.contains("non détecté")
-            || viewModel.manualAcquisitionStatus.currentStep.contains("Morceau"))
-        XCTAssertFalse(viewModel.manualAcquisitionStatus.lastVerificationResult.isEmpty)
+        let status = viewModel.manualAcquisitionStatus
+        XCTAssertNotNil(status.lastUserClickAt)
+        let currentStep = status.currentStep
+        XCTAssertTrue(
+            currentStep.contains("non détecté") || currentStep.contains("Morceau")
+        )
+        XCTAssertFalse(status.lastVerificationResult.isEmpty)
     }
 }
