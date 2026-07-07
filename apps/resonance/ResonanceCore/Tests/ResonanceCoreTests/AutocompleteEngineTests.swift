@@ -1,61 +1,69 @@
 import ResonanceCore
 import XCTest
 
-@MainActor
 final class AutocompleteEngineTests: XCTestCase {
     func testDebounceReturnsResults() async {
-        let provider = MockArtistSuggestionProvider()
-        let engine = AutocompleteEngine(
-            provider: provider,
-            entityKind: .artist,
-            debounceInterval: 0.05
-        )
-
-        engine.updateQuery("ky")
-        XCTAssertEqual(engine.session.phase, .debouncing)
+        let engine = await MainActor.run {
+            AutocompleteEngine(
+                provider: MockArtistSuggestionProvider(),
+                entityKind: .artist,
+                debounceInterval: 0.05
+            )
+        }
+        await MainActor.run {
+            engine.updateQuery("ky")
+            XCTAssertEqual(engine.session.phase, .debouncing)
+        }
 
         try? await Task.sleep(nanoseconds: 120_000_000)
-        XCTAssertEqual(engine.session.phase, .ready)
-        XCTAssertFalse(engine.session.results.isEmpty)
-        XCTAssertTrue(engine.session.results.contains { $0.displayName == "Kygo" })
+        await MainActor.run {
+            XCTAssertEqual(engine.session.phase, .ready)
+            XCTAssertFalse(engine.session.results.isEmpty)
+            XCTAssertTrue(engine.session.results.contains { $0.displayName == "Kygo" })
+        }
     }
 
     func testSelectHighlightedChoosesFirstWhenNoHighlight() async {
-        let provider = MockArtistSuggestionProvider()
-        let engine = AutocompleteEngine(provider: provider, entityKind: .artist, debounceInterval: 0)
-        engine.updateQuery("mu")
+        let engine = await MainActor.run {
+            AutocompleteEngine(provider: MockArtistSuggestionProvider(), entityKind: .artist, debounceInterval: 0)
+        }
+        await MainActor.run { engine.updateQuery("mu") }
         try? await Task.sleep(nanoseconds: 50_000_000)
-        XCTAssertEqual(engine.session.phase, .ready)
-        XCTAssertFalse(engine.session.results.isEmpty)
-
-        let selected = engine.selectHighlighted()
-        XCTAssertEqual(selected?.displayName, "Muse")
-        XCTAssertEqual(engine.selection.selected?.displayName, "Muse")
+        await MainActor.run {
+            XCTAssertEqual(engine.session.phase, .ready)
+            XCTAssertFalse(engine.session.results.isEmpty)
+            let selected = engine.selectHighlighted()
+            XCTAssertEqual(selected?.displayName, "Muse")
+            XCTAssertEqual(engine.selection.selected?.displayName, "Muse")
+        }
     }
 
     func testKeyboardHighlightWraps() async {
-        let provider = MockArtistSuggestionProvider()
-        let engine = AutocompleteEngine(provider: provider, entityKind: .artist, debounceInterval: 0)
-        engine.updateQuery("a")
+        let engine = await MainActor.run {
+            AutocompleteEngine(provider: MockArtistSuggestionProvider(), entityKind: .artist, debounceInterval: 0)
+        }
+        await MainActor.run { engine.updateQuery("a") }
         try? await Task.sleep(nanoseconds: 50_000_000)
-        XCTAssertGreaterThanOrEqual(engine.session.visibleItems.count, 3)
-
-        engine.moveHighlight(delta: 1)
-        XCTAssertEqual(engine.session.highlightedIndex, 0)
-        engine.moveHighlight(delta: -1)
-        XCTAssertEqual(engine.session.highlightedIndex, engine.session.visibleItems.count - 1)
+        await MainActor.run {
+            XCTAssertGreaterThanOrEqual(engine.session.visibleItems.count, 3)
+            engine.moveHighlight(delta: 1)
+            XCTAssertEqual(engine.session.highlightedIndex, 0)
+            engine.moveHighlight(delta: -1)
+            XCTAssertEqual(engine.session.highlightedIndex, engine.session.visibleItems.count - 1)
+        }
     }
 
-    func testRecentSearchRecordedOnSelection() {
+    func testRecentSearchRecordedOnSelection() async {
         let recents = InMemoryRecentSearchProvider()
-        let provider = MockArtistSuggestionProvider()
-        let engine = AutocompleteEngine(
-            provider: provider,
-            entityKind: .artist,
-            recentSearchProvider: recents
-        )
+        let engine = await MainActor.run {
+            AutocompleteEngine(
+                provider: MockArtistSuggestionProvider(),
+                entityKind: .artist,
+                recentSearchProvider: recents
+            )
+        }
         let artist = MockAutocompleteFixtures.artists[0]
-        engine.select(artist)
+        await MainActor.run { engine.select(artist) }
 
         let loaded: [ArtistRef] = recents.load(entityKind: .artist)
         XCTAssertEqual(loaded.first?.id, artist.id)
@@ -110,7 +118,6 @@ final class AutocompleteBridgeContractsTests: XCTestCase {
     }
 }
 
-@MainActor
 final class MockTrackSuggestionProviderTests: XCTestCase {
     func testTrackSuggestionsFilterByArtistContext() async throws {
         let provider = MockTrackSuggestionProvider()
@@ -127,15 +134,20 @@ final class MockTrackSuggestionProviderTests: XCTestCase {
 
     func testSetContextRefreshesTrackResults() async {
         let provider = MockTrackSuggestionProvider()
-        let engine = AutocompleteEngine(provider: provider, entityKind: .track, debounceInterval: 0)
-        engine.updateQuery("star")
+        let engine = await MainActor.run {
+            AutocompleteEngine(provider: provider, entityKind: .track, debounceInterval: 0)
+        }
+        await MainActor.run { engine.updateQuery("star") }
         try? await Task.sleep(nanoseconds: 50_000_000)
-        XCTAssertEqual(engine.session.results.count, 1)
-        XCTAssertEqual(engine.session.results[0].artistName, "Muse")
-
-        engine.setContext(AutocompleteContext(artistName: "Kygo", artistID: "kygo"))
+        await MainActor.run {
+            XCTAssertEqual(engine.session.results.count, 1)
+            XCTAssertEqual(engine.session.results[0].artistName, "Muse")
+            engine.setContext(AutocompleteContext(artistName: "Kygo", artistID: "kygo"))
+        }
         try? await Task.sleep(nanoseconds: 50_000_000)
-        XCTAssertEqual(engine.session.phase, .ready)
-        XCTAssertTrue(engine.session.results.isEmpty)
+        await MainActor.run {
+            XCTAssertEqual(engine.session.phase, .ready)
+            XCTAssertTrue(engine.session.results.isEmpty)
+        }
     }
 }

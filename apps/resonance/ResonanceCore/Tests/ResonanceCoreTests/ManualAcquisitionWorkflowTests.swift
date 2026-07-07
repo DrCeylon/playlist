@@ -1,7 +1,6 @@
 import XCTest
 @testable import ResonanceCore
 
-@MainActor
 final class ManualAcquisitionWorkflowTests: XCTestCase {
     func testIllegalTransitionsAreRejected() {
         XCTAssertTrue(ManualAcquisitionWorkflow.canTransition(from: .waitingForUser, to: .verifyingLibrary))
@@ -9,11 +8,12 @@ final class ManualAcquisitionWorkflowTests: XCTestCase {
         XCTAssertFalse(ManualAcquisitionWorkflow.canTransition(from: .waitingForUser, to: .completed))
     }
 
-    func testCoordinatorOrchestratesUserConfirmationFlow() {
-        let coordinator = ManualAcquisitionWorkflowCoordinator()
-        _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
-
-        let confirming = coordinator.beginUserConfirmation(at: Date(timeIntervalSince1970: 1_700_000_000))
+    func testCoordinatorOrchestratesUserConfirmationFlow() async {
+        let confirming: ManualAcquisitionWorkflowSnapshot = await MainActor.run {
+            let coordinator = ManualAcquisitionWorkflowCoordinator()
+            _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
+            return coordinator.beginUserConfirmation(at: Date(timeIntervalSince1970: 1_700_000_000))
+        }
         XCTAssertEqual(confirming.phase, .verifyingLibrary)
         XCTAssertEqual(confirming.uiStatus.currentStep, "Recherche dans la bibliothèque Music.app…")
         XCTAssertTrue(confirming.isBusy)
@@ -25,7 +25,12 @@ final class ManualAcquisitionWorkflowTests: XCTestCase {
             workflowPhase: ManualAcquisitionWorkflowPhase.waitingForUser.rawValue,
             diagnostics: ManualAcquisitionProbeDiagnostics(importSessionID: "session-1")
         )
-        let (snapshot, action) = coordinator.applyProbeResult(probe, userInitiated: true)
+        let (snapshot, action): (ManualAcquisitionWorkflowSnapshot, ManualAcquisitionWorkflowAction) = await MainActor.run {
+            let coordinator = ManualAcquisitionWorkflowCoordinator()
+            _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
+            _ = coordinator.beginUserConfirmation(at: Date(timeIntervalSince1970: 1_700_000_000))
+            return coordinator.applyProbeResult(probe, userInitiated: true)
+        }
         XCTAssertEqual(action, .none)
         XCTAssertEqual(snapshot.phase, .waitingForUser)
         XCTAssertEqual(snapshot.uiStatus.currentStep, "Morceau non détecté")
@@ -33,17 +38,18 @@ final class ManualAcquisitionWorkflowTests: XCTestCase {
         XCTAssertFalse(snapshot.isBusy)
     }
 
-    func testCoordinatorResumesWhenTrackFound() {
-        let coordinator = ManualAcquisitionWorkflowCoordinator()
-        _ = coordinator.enterWaiting(importSessionID: "session-2", canResume: true, fromHistory: false)
-        _ = coordinator.beginUserConfirmation()
-
+    func testCoordinatorResumesWhenTrackFound() async {
         let probe = ManualAcquisitionProbeResult(
             found: true,
             message: "Morceau détecté dans la bibliothèque Music.app.",
             diagnostics: ManualAcquisitionProbeDiagnostics(importSessionID: "session-2")
         )
-        let (snapshot, action) = coordinator.applyProbeResult(probe, userInitiated: true)
+        let (snapshot, action): (ManualAcquisitionWorkflowSnapshot, ManualAcquisitionWorkflowAction) = await MainActor.run {
+            let coordinator = ManualAcquisitionWorkflowCoordinator()
+            _ = coordinator.enterWaiting(importSessionID: "session-2", canResume: true, fromHistory: false)
+            _ = coordinator.beginUserConfirmation()
+            return coordinator.applyProbeResult(probe, userInitiated: true)
+        }
         XCTAssertEqual(snapshot.phase, .trackFound)
         if case .resumeImport(let sessionID) = action {
             XCTAssertEqual(sessionID, "session-2")
@@ -52,12 +58,14 @@ final class ManualAcquisitionWorkflowTests: XCTestCase {
         }
     }
 
-    func testHistoryAndFreshImportShareCoordinatorType() {
-        let freshCoordinator = ManualAcquisitionWorkflowCoordinator()
-        let historyCoordinator = ManualAcquisitionWorkflowCoordinator()
-
-        let fresh = freshCoordinator.enterWaiting(importSessionID: "a", canResume: true, fromHistory: false)
-        let history = historyCoordinator.enterWaiting(importSessionID: "b", canResume: true, fromHistory: true)
+    func testHistoryAndFreshImportShareCoordinatorType() async {
+        let (fresh, history): (ManualAcquisitionWorkflowSnapshot, ManualAcquisitionWorkflowSnapshot) = await MainActor.run {
+            let freshCoordinator = ManualAcquisitionWorkflowCoordinator()
+            let historyCoordinator = ManualAcquisitionWorkflowCoordinator()
+            let fresh = freshCoordinator.enterWaiting(importSessionID: "a", canResume: true, fromHistory: false)
+            let history = historyCoordinator.enterWaiting(importSessionID: "b", canResume: true, fromHistory: true)
+            return (fresh, history)
+        }
 
         XCTAssertEqual(fresh.phase, .waitingForUser)
         XCTAssertEqual(history.phase, .waitingForUser)
