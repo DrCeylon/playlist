@@ -459,4 +459,96 @@ final class ImportViewModelTests: XCTestCase {
         XCTAssertEqual(service.continueCount, 1)
         XCTAssertEqual(viewModel.screenState, .report)
     }
+
+    func testLateBridgeEventsIgnoredAfterTerminalFinishImport() async {
+        final class LateEventContinueService: PlaylistImportServing {
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                ImportResultState(playlistName: result.playlistName, phase: .completed)
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                try await continueManualAcquisition(importSessionID: importSessionID, onEvent: { _ in })
+            }
+
+            func continueManualAcquisition(
+                importSessionID: String,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                let result = ImportResultState(
+                    playlistName: "Demo",
+                    outcomes: [
+                        ImportTrackOutcome(
+                            artist: "Artist",
+                            title: "Title",
+                            section: "Main",
+                            status: .added
+                        ),
+                    ],
+                    phase: .partialSuccess
+                )
+                Task { @MainActor in
+                    onEvent(
+                        BridgeEventMessage(
+                            id: "late-error",
+                            event: .error,
+                            payload: ["message": .string("Erreur bridge tardive")]
+                        )
+                    )
+                    onEvent(
+                        BridgeEventMessage(
+                            id: "late-manual",
+                            event: .manualAcquisitionRequired,
+                            payload: [
+                                "import_session_id": .string(importSessionID),
+                                "artist": .string("Artist"),
+                                "title": .string("Title"),
+                            ]
+                        )
+                    )
+                    onEvent(
+                        BridgeEventMessage(
+                            id: "late-progress",
+                            event: .progress,
+                            payload: ["phase": .string(ImportPhase.resolving.rawValue)]
+                        )
+                    )
+                }
+                return result
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(found: false)
+            }
+        }
+
+        let viewModel = ImportViewModel(service: LateEventContinueService())
+        viewModel.restoreManualAcquisition(
+            from: ImportResultState(
+                playlistName: "Demo",
+                outcomes: [],
+                phase: .waitingForManualAcquisition,
+                importSessionID: "session-late",
+                manualArtist: "Artist",
+                manualTitle: "Title"
+            ),
+            generation: nil
+        )
+
+        await viewModel.resumeImportAfterPositiveProbe(importSessionID: "session-late", token: nil)
+
+        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertEqual(viewModel.report?.phase, .partialSuccess)
+        let reportStep = viewModel.progress.currentStep
+
+        for _ in 0..<12 {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertEqual(viewModel.report?.phase, .partialSuccess)
+        XCTAssertEqual(viewModel.progress.currentStep, reportStep)
+    }
 }

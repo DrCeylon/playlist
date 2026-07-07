@@ -326,18 +326,21 @@ final class ImportViewModel: ObservableObject {
         }
         report = result
         screenState = .report
+        activeImportToken = nil
     }
 
     private func failImport(_ error: PlaylistImportError) {
         stopManualPolling()
         architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         screenState = .failed(ImportErrorHumanizer.message(for: error))
+        activeImportToken = nil
     }
 
     private func failImport(_ error: Error) {
         stopManualPolling()
         architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
         screenState = .failed(ImportErrorHumanizer.userMessage(for: error))
+        activeImportToken = nil
     }
 
     private func probeManualAcquisition() async {
@@ -385,7 +388,12 @@ final class ImportViewModel: ObservableObject {
     }
 
     private func handle(event: BridgeEventMessage) {
-        guard activeImportToken != nil || screenState != .idle else { return }
+        guard acceptsImportBridgeEvents else {
+            ManualContinueTrace.log(
+                "IGNORE handle(event:) event=\(event.event.rawValue) screenState=\(String(describing: screenState))"
+            )
+            return
+        }
 
         switch event.event {
         case .started:
@@ -626,6 +634,15 @@ final class ImportViewModel: ObservableObject {
     private func flushPendingImportEvents() async {
         for _ in 0..<8 {
             await Task.yield()
+        }
+    }
+
+    private var acceptsImportBridgeEvents: Bool {
+        switch screenState {
+        case .importing, .waitingForManualAcquisition:
+            return activeImportToken != nil
+        case .idle, .report, .failed:
+            return false
         }
     }
 }
