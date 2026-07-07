@@ -224,6 +224,11 @@ def _stream_import_playlist_body(
     )
 
     outcomes: list = []
+    if checkpoint is not None and start_index > 0:
+        outcomes = _prefill_resolved_outcomes_before_checkpoint(import_port, rows, start_index)
+        manual_continue_trace(
+            f"CALL stream_import_playlist(resume) prefilled_outcomes={len(outcomes)} start_index={start_index}"
+        )
     added_count = 0
     skipped_count = 0
     not_found_count = 0
@@ -235,9 +240,6 @@ def _stream_import_playlist_body(
         batch_inputs: list[tuple[int, object, str]] = []
         for offset, (track, section_name) in enumerate(batch_rows):
             track_index = index + offset
-            if checkpoint is not None and track_index < start_index:
-                outcomes.append((import_port.resolve(track, section=section_name), section_name))
-                continue
             batch_inputs.append((track_index, track, section_name))
 
         if batch_inputs:
@@ -669,6 +671,26 @@ def _stream_import_playlist_body(
     phase = _final_phase(aligned)
     import_state = track_add_results_to_import_state(playlist.name, aligned, phase=phase)
     yield ImportPlaylistResult(import_result=import_state)
+
+
+def _prefill_resolved_outcomes_before_checkpoint(
+    import_port,
+    rows: list,
+    start_index: int,
+) -> list:
+    """Rebuild resolution outcomes for tracks already resolved before a manual pause.
+
+    On resume the main loop starts at ``checkpoint.next_index``; without this prefill
+    ``deliver_playlist`` would receive a partial outcome list misaligned with the
+    full playlist (see ``_flatten_playlist_with_outcomes``).
+    """
+    if start_index <= 0:
+        return []
+    prefix_rows = rows[:start_index]
+    resolved_batch = import_port.resolve_batch(
+        [(track, section_name) for track, section_name in prefix_rows]
+    )
+    return list(zip(resolved_batch, (section_name for _, section_name in prefix_rows), strict=True))
 
 
 def _flatten_rows(playlist) -> list[tuple]:
