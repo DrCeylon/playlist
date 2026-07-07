@@ -127,33 +127,7 @@ final class ImportViewModel: ObservableObject {
             }
 
             if case .resumeImport(let sessionID) = action {
-                ManualContinueTrace.log("CALL ManualAcquisitionWorkflowCoordinator.beginResumingImport()")
-                syncManualWorkflow(manualWorkflow.beginResumingImport())
-                ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.beginResumingImport()")
-                mutateProgress { snapshot in
-                    snapshot.currentStep = manualAcquisitionStatus.currentStep
-                    snapshot.lastActivityAt = .now
-                }
-                ManualContinueTrace.log("CALL PythonEngineBridgeService.continueManualAcquisition(importSessionID:)")
-                let result = try await service.continueManualAcquisition(
-                    importSessionID: sessionID,
-                    onEvent: importEventHandler
-                )
-                ManualContinueTrace.log("RETURN PythonEngineBridgeService.continueManualAcquisition phase=\(result.phase.rawValue)")
-                await flushPendingImportEvents()
-                guard token == nil || token == activeImportToken else {
-                    ManualContinueTrace.log("EXIT confirmManualAcquisition() — stale import token after continue")
-                    return
-                }
-                ManualContinueTrace.log("CALL ManualAcquisitionWorkflowCoordinator.applyContinueResult()")
-                (snapshot, action) = manualWorkflow.applyContinueResult(result)
-                ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyContinueResult action=\(String(describing: action))")
-                syncManualWorkflow(snapshot)
-                if case .finishImport(let importResult) = action {
-                    ManualContinueTrace.log("CALL finishImport(with:)")
-                    finishImport(with: importResult)
-                    ManualContinueTrace.log("RETURN finishImport(with:)")
-                }
+                await resumeImportAfterPositiveProbe(importSessionID: sessionID, token: token)
             } else if manualWorkflow.snapshot.shouldPoll {
                 ManualContinueTrace.log("CALL startManualPolling() — probe not ready for resume")
                 startManualPolling()
@@ -171,6 +145,62 @@ final class ImportViewModel: ObservableObject {
             startManualPolling()
         } catch {
             ManualContinueTrace.log("ERROR confirmManualAcquisition() \(error.localizedDescription)")
+            guard token == nil || token == activeImportToken else { return }
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
+            syncManualWorkflow(manualWorkflow.applyBridgeError(
+                ImportErrorHumanizer.userMessage(for: error),
+                architectDetail: architectErrorDetail
+            ))
+            screenState = .waitingForManualAcquisition
+            startManualPolling()
+        }
+    }
+
+    /// Resumes import after a positive library probe. Not gated by `isContinuingManual` —
+    /// background auto-resume and user-initiated resume both use this path once `resumeImport` is decided.
+    func resumeImportAfterPositiveProbe(importSessionID sessionID: String, token: UUID?) async {
+        ManualContinueTrace.log("ENTER resumeImportAfterPositiveProbe(sessionID:)")
+        do {
+            ManualContinueTrace.log("CALL ManualAcquisitionWorkflowCoordinator.beginResumingImport()")
+            syncManualWorkflow(manualWorkflow.beginResumingImport())
+            ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.beginResumingImport()")
+            mutateProgress { snapshot in
+                snapshot.currentStep = manualAcquisitionStatus.currentStep
+                snapshot.lastActivityAt = .now
+            }
+            ManualContinueTrace.log("CALL PythonEngineBridgeService.continueManualAcquisition(importSessionID:)")
+            let result = try await service.continueManualAcquisition(
+                importSessionID: sessionID,
+                onEvent: importEventHandler
+            )
+            ManualContinueTrace.log("RETURN PythonEngineBridgeService.continueManualAcquisition phase=\(result.phase.rawValue)")
+            await flushPendingImportEvents()
+            guard token == nil || token == activeImportToken else {
+                ManualContinueTrace.log("EXIT resumeImportAfterPositiveProbe() — stale import token after continue")
+                return
+            }
+            ManualContinueTrace.log("CALL ManualAcquisitionWorkflowCoordinator.applyContinueResult()")
+            let (snapshot, action) = manualWorkflow.applyContinueResult(result)
+            ManualContinueTrace.log("RETURN ManualAcquisitionWorkflowCoordinator.applyContinueResult action=\(String(describing: action))")
+            syncManualWorkflow(snapshot)
+            if case .finishImport(let importResult) = action {
+                ManualContinueTrace.log("CALL finishImport(with:)")
+                finishImport(with: importResult)
+                ManualContinueTrace.log("RETURN finishImport(with:)")
+            }
+            ManualContinueTrace.log("EXIT resumeImportAfterPositiveProbe() success")
+        } catch let error as PlaylistImportError {
+            ManualContinueTrace.log("ERROR resumeImportAfterPositiveProbe() PlaylistImportError: \(ImportErrorHumanizer.message(for: error))")
+            guard token == nil || token == activeImportToken else { return }
+            architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
+            syncManualWorkflow(manualWorkflow.applyBridgeError(
+                ImportErrorHumanizer.message(for: error),
+                architectDetail: architectErrorDetail
+            ))
+            screenState = .waitingForManualAcquisition
+            startManualPolling()
+        } catch {
+            ManualContinueTrace.log("ERROR resumeImportAfterPositiveProbe() \(error.localizedDescription)")
             guard token == nil || token == activeImportToken else { return }
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
             syncManualWorkflow(manualWorkflow.applyBridgeError(
@@ -323,10 +353,11 @@ final class ImportViewModel: ObservableObject {
             let (snapshot, action) = manualWorkflow.applyProbeResult(probe, finishedAt: Date(), userInitiated: false)
             syncManualWorkflow(snapshot)
 
-            if probe.found {
-                await confirmManualAcquisition()
+            if case .resumeImport(let sessionID) = action {
+                ManualContinueTrace.log("CALL resumeImportAfterPositiveProbe() from background probe")
+                let token = activeImportToken
+                await resumeImportAfterPositiveProbe(importSessionID: sessionID, token: token)
             }
-            _ = action
         } catch let error as PlaylistImportError {
             architectErrorDetail = ImportErrorHumanizer.architectDetail(for: error)
             syncManualWorkflow(manualWorkflow.applyBridgeError(

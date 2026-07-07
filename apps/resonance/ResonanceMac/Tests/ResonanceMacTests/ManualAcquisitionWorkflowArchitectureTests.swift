@@ -10,6 +10,13 @@ final class ManualAcquisitionWorkflowArchitectureTests: XCTestCase {
         XCTAssertTrue(source.contains("manualWorkflow.snapshot.isBusy"))
     }
 
+    func testBackgroundProbeResumesWithoutConfirmManualAcquisitionGuard() throws {
+        let source = try String(contentsOf: importViewModelSourceURL(), encoding: .utf8)
+        XCTAssertTrue(source.contains("resumeImportAfterPositiveProbe"))
+        XCTAssertTrue(source.contains("CALL resumeImportAfterPositiveProbe() from background probe"))
+        XCTAssertFalse(source.contains("if probe.found {\n                await confirmManualAcquisition()"))
+    }
+
     func testManualAcquisitionCardReflectsWorkflowState() throws {
         let source = try String(contentsOf: manualAcquisitionCardSourceURL(), encoding: .utf8)
         XCTAssertTrue(source.contains("status.phase.userFacingStep"))

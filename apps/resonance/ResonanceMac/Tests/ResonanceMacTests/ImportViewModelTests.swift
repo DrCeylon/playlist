@@ -406,4 +406,46 @@ final class ImportViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.screenState, .report)
     }
+
+    func testResumeImportAfterPositiveProbeWhenCoordinatorBusy() async {
+        final class ContinueOnResumeService: PlaylistImportServing {
+            private(set) var continueCount = 0
+
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                ImportResultState(playlistName: result.playlistName, phase: .completed)
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                continueCount += 1
+                return ImportResultState(playlistName: "Demo", phase: .completed, addedCount: 1)
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(found: false)
+            }
+        }
+
+        let service = ContinueOnResumeService()
+        let viewModel = ImportViewModel(service: service)
+        viewModel.restoreManualAcquisition(
+            from: ImportResultState(
+                playlistName: "Demo",
+                outcomes: [],
+                phase: .waitingForManualAcquisition,
+                importSessionID: "session-auto",
+                manualArtist: "Artist",
+                manualTitle: "Title"
+            ),
+            generation: nil
+        )
+
+        // Simulates the path taken after applyProbeResult(found: true, userInitiated: false).
+        await viewModel.resumeImportAfterPositiveProbe(importSessionID: "session-auto", token: nil)
+
+        XCTAssertEqual(service.continueCount, 1)
+        XCTAssertEqual(viewModel.screenState, .report)
+    }
 }
