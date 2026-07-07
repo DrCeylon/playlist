@@ -54,7 +54,7 @@ final class HistoryViewModel: ObservableObject {
                     return .manualAcquisitionWaiting(report)
                 }
                 return .manualAcquisitionUnavailable(
-                    report: report,
+                    report,
                     hasRequest: editRequestForSelectedSession() != nil,
                     playlistName: detail.summary.playlistName
                 )

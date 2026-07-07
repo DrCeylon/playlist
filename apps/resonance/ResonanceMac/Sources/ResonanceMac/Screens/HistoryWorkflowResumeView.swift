@@ -329,7 +329,9 @@ struct HistoryWorkflowResumeView: View {
                 ManualAcquisitionCard(
                     prompt: prompt,
                     trackPositionLabel: report.outcomes.first.map { $0.searchLine },
-                    pollStatus: "",
+                    status: ManualAcquisitionUIStatus(),
+                    isContinueInProgress: isBusy,
+                    architectDiagnostics: nil,
                     palette: palette,
                     onConfirmManual: onResumeManualImport
                 )

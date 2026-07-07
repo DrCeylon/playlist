@@ -201,13 +201,13 @@ final class ImportViewModel: ObservableObject {
             fromHistory: true
         ))
         progress = ImportProgressSnapshot(
+            phase: .waitingForManualAcquisition,
             playlistName: report.playlistName,
             totalTracks: max(report.outcomes.count, 1),
             processedTracks: report.outcomes.filter { $0.status == .added }.count,
             currentStep: report.canResumeManualAcquisition
                 ? "Ajout manuel requis — reprise depuis l'historique"
                 : manualAcquisitionStatus.currentStep,
-            phase: .waitingForManualAcquisition,
             lastActivityAt: .now
         )
         if report.canResumeManualAcquisition {
