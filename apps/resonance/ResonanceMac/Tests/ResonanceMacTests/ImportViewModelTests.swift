@@ -366,6 +366,9 @@ final class ImportViewModelTests: XCTestCase {
 
     func testConfirmManualAcquisitionIgnoresDuplicateClicks() async {
         final class SlowContinueService: PlaylistImportServing {
+            private(set) var probeCount = 0
+            private(set) var continueCount = 0
+
             func importPlaylist(
                 _ result: PlaylistGenerationResult,
                 onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
@@ -374,17 +377,20 @@ final class ImportViewModelTests: XCTestCase {
             }
 
             func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                continueCount += 1
                 try await Task.sleep(nanoseconds: 200_000_000)
                 return ImportResultState(playlistName: "Demo", phase: .completed)
             }
 
             func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                probeCount += 1
                 try await Task.sleep(nanoseconds: 200_000_000)
                 return ManualAcquisitionProbeResult(found: true, message: "ok")
             }
         }
 
-        let viewModel = ImportViewModel(service: SlowContinueService())
+        let service = SlowContinueService()
+        let viewModel = ImportViewModel(service: service)
         viewModel.restoreManualAcquisition(
             from: ImportResultState(
                 playlistName: "Demo",
@@ -404,7 +410,10 @@ final class ImportViewModelTests: XCTestCase {
         await viewModel.confirmManualAcquisition()
         await first
 
-        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertEqual(service.probeCount, 1)
+        XCTAssertEqual(service.continueCount, 0)
+        XCTAssertEqual(viewModel.screenState, .waitingForManualAcquisition)
+        XCTAssertTrue(viewModel.isContinuingManual)
     }
 
     func testResumeImportAfterPositiveProbeWhenCoordinatorBusy() async {
@@ -550,5 +559,178 @@ final class ImportViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.screenState, .report)
         XCTAssertEqual(viewModel.report?.phase, .partialSuccess)
         XCTAssertEqual(viewModel.progress.currentStep, reportStep)
+    }
+
+    func testLiveRetryFromPartialSuccessReportPreservesExistingOutcomes() async {
+        let initialOutcomes = [
+            ImportTrackOutcome(artist: "Motörhead", title: "Ace of Spades", section: "Main", status: .added),
+            ImportTrackOutcome(
+                artist: "Motörhead",
+                title: "Motörhead",
+                section: "Main",
+                status: .notFound,
+                message: "Morceau confirmé en bibliothèque."
+            ),
+            ImportTrackOutcome(artist: "Metallica", title: "Nothing Else Matters", section: "Main", status: .notFound),
+        ]
+
+        final class LiveRetryService: PlaylistImportServing {
+            private(set) var receivedExistingOutcomes: [ImportTrackOutcome]?
+
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                ImportResultState(
+                    playlistName: result.playlistName,
+                    outcomes: initialOutcomes,
+                    phase: .partialSuccess,
+                    historySessionID: result.historySessionID
+                )
+            }
+
+            func retryImportTracks(
+                _ generationResult: PlaylistGenerationResult,
+                trackIndices: [Int],
+                existingOutcomes: [ImportTrackOutcome]?,
+                historySessionID: String?,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                receivedExistingOutcomes = existingOutcomes
+                var updated = existingOutcomes ?? []
+                if let index = trackIndices.first, index < updated.count {
+                    updated[index] = ImportTrackOutcome(
+                        artist: updated[index].artist,
+                        title: updated[index].title,
+                        section: updated[index].section,
+                        status: .added,
+                        message: "Ajouté"
+                    )
+                }
+                return ImportResultState(
+                    playlistName: generationResult.playlistName,
+                    outcomes: updated,
+                    phase: .partialSuccess,
+                    historySessionID: historySessionID ?? generationResult.historySessionID
+                )
+            }
+        }
+
+        let service = LiveRetryService()
+        let viewModel = ImportViewModel(service: service)
+        let generation = PlaylistGenerationResult(
+            playlistName: "3e test",
+            sections: [
+                GeneratedSectionPreview(
+                    name: "Main",
+                    tracks: initialOutcomes.map {
+                        GeneratedTrackPreview(
+                            artist: $0.artist,
+                            title: $0.title,
+                            section: $0.section,
+                            score: 80,
+                            confidence: .high,
+                            source: "test"
+                        )
+                    }
+                ),
+            ],
+            averageScore: 0.8,
+            providerID: .appleMusic,
+            historySessionID: "hist-live-retry"
+        )
+
+        await viewModel.importPlaylist(generation)
+        XCTAssertEqual(viewModel.screenState, .report)
+
+        await viewModel.retryImportTrack(at: 1)
+
+        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertEqual(service.receivedExistingOutcomes?.count, initialOutcomes.count)
+        XCTAssertEqual(viewModel.report?.outcomes[0].status, .added)
+        XCTAssertEqual(viewModel.report?.outcomes[1].status, .added)
+        XCTAssertEqual(viewModel.report?.outcomes[2].status, .notFound)
+    }
+
+    func testLateBridgeEventsIgnoredDuringLiveRetryFromReport() async {
+        let initialOutcomes = [
+            ImportTrackOutcome(artist: "Artist A", title: "Track A", section: "Main", status: .added),
+            ImportTrackOutcome(artist: "Artist B", title: "Track B", section: "Main", status: .notFound),
+        ]
+
+        final class LateEventRetryService: PlaylistImportServing {
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                Task { @MainActor in
+                    onEvent(
+                        BridgeEventMessage(
+                            id: "stale-manual",
+                            event: .manualAcquisitionRequired,
+                            payload: [
+                                "import_session_id": .string("stale-session"),
+                                "artist": .string("Artist B"),
+                                "title": .string("Track B"),
+                            ]
+                        )
+                    )
+                }
+                return ImportResultState(
+                    playlistName: result.playlistName,
+                    outcomes: initialOutcomes,
+                    phase: .partialSuccess
+                )
+            }
+
+            func retryImportTracks(
+                _ generationResult: PlaylistGenerationResult,
+                trackIndices: [Int],
+                existingOutcomes: [ImportTrackOutcome]?,
+                historySessionID: String?,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                ImportResultState(
+                    playlistName: generationResult.playlistName,
+                    outcomes: existingOutcomes ?? [],
+                    phase: .partialSuccess
+                )
+            }
+        }
+
+        let viewModel = ImportViewModel(service: LateEventRetryService())
+        let generation = PlaylistGenerationResult(
+            playlistName: "Retry Late Events",
+            sections: [
+                GeneratedSectionPreview(
+                    name: "Main",
+                    tracks: initialOutcomes.map {
+                        GeneratedTrackPreview(
+                            artist: $0.artist,
+                            title: $0.title,
+                            section: $0.section,
+                            score: 80,
+                            confidence: .high,
+                            source: "test"
+                        )
+                    }
+                ),
+            ],
+            averageScore: 0.8,
+            providerID: .appleMusic
+        )
+
+        await viewModel.importPlaylist(generation)
+        XCTAssertEqual(viewModel.screenState, .report)
+        let reportPhase = viewModel.report?.phase
+
+        await viewModel.retryImportTrack(at: 1)
+
+        for _ in 0..<12 {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertEqual(viewModel.report?.phase, reportPhase)
     }
 }

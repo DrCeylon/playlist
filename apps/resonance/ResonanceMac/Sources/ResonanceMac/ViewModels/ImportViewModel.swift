@@ -41,14 +41,21 @@ final class ImportViewModel: ObservableObject {
             totalTracks: generationResult.trackCount,
             historySessionID: generationResult.historySessionID
         )
+        guard let token = activeImportToken else { return }
 
         do {
-            let result = try await service.importPlaylist(generationResult, onEvent: importEventHandler)
+            let result = try await service.importPlaylist(
+                generationResult,
+                onEvent: importEventHandler(for: token)
+            )
             await flushPendingImportEvents()
+            guard activeImportToken == token else { return }
             finishImport(with: result)
         } catch let error as PlaylistImportError {
+            guard activeImportToken == token else { return }
             failImport(error)
         } catch {
+            guard activeImportToken == token else { return }
             failImport(error)
         }
     }
@@ -58,11 +65,16 @@ final class ImportViewModel: ObservableObject {
             screenState = .failed("Impossible de réessayer : playlist source introuvable.")
             return
         }
+        let existingOutcomes = report?.outcomes
+        let resolvedHistorySessionID = activeHistorySessionID.isEmpty
+            ? importedGeneration.historySessionID
+            : activeHistorySessionID
         beginImport(
             playlistName: importedGeneration.playlistName,
-            totalTracks: 1,
-            historySessionID: importedGeneration.historySessionID
+            totalTracks: importedGeneration.trackCount,
+            historySessionID: resolvedHistorySessionID
         )
+        guard let token = activeImportToken else { return }
         mutateProgress { snapshot in
             snapshot.currentStep = "Nouvelle tentative pour un morceau…"
             snapshot.totalTracks = importedGeneration.trackCount
@@ -73,14 +85,18 @@ final class ImportViewModel: ObservableObject {
             let result = try await service.retryImportTracks(
                 importedGeneration,
                 trackIndices: [index],
-                existingOutcomes: report?.outcomes,
-                onEvent: importEventHandler
+                existingOutcomes: existingOutcomes,
+                historySessionID: resolvedHistorySessionID.isEmpty ? nil : resolvedHistorySessionID,
+                onEvent: importEventHandler(for: token)
             )
             await flushPendingImportEvents()
+            guard activeImportToken == token else { return }
             finishImport(with: result)
         } catch let error as PlaylistImportError {
+            guard activeImportToken == token else { return }
             failImport(error)
         } catch {
+            guard activeImportToken == token else { return }
             failImport(error)
         }
     }
@@ -170,9 +186,13 @@ final class ImportViewModel: ObservableObject {
                 snapshot.lastActivityAt = .now
             }
             ManualContinueTrace.log("CALL PythonEngineBridgeService.continueManualAcquisition(importSessionID:)")
+            guard let handlerToken = token ?? activeImportToken else {
+                ManualContinueTrace.log("EXIT resumeImportAfterPositiveProbe() — missing import token for event handler")
+                return
+            }
             let result = try await service.continueManualAcquisition(
                 importSessionID: sessionID,
-                onEvent: importEventHandler
+                onEvent: importEventHandler(for: handlerToken)
             )
             ManualContinueTrace.log("RETURN PythonEngineBridgeService.continueManualAcquisition phase=\(result.phase.rawValue)")
             await flushPendingImportEvents()
@@ -263,10 +283,16 @@ final class ImportViewModel: ObservableObject {
         activeHistorySessionID = ""
     }
 
-    private var importEventHandler: @Sendable (BridgeEventMessage) -> Void {
+    private func importEventHandler(for token: UUID) -> @Sendable (BridgeEventMessage) -> Void {
         { [weak self] event in
             Task { @MainActor in
-                self?.handle(event: event)
+                guard let self, self.activeImportToken == token else {
+                    ManualContinueTrace.log(
+                        "IGNORE importEventHandler stale token event=\(event.event.rawValue)"
+                    )
+                    return
+                }
+                self.handle(event: event)
             }
         }
     }
