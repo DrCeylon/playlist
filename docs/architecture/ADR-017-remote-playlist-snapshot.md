@@ -2,11 +2,13 @@
 
 ## Status
 
-Proposed — Phase 6.2
+Accepted — Phase 6.2; extended July 2026 (docs only).
 
 ## Context
 
 Comparing and syncing playlists requires an **immutable snapshot** of remote state at a point in time. Live API reads during diff are racy.
+
+Snapshots capture **provider library state** (Music Provider). They are not Resonance Cloud objects — though future Cloud Sync may replicate **references** to local snapshots and managed playlists (metadata only), never re-hosting track audio.
 
 ## Decision
 

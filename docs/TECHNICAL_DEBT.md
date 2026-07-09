@@ -16,6 +16,14 @@ Document de référence pour la release candidate. Aucun marqueur `TODO` / `FIXM
 | PR drafts orphelines (#46–#57) | Basse | Bruit process | Faible | Fermer manuellement après revue |
 | Branches `cursor/*` distantes résiduelles | Basse | Bruit Git | Faible | Supprimer après `git merge-base --is-ancestor` |
 | `SessionDetailView` supprimé (clôture) | Nulle | — | — | Remplacé par `HistoryWorkflowResumeView` |
+| Resonance Identity / Cloud Sync | Future | Sync multi-Mac, préférences partagées | Élevée | **Docs only** — voir ADR-013 § Resonance Services ; ne pas modéliser comme `ProviderId` ; métadonnées uniquement, pas de musique |
+
+## Principes architecture (Phase 6+)
+
+- **Local-first** : toutes les fonctionnalités actuelles fonctionnent sans compte Resonance.
+- **Music Providers** (`ProviderGatewayRegistry`) ≠ **Resonance Services** (Identity, Cloud Sync, AI Profile — futur).
+- **OAuth provider** : Keychain local ; **cloud Resonance** (futur) : métadonnées utilisateur uniquement.
+- Détail : [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md) § 2.0, [ADR-013](../docs/architecture/ADR-013-multi-provider-platform-vision.md).
 
 ## Marqueurs techniques audités
 

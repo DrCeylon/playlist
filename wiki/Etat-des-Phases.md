@@ -21,11 +21,12 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **5.2–5.5** | Workflow coordinator, historique live, ProviderImportPort, acquisition manuelle SSOT | `main` |
 | **Playlist Manager** | Dashboard, Playlists / Sync / Providers, DTO library, YouTube expérimental | Tag `phase-playlist-manager-complete` — [clôture](Phase-Playlist-Manager-Cloture) |
 
-## Phase en cours (conception)
+## Phase en cours
 
 | Phase | Statut | Référence |
 |-------|--------|-----------|
-| **6 — Provider Platform & Real Sync** | Conception sur `cursor/phase-provider-sync-real-gateways` | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md), ADR-014–018 |
+| **6 — Provider Platform & Real Sync** | 6.1 contrats mergés ; 6.2 lecture distante Apple Music en revue | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md), ADR-014–018 |
+| **6+ — Vision identité Resonance** | Documentation uniquement (Music Providers vs Resonance Services) | [ADR-013](../docs/architecture/ADR-013-multi-provider-platform-vision.md) § deux catégories |
 
 Correctifs intégrés sur `main` :
 
@@ -37,15 +38,16 @@ Correctifs intégrés sur `main` :
 
 ## État courant (`main`)
 
-- **401** tests Python (`pytest -q`), **1** skipped (Swift build sur macOS uniquement)
-- App macOS : génération, import robuste, historique, **gestionnaire de playlists** (preview)
+- **419** tests Python (`pytest -q`), **1** skipped (Swift build sur macOS uniquement)
+- App macOS : génération, import robuste, historique, **gestionnaire de playlists** (preview), contrats provider platform (6.1)
 - Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
 
 ## Prochaine phase
 
 | Phase | Thème | Référence |
 |-------|-------|-----------|
-| **Sync réelle / YouTube gateway** | Pull provider, tracks historiques | [Dette technique](../docs/TECHNICAL_DEBT.md) |
+| **6.3+** | Import local provider, sync plan, YouTube expérimental | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md) |
+| **Post-6** | Resonance Identity & Cloud Sync (métadonnées, optionnel) | [ADR-013](../docs/architecture/ADR-013-multi-provider-platform-vision.md) |
 | **5.4+** | Édition playlist, templates, polish UI | [Phase 5 — Vision](Phase-5-Vision) |
 
 ## Branches Git
@@ -61,4 +63,4 @@ python3.12 -m pytest -q
 cd apps/resonance && swift build && swift test && ./scripts/build.sh
 ```
 
-401 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+419 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).

@@ -2,7 +2,7 @@
 
 **Branche de conception :** `cursor/phase-provider-sync-real-gateways`  
 **Base :** `main` @ `d33ce9a` (tag `phase-playlist-manager-complete`)  
-**Statut :** Conception — aucune implémentation runtime dans cette étape
+**Statut :** Conception + sous-phases 6.1 (contrats) et 6.2 (lecture distante Apple Music) — voir ADR-013 à ADR-018 pour la vision identité Resonance (docs uniquement, hors scope runtime Phase 6)
 
 ## Objectif
 
@@ -25,6 +25,70 @@ Faire évoluer Resonance d’un gestionnaire de playlists **local/stub** vers un
 | YouTube expérimental | `ProviderCapability.experimental` + gateway isolé |
 | Spotify extensible | Registry + ports sans changement de modèle métier |
 | Sources ouvertes | JSON / CSV / URL publique = `PlaylistSourceKind.publicCatalog` |
+| **Local-first** | Le fonctionnement local reste la référence ; aucune dépendance à un compte Resonance |
+| **Compte Resonance optionnel** | Toutes les fonctionnalités doivent fonctionner sans compte Resonance |
+| **Séparation Music / Resonance** | Les *Music Providers* et les *Resonance Services* ne sont jamais confondus (voir § 2.0) |
+| **Secrets locaux** | OAuth et tokens provider restent dans Keychain / stockage chiffré local |
+| **Cloud = métadonnées** | Un futur cloud Resonance ne synchronise que des métadonnées utilisateur — jamais de fichiers audio |
+
+---
+
+## 2.0 Provider Platform — deux catégories de services
+
+La **Provider Platform** couvre deux familles de services **distinctes** qui ne partagent ni registre, ni enum `ProviderId`, ni ports d’authentification musicale :
+
+### Music Providers
+
+Services externes de catalogues, bibliothèques et playlists musicales. Enregistrés dans `ProviderGatewayRegistry`.
+
+| Exemple | Rôle |
+|---------|------|
+| Apple Music | Catalog, delivery, lecture playlists utilisateur |
+| Spotify | Catalog, OAuth, playlists (futur) |
+| YouTube Music | Lecture expérimentale, comparaison (ADR-018) |
+| Deezer | Stub / futur |
+| Plex, Jellyfin | Bibliothèques auto-hébergées (futur) |
+
+**Invariant :** un Music Provider n’est **jamais** le compte Resonance. Il ne stocke pas les préférences IA, les exclusions globales ni l’identité multi-appareils.
+
+### Resonance Services
+
+Couche **indépendante** (future) pour synchroniser des **métadonnées utilisateur** entre appareils, sans modifier le fonctionnement local actuel.
+
+| Service (futur) | Rôle |
+|-----------------|------|
+| **Identity** | Compte Resonance optionnel — profil, appareils liés |
+| **Cloud Sync** | Réplication métadonnées (playlists gérées, exclusions, préférences) |
+| **AI Profile** | Profil de génération / contraintes IA partagées |
+| **Preferences** | Préférences app cross-device |
+| **Shared Collections** | Collections partagées, collaboration familiale |
+
+**Invariant :** Resonance Services **ne lisent pas** les bibliothèques musicales des providers. Ils ne remplacent pas `ProviderPlaylistReadPort` ni `ProviderImportPort`. Aucune musique n’est hébergée par Resonance.
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ ResonanceMac (SwiftUI) — protocoles uniquement               │
+└───────────────┬─────────────────────────────┬───────────────┘
+                │ bridge JSON (musique)        │ (futur) métadonnées
+┌───────────────▼──────────────┐   ┌──────────▼──────────────────┐
+│ ProviderGatewayRegistry      │   │ Resonance Services (futur)  │
+│ Music Providers only         │   │ Identity, Cloud Sync, etc.  │
+│ Apple / Spotify / YouTube…   │   │ Jamais dans ProviderId      │
+└──────────────────────────────┘   └─────────────────────────────┘
+```
+
+### Principes d’architecture (identité & cloud)
+
+| Principe | Implication |
+|----------|-------------|
+| Local = référence | `LocalManagedPlaylist`, historique sessions, Keychain — vérité sur l’appareil |
+| Sans compte = complet | Génération, import Apple, playlists, sync provider : utilisables hors ligne / sans login Resonance |
+| Compte optionnel | Identity n’est requis pour aucun parcours Phase 6 |
+| Providers indépendants | Connexion Apple ≠ compte Resonance ; OAuth Spotify reste local |
+| Cloud métadonnées seulement | Sync multi-Mac : noms, liens, exclusions, préférences — pas de blobs audio |
+| Pas de stockage musical | Resonance n’est pas un hébergeur de fichiers ni un streaming service |
+
+**Recommandation :** conserver cette séparation stricte évite de coupler la plateforme Resonance aux fournisseurs musicaux — chaque gateway reste remplaçable, testable et optionnel. C’est un **avantage concurrentiel majeur** : Resonance orchestre sans devenir dépendant d’un écosystème unique ni d’un cloud propriétaire de contenu.
 
 ---
 
@@ -419,11 +483,35 @@ Un **publish** vers Apple Music réutilise la **delivery** existante pour l’aj
 
 ---
 
-## 10. Prochaine étape recommandée
+## 10. Vision long terme (identité Resonance & cloud métadonnées)
 
-**Sous-phase 6.1 uniquement :** introduire les ports Python + DTO bridge + tests contractuels, sans UI ni gateway réel.
+L’architecture Phase 6 prépare — **sans l’implémenter** — une couche Resonance Services compatible avec :
+
+| Capacité future | Description | Couche |
+|-----------------|-------------|--------|
+| Sync multi-Mac | Même bibliothèque de playlists gérées sur plusieurs machines | Cloud Sync + Identity |
+| Playlists gérées | Réplication `LocalManagedPlaylist` (métadonnées + liens provider) | Cloud Sync |
+| Exclusions | Règles d’exclusion partagées entre appareils | Cloud Sync / Preferences |
+| Préférences IA | Profils de génération, courbes d’énergie, contraintes | AI Profile |
+| Recherche multi-provider | Agrégation catalogues via `ProviderGatewayRegistry` | Music Providers (existant) |
+| Comparaison plateformes | Diff snapshots locaux cross-provider | PlaylistComparisonService |
+| Collections partagées | Playlists / templates partagés entre utilisateurs | Shared Collections |
+| Collaboration familiale | Espaces partagés, droits lecture/écriture métadonnées | Shared Collections + Identity |
+| Marketplace règles & templates | Échange de règles de génération, thèmes, modèles — **pas de musique** | Shared Collections (futur) |
+
+**Hors scope explicite :** backend compte utilisateur, authentification Resonance, API cloud, UI login — à traiter dans une phase produit dédiée post-Phase 6, avec ADR séparées.
+
+---
+
+## 11. Prochaine étape recommandée
+
+**Sous-phase 6.3+ :** poursuivre l’implémentation provider (import local, sync plan) en **préservant** la séparation Music Providers / Resonance Services documentée ci-dessus.
 
 Commit de conception sur `cursor/phase-provider-sync-real-gateways` → revue → merge docs → démarrer 6.1.
+
+### Conclusion
+
+La Provider Platform de Resonance repose sur une séparation nette : les **Music Providers** exécutent la musique ; les **Resonance Services** (futurs) synchronisent uniquement ce que l’utilisateur possède comme **données Resonance**. Cette approche préserve le local-first, l’optionnalité du compte, et la neutralité vis-à-vis d’Apple, Spotify ou YouTube — un différenciateur produit durable.
 
 ## Références
 

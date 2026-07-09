@@ -2,11 +2,13 @@
 
 ## Status
 
-Proposed — Phase 6.6
+Accepted — Phase 6.6; extended July 2026 (docs only).
 
 ## Context
 
 Product requires YouTube Music for provider comparison. No official consumer playlist API exists. Community libraries (e.g. **ytmusicapi**) use undocumented endpoints and browser authentication.
+
+YouTube Music is a **Music Provider** (experimental). It is unrelated to Resonance Identity or Cloud Sync. Comparison flows use **local snapshots** (ADR-017) — enabling cross-platform diff without Resonance hosting any music.
 
 ## Decision
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — Phase 6.1
+Accepted — Phase 6.1; extended July 2026 to distinguish provider auth from Resonance Identity (docs only).
 
 ## Context
 
@@ -13,6 +13,8 @@ Real playlist read/sync requires per-provider authentication:
 - **Spotify (future):** OAuth 2.0 PKCE
 
 Secrets must never flow through bridge logs, session history, or git.
+
+**Distinction:** `ProviderAuthPort` authenticates **Music Providers** (Apple Music runtime, Spotify OAuth, YouTube cookies). A future **Resonance Identity** service authenticates the optional Resonance account — separate ports, separate Keychain entries, separate UI flows. The Resonance account is **not** a music provider and must not appear in `ProviderOption` as a streaming source.
 
 ## Decision
 
@@ -37,9 +39,17 @@ class ProviderAuthPort(Protocol):
 
 | Data | Storage |
 |------|---------|
-| OAuth tokens, cookies | macOS Keychain (Swift) or encrypted file outside repo |
+| OAuth tokens, cookies (music providers) | macOS Keychain (Swift) or encrypted file outside repo |
 | Display name, expiry metadata | `RemoteProviderAccount` in local config store |
 | Bridge payloads | **Never** include secrets — only `auth_state` enum + masked labels |
+| Resonance Identity tokens (future) | Separate Keychain namespace — never mixed with provider OAuth |
+| Cloud-synced metadata (future) | Encrypted at rest on Resonance backend — **no audio blobs** |
+
+### Principles
+
+- All app features work **without** a Resonance account; provider auth is per music service only.
+- Music provider OAuth remains **local-first** (Keychain on device).
+- Resonance Cloud Sync (future) replicates **metadata** (playlists gérées, exclusions, préférences IA) — not provider secrets, not music files.
 
 ### UI boundary
 
@@ -58,8 +68,10 @@ class ProviderAuthPort(Protocol):
 
 ## Non-goals
 
-- Centralized OAuth server
+- Centralized OAuth server for music providers
 - Storing credentials in Python session history JSON
+- Resonance Identity login implementation (future phase)
+- Using Resonance account as substitute for Spotify/Apple authentication
 
 ## References
 

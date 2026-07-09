@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — consolidates analysis from Phase 5.4; does not change runtime behaviour.
+Accepted — consolidates analysis from Phase 5.4; extended July 2026 for Resonance Identity vision (docs only). Does not change runtime behaviour.
 
 ## Context
 
@@ -21,6 +21,25 @@ The canonical layer (`canonical/`, ADR-001) and gateway pattern (ADR-010) were d
 
 Resonance Core owns **composition** and **canonical playlist state**. Providers own **resolution, acquisition, delivery, and external ID persistence**. The UI and bridge manipulate canonical identities and provider-agnostic import states — never Apple `persistent_id` or Spotify URI in shared contracts.
 
+**Resonance Identity is not a music provider.** A future optional Resonance account (Identity, Cloud Sync, AI Profile, Preferences, Shared Collections) lives in a **separate service layer** that synchronizes user metadata across devices — never audio, never provider OAuth tokens, and never registered in `ProviderGatewayRegistry`.
+
+### Two service categories
+
+| Category | Examples | Registry / ports |
+|----------|----------|------------------|
+| **Music Providers** | Apple Music, Spotify, YouTube Music, Deezer, Plex, Jellyfin | `ProviderGatewayRegistry`, `ProviderGateway`, `ProviderImportPort`, playlist read/write ports |
+| **Resonance Services** | Identity, Cloud Sync, AI Profile, Preferences, Shared Collections | Future dedicated layer — **not** `ProviderId`, **not** `ProviderGateway` |
+
+### Architecture principles (local-first & optional account)
+
+- **Local operation is the reference** — all features work without a Resonance account.
+- **Resonance account is entirely optional** — no gate on generation, import, or provider sync.
+- **Music providers remain independent** — each OAuth secret stays in local Keychain; no central Resonance OAuth broker in Phase 6.
+- **Cloud sync is metadata-only** — managed playlists, exclusions, preferences, AI profiles — **no music files** stored by Resonance.
+- **Never conflate** Music Provider auth (`ProviderAuthPort`) with Resonance Identity login (future ADR).
+
+**Recommendation:** maintain this separation of responsibilities to avoid coupling the Resonance platform to any single music vendor. This is a **major competitive advantage**: users keep local control and provider choice while optionally gaining cross-device metadata sync.
+
 ### Target architecture
 
 ```text
@@ -33,7 +52,7 @@ Canonical model + ports (CatalogSearchPort, LibraryResolvePort,
        ↓
 IntegrationGateway (orchestration only — no AppleScript)
        ↓
-ProviderGatewayRegistry
+ProviderGatewayRegistry          ← Music Providers ONLY
        ↓
 ┌──────────────┬──────────────┬──────────────┐
 │ Apple Music  │   Spotify    │ YouTube Music│
@@ -42,6 +61,15 @@ ProviderGatewayRegistry
        ↓              ↓              ↓
  IdentityCache   IdentityCache   IdentityCache
  (per provider)  (per provider)  (per provider)
+
+        ═══════════════════════════════════════
+        Future (separate layer — NOT providers):
+
+┌─────────────────────────────────────────────┐
+│ Resonance Services (optional account)        │
+│ Identity · Cloud Sync · AI Profile · Prefs   │
+│ Shared Collections — metadata sync only      │
+└─────────────────────────────────────────────┘
 ```
 
 `*` `ProviderImportPort` — new port for streaming import events and manual acquisition (not yet extracted; today lives in `import_stream.py`).
@@ -70,11 +98,22 @@ Keep `IdentityCache` as the persistence primitive. Introduce a **ProviderIdentit
 
 New providers require **provider-local ADRs** (e.g. ADR-014 Spotify acquisition, ADR-015 YouTube delivery).
 
-### Non-goals (Phase 5.4)
+### Non-goals (Phase 5.4 / Phase 6 docs)
 
-- No Spotify or YouTube implementation.
+- No Spotify or YouTube implementation (in early phases).
 - No change to production acquisition workflow (ADR-012).
 - No large refactor — documentation and phased preparation only.
+- **No Resonance Identity backend, user accounts, or cloud API** — documented as future Resonance Services only.
+
+### Long-term vision enabled by this architecture
+
+When Resonance Services are implemented (post-Phase 6), the same boundaries enable:
+
+- Multi-Mac sync of managed playlists and exclusions
+- Cross-device AI generation preferences
+- Multi-provider search and cross-platform playlist comparison (via existing provider layer)
+- Shared collections and family collaboration on **metadata**
+- Marketplace of generation rules and templates — **not music hosting**
 
 ## Consequences
 

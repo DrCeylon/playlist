@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — Phase 6.1
+Accepted — Phase 6.1 (contracts); vision extended July 2026 for Resonance Services boundary (docs only).
 
 ## Context
 
@@ -13,6 +13,8 @@ ADR-013 defines multi-provider vision. Phase Playlist Manager (tag `phase-playli
 - `ProviderGatewayRegistry` + `ProviderGateway` with catalog/library/delivery ports
 
 **Gap:** no ports to **read or write user playlists** on a provider account. `ProviderImportPort` covers generation→delivery streaming import only and must remain stable (ADR-012).
+
+**Scope boundary:** `ProviderGateway` and `ProviderGatewayRegistry` apply to **Music Providers only**. Resonance Identity, Cloud Sync, AI Profile, Preferences, and Shared Collections are **Resonance Services** — they must not be modelled as `ProviderId` values or registered in the music provider registry (see ADR-013).
 
 ## Decision
 
@@ -49,7 +51,11 @@ Capability gating:
 
 ### Registry (existing)
 
-`ProviderGatewayRegistry` unchanged — register gateways that expose zero or more ports.
+`ProviderGatewayRegistry` unchanged — register **music** gateways that expose zero or more ports. Future self-hosted libraries (Plex, Jellyfin) follow the same pattern.
+
+### Resonance Services (out of scope)
+
+Cloud Sync of `LocalManagedPlaylist` metadata across Macs is a **Resonance Service**, not a playlist read/write port on a music provider. Do not extend `ProviderGateway` to represent “Resonance Cloud” as a provider.
 
 ### Application orchestration
 
@@ -87,6 +93,12 @@ Register stub gateways with empty ports and `is_available=false` — no model ch
 - Modifying `ProviderImportPort` signature
 - Cross-provider ID equivalence
 - OAuth implementation (see ADR-015)
+- Registering Resonance Identity or Cloud Sync as a `ProviderGateway`
+- Storing or streaming music via Resonance infrastructure
+
+## Recommendation
+
+Preserve the split between **music integration** (`ProviderGatewayRegistry`) and **user metadata sync** (future Resonance Services). Coupling them would force every provider adapter to understand account state and would erode provider neutrality — the primary architectural advantage of Resonance.
 
 ## References
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — Phase 6.4
+Accepted — Phase 6.4; extended July 2026 for provider vs cloud metadata sync (docs only).
 
 ## Context
 
@@ -13,6 +13,15 @@ Phase Playlist Manager introduced:
 - `sync_managed_playlist_stub` returning `pending`
 
 We need a **real sync model** that supports dry-run, partial apply, and conflicts without conflating with generation import.
+
+**Terminology:**
+
+| Sync type | Direction | Layer |
+|-----------|-----------|-------|
+| **Provider sync** | Local ↔ Music Provider (Apple, Spotify, …) | `PlaylistSyncEngine` + read/write ports |
+| **Cloud metadata sync** (future) | Mac ↔ Mac via Resonance Cloud Sync | Resonance Services — **not** `ProviderGateway` |
+
+Provider sync never requires a Resonance account. Cloud metadata sync (future) replicates `LocalManagedPlaylist` and related user data — still **no music files**.
 
 ## Decision
 
@@ -73,8 +82,10 @@ Response includes `sync_plan` when dry-run; `sync_operation` when applied.
 
 ## Non-goals
 
-- Real-time bidirectional sync
+- Real-time bidirectional sync with music providers
 - Automatic conflict resolution in v1
+- Storing audio in Resonance cloud
+- Modelling Cloud Sync as a music `ProviderId`
 
 ## References
 
