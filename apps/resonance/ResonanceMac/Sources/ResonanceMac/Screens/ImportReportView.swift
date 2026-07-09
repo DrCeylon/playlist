@@ -30,8 +30,7 @@ struct ImportReportView: View {
     var body: some View {
         let palette = ThemePalette(theme: themeManager.active)
 
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Rapport d'import")
                         .font(.title2.weight(.semibold))
@@ -90,9 +89,9 @@ struct ImportReportView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(24)
         }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func canRetry(_ outcome: ImportTrackOutcome) -> Bool {

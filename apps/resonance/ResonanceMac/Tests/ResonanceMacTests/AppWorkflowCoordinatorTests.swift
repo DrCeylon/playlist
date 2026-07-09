@@ -6,7 +6,7 @@ import XCTest
 final class AppWorkflowCoordinatorTests: XCTestCase {
     func testCanStartProcessFalseWhileGenerating() async {
         let coordinator = AppWorkflowCoordinator(
-            generationService: MockPlaylistGenerationService(),
+            playlistGenerationService: MockPlaylistGenerationService(),
             importService: MockPlaylistImportService()
         )
         coordinator.playlistBuilder.name = "Test"
@@ -18,7 +18,7 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
 
     func testCanStartProcessFalseWhileImporting() {
         let coordinator = AppWorkflowCoordinator(
-            generationService: MockPlaylistGenerationService(),
+            playlistGenerationService: MockPlaylistGenerationService(),
             importService: MockPlaylistImportService()
         )
         coordinator.importWorkflow.screenState = .importing
@@ -28,7 +28,7 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
 
     func testRequestEditFromHistoryLoadsBuilderOnApply() {
         let coordinator = AppWorkflowCoordinator(
-            generationService: MockPlaylistGenerationService(),
+            playlistGenerationService: MockPlaylistGenerationService(),
             importService: MockPlaylistImportService()
         )
         let request = PlaylistGenerationRequest(
@@ -55,7 +55,7 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
 
     func testProcessBlockingLabelWhileImporting() {
         let coordinator = AppWorkflowCoordinator(
-            generationService: MockPlaylistGenerationService(),
+            playlistGenerationService: MockPlaylistGenerationService(),
             importService: MockPlaylistImportService()
         )
         coordinator.importWorkflow.screenState = .importing
@@ -66,7 +66,7 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
     func testIsManagingSessionMatchesActiveImportPlaylist() async {
         let importService = ControllableImportService()
         let coordinator = AppWorkflowCoordinator(
-            generationService: MockPlaylistGenerationService(),
+            playlistGenerationService: MockPlaylistGenerationService(),
             importService: importService
         )
         let generation = PlaylistGenerationResult(
@@ -112,7 +112,7 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
     func testActiveHistorySessionIDComesFromImportWorkflow() async {
         let importService = ControllableImportService()
         let coordinator = AppWorkflowCoordinator(
-            generationService: MockPlaylistGenerationService(),
+            playlistGenerationService: MockPlaylistGenerationService(),
             importService: importService
         )
         let generation = PlaylistGenerationResult(
@@ -137,7 +137,7 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
 
     func testStartImportSetsActiveRouteToNewPlaylist() async {
         let coordinator = AppWorkflowCoordinator(
-            generationService: MockPlaylistGenerationService(),
+            playlistGenerationService: MockPlaylistGenerationService(),
             importService: MockPlaylistImportService()
         )
         let generation = PlaylistGenerationResult(
@@ -155,7 +155,7 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
 
     func testBannerPresentationIncludesSubstepsFromImportDiagnostics() {
         let coordinator = AppWorkflowCoordinator(
-            generationService: MockPlaylistGenerationService(),
+            playlistGenerationService: MockPlaylistGenerationService(),
             importService: MockPlaylistImportService()
         )
         coordinator.importWorkflow.screenState = .importing

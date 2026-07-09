@@ -145,6 +145,15 @@ def _baseline_results(
             rows.append(track)
     if existing_results and len(existing_results) == len(rows):
         return list(existing_results)
+    if existing_results:
+        merged = [
+            TrackAddResult(track=track, status=TrackAddStatus.NOT_FOUND, error="Non importé")
+            for track in rows
+        ]
+        for index, item in enumerate(existing_results):
+            if index < len(merged):
+                merged[index] = item
+        return merged
     return [
         TrackAddResult(track=track, status=TrackAddStatus.NOT_FOUND, error="Non importé")
         for track in rows

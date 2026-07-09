@@ -509,6 +509,7 @@ public protocol PlaylistImportServing: Sendable {
         _ generationResult: PlaylistGenerationResult,
         trackIndices: [Int],
         existingOutcomes: [ImportTrackOutcome]?,
+        historySessionID: String?,
         onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
     ) async throws -> ImportResultState
 }
@@ -518,11 +519,13 @@ public extension PlaylistImportServing {
         _ generationResult: PlaylistGenerationResult,
         trackIndices: [Int],
         existingOutcomes: [ImportTrackOutcome]? = nil,
+        historySessionID: String? = nil,
         onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
     ) async throws -> ImportResultState {
         _ = generationResult
         _ = trackIndices
         _ = existingOutcomes
+        _ = historySessionID
         _ = onEvent
         throw PlaylistImportError.bridgeUnavailable
     }

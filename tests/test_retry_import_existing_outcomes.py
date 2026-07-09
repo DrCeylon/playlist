@@ -86,7 +86,20 @@ def test_retry_import_preserves_existing_results_for_untouched_tracks(monkeypatc
     assert final.import_result.outcomes[4].status == ImportTrackStatus.ADDED
 
 
-def test_json_rpc_retry_passes_existing_outcomes_to_backend():
+def test_baseline_results_partial_existing_outcomes_preserves_prefix():
+    from playlist_builder.app.bridge_runtime.retry_import import _baseline_results
+
+    playlist = _five_track_playlist()
+    partial = _existing_results()[:3]
+    merged = _baseline_results(playlist, partial)
+    assert len(merged) == 5
+    assert merged[0].status == TrackAddStatus.ADDED
+    assert merged[2].status == TrackAddStatus.NOT_FOUND
+    assert merged[3].status == TrackAddStatus.NOT_FOUND
+    assert merged[3].error == "Non importé"
+
+
+def test_json_rpc_retry_passes_history_session_id_to_backend():
     backend = MagicMock()
     backend.retry_import_tracks_stream.return_value = [
         ImportPlaylistResult(
@@ -114,6 +127,7 @@ def test_json_rpc_retry_passes_existing_outcomes_to_backend():
                 ],
             },
             "track_indices": [1],
+            "history_session_id": "hist-retry-1",
             "existing_outcomes": [
                 {
                     "artist": "Artist A",
@@ -141,3 +155,4 @@ def test_json_rpc_retry_passes_existing_outcomes_to_backend():
     assert len(existing) == 2
     assert existing[0].status == TrackAddStatus.ADDED
     assert existing[1].status == TrackAddStatus.NOT_FOUND
+    assert kwargs["history_session_id"] == "hist-retry-1"

@@ -280,16 +280,21 @@ class RuntimeEngineBridgeBackend:
         track_indices: list[int],
         existing_results: list | None = None,
         request_id: str = "retry_import",
+        history_session_id: str | None = None,
     ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
         from playlist_builder.app.bridge_runtime.retry_import import stream_retry_import_tracks
 
-        yield from stream_retry_import_tracks(
+        for item in stream_retry_import_tracks(
             self._context,
             playlist,
             request_id,
             track_indices=track_indices,
             existing_results=existing_results,
-        )
+        ):
+            if isinstance(item, ImportPlaylistResult):
+                yield self._attach_history_import_result(item, history_session_id)
+            else:
+                yield item
 
     def replay_generation(self, session_id: str, request_id: str = "replay") -> GeneratePlaylistResult:
         payload = self._history.export_session(session_id)

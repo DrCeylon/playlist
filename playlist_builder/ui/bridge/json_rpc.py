@@ -142,11 +142,16 @@ class JsonRpcEngineBridge(EngineBridge):
             playlist = _playlist_from_params(request.params)
             track_indices = [int(value) for value in request.params.get("track_indices", [])]
             existing_results = _track_add_results_from_params(request.params)
+            history_session_id_raw = request.params.get("history_session_id")
+            history_session_id = (
+                str(history_session_id_raw).strip() if history_session_id_raw else None
+            ) or None
             for item in self.backend.retry_import_tracks_stream(
                 playlist,
                 track_indices=track_indices,
                 request_id=request.id,
                 existing_results=existing_results,
+                history_session_id=history_session_id,
             ):
                 if isinstance(item, BridgeEvent):
                     yield item.to_dict()

@@ -11,10 +11,15 @@ struct HistoryView: View {
 
     init(
         selection: Binding<SidebarItem?>,
-        service: any SessionHistoryServing = PythonEngineBridgeService()
+        bridgeService: PythonEngineBridgeService = PythonEngineBridgeService()
     ) {
         _selection = selection
-        _viewModel = StateObject(wrappedValue: HistoryViewModel(service: service))
+        _viewModel = StateObject(
+            wrappedValue: HistoryViewModel(
+                service: bridgeService,
+                importService: bridgeService
+            )
+        )
     }
 
     var body: some View {
@@ -26,6 +31,7 @@ struct HistoryView: View {
                 content(palette: palette)
             }
             .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationTitle("Historique")
         .task {
@@ -208,7 +214,9 @@ struct HistoryView: View {
                             selection = .newPlaylist
                         }
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
+                .frame(maxHeight: .infinity)
             }
         }
     }

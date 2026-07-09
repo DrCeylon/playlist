@@ -324,6 +324,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         _ result: PlaylistGenerationResult,
         trackIndices: [Int],
         existingOutcomes: [ImportTrackOutcome]? = nil,
+        historySessionID: String? = nil,
         onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
     ) async throws -> ImportResultState {
         guard let transport else {
@@ -331,6 +332,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                 result,
                 trackIndices: trackIndices,
                 existingOutcomes: existingOutcomes,
+                historySessionID: historySessionID,
                 onEvent: onEvent
             )
         }
@@ -341,6 +343,11 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         ]
         if let existingOutcomes, !existingOutcomes.isEmpty {
             params["existing_outcomes"] = .array(BridgePayloadBuilder.importOutcomesArray(from: existingOutcomes))
+        }
+        let resolvedHistorySessionID = (historySessionID ?? result.historySessionID)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if !resolvedHistorySessionID.isEmpty {
+            params["history_session_id"] = .string(resolvedHistorySessionID)
         }
         let (response, _) = try await transport.send(
             command: .retryImportTracks,

@@ -58,7 +58,7 @@ struct AppShellView: View {
         case .newPlaylist:
             PlaylistBuilderView(selection: $selection)
         case .history:
-            HistoryView(selection: $selection)
+            HistoryView(selection: $selection, bridgeService: workflow.engineBridge)
         case .laboratory:
             DiagnosticsView()
         case .settings:

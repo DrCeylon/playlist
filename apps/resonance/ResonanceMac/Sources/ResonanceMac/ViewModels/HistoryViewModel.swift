@@ -205,6 +205,7 @@ final class HistoryViewModel: ObservableObject {
                 generation,
                 trackIndices: [index],
                 existingOutcomes: importReport(from: detail)?.outcomes,
+                historySessionID: detail.summary.sessionID,
                 onEvent: { [weak self] event in
                     Task { @MainActor in
                         self?.handleImportEvent(event)
@@ -214,8 +215,13 @@ final class HistoryViewModel: ObservableObject {
             actionFeedback = .success(
                 "Réessai terminé — ajoutés \(importResult.addedCount), introuvables \(importResult.notFoundCount), erreurs \(importResult.errorCount)."
             )
+            let sessionID = detail.summary.sessionID
             await refresh()
-            await select(session: detail.summary)
+            if let refreshed = sessions.first(where: { $0.sessionID == sessionID }) {
+                await select(session: refreshed)
+            } else {
+                await select(session: detail.summary)
+            }
         } catch let error as PlaylistImportError {
             actionFeedback = .failure("Réessai impossible : \(ImportErrorHumanizer.message(for: error))")
         } catch {

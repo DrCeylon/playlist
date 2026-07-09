@@ -33,18 +33,32 @@ final class AppWorkflowCoordinator: ObservableObject {
     let playlistBuilder: PlaylistBuilderViewModel
     let importWorkflow: ImportViewModel
     let smartInputEngines: SmartInputFormEngines
+    let engineBridge: PythonEngineBridgeService
 
     private var cancellables = Set<AnyCancellable>()
 
     init(
-        generationService: any PlaylistGenerationServing = PythonEngineBridgeService(),
-        importService: any PlaylistImportServing = PythonEngineBridgeService(),
+        engineBridge: PythonEngineBridgeService = PythonEngineBridgeService(),
         autocompleteService: (any AutocompleteServing)? = nil
     ) {
+        self.engineBridge = engineBridge
         let resolvedAutocomplete: any AutocompleteServing = autocompleteService
-            ?? (generationService as? AutocompleteServing)
+            ?? engineBridge
+        playlistBuilder = PlaylistBuilderViewModel(service: engineBridge)
+        importWorkflow = ImportViewModel(service: engineBridge)
+        smartInputEngines = SmartInputFormEngines(autocompleteService: resolvedAutocomplete)
+        bindWorkflowObservation()
+    }
+
+    init(
+        playlistGenerationService: any PlaylistGenerationServing,
+        importService: any PlaylistImportServing,
+        autocompleteService: (any AutocompleteServing)? = nil
+    ) {
+        self.engineBridge = PythonEngineBridgeService(configuration: nil, transport: nil)
+        let resolvedAutocomplete: any AutocompleteServing = autocompleteService
             ?? MockAutocompleteService()
-        playlistBuilder = PlaylistBuilderViewModel(service: generationService)
+        playlistBuilder = PlaylistBuilderViewModel(service: playlistGenerationService)
         importWorkflow = ImportViewModel(service: importService)
         smartInputEngines = SmartInputFormEngines(autocompleteService: resolvedAutocomplete)
         bindWorkflowObservation()

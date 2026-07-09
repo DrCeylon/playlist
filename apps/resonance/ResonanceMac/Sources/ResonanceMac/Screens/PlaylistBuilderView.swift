@@ -68,12 +68,14 @@ private struct PlaylistBuilderScreen: View {
                 )
             case .report:
                 if let report = importViewModel.report {
-                    ImportReportView(report: report, onRetryTrack: { index in
-                        Task { await importViewModel.retryImportTrack(at: index) }
-                    }) {
-                        importViewModel.reset()
-                        viewModel.screenState = .editing
-                        syncDraftFromViewModel()
+                    BoundedScrollScreen {
+                        ImportReportView(report: report, onRetryTrack: { index in
+                            Task { await importViewModel.retryImportTrack(at: index) }
+                        }) {
+                            importViewModel.reset()
+                            viewModel.screenState = .editing
+                            syncDraftFromViewModel()
+                        }
                     }
                 }
             case .failed(let message):
