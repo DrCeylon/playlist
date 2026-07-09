@@ -5,8 +5,8 @@ Document de référence pour la release candidate. Aucun marqueur `TODO` / `FIXM
 | Sujet | Priorité | Impact | Estimation | Recommandation |
 |-------|----------|--------|------------|----------------|
 | Warnings Sendable Swift 6 | Moyenne | Bruit CI / migration future | Modérée | Traiter par cible (`ResonanceCore` d'abord) sans changer le comportement |
-| Gateway YouTube Music réel | Haute | Sync/compare providers bloqués | Élevée | Implémenter derrière `ProviderCapability.experimental` |
-| Sync provider réelle (stub `pending`) | Haute | Playlists tab affiche statut mais pas de pull/push réel | Élevée | Brancher `sync_managed_playlist` sur gateway par provider |
+| Gateway YouTube Music réel | Haute | Sync/compare providers bloqués | Élevée | Voir [ADR-018](../architecture/ADR-018-experimental-youtube-music-gateway.md) — phase 6.6 |
+| Sync provider réelle (stub `pending`) | Haute | Playlists tab affiche statut mais pas de pull/push réel | Élevée | [ADR-016](../architecture/ADR-016-playlist-sync-model.md) — phase 6.4 |
 | Tracks vides dans `get_managed_playlist` | Moyenne | Détail playlist incomplet | Modérée | Hydrater depuis `import_result` historique |
 | `PlaylistBuilderViewModel` hardcode `appleMusic` | Moyenne | Sélection provider UI non effective | Faible | Activer picker existant sans coupler l'UI à Apple |
 | Import `sync: true` toujours côté Swift | Basse | Pas d'import incrémental UI | Faible | Exposer toggle dans preview/import |

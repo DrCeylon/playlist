@@ -21,6 +21,12 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **5.2–5.5** | Workflow coordinator, historique live, ProviderImportPort, acquisition manuelle SSOT | `main` |
 | **Playlist Manager** | Dashboard, Playlists / Sync / Providers, DTO library, YouTube expérimental | Tag `phase-playlist-manager-complete` — [clôture](Phase-Playlist-Manager-Cloture) |
 
+## Phase en cours (conception)
+
+| Phase | Statut | Référence |
+|-------|--------|-----------|
+| **6 — Provider Platform & Real Sync** | Conception sur `cursor/phase-provider-sync-real-gateways` | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md), ADR-014–018 |
+
 Correctifs intégrés sur `main` :
 
 | PR | Sujet |

@@ -20,6 +20,8 @@ Phase 4 — Product discovery & UI contracts.
 
 **État courant (post Playlist Manager)** : voir [wiki Phase Playlist Manager — clôture](../../wiki/Phase-Playlist-Manager-Cloture.md) et [dette technique](../TECHNICAL_DEBT.md).
 
+**Phase 6 (conception)** : [phase-6-provider-platform.md](phase-6-provider-platform.md)
+
 ## Phase 4.1 — Shared contracts (code)
 
 Python package `playlist_builder/ui/shared/` :
