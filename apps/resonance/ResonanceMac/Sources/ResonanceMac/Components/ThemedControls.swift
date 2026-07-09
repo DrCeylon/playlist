@@ -4,6 +4,8 @@ import SwiftUI
 
 enum HomeShortcut: String, CaseIterable, Identifiable {
     case newPlaylist
+    case playlists
+    case sync
     case history
     case laboratory
 
@@ -12,6 +14,8 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .newPlaylist: return "Nouvelle Playlist"
+        case .playlists: return "Playlists"
+        case .sync: return "Synchronisation"
         case .history: return "Historique"
         case .laboratory: return "Laboratoire"
         }
@@ -20,6 +24,8 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .newPlaylist: return "plus.rectangle.on.rectangle"
+        case .playlists: return "music.note.list"
+        case .sync: return "arrow.triangle.2.circlepath"
         case .history: return "clock"
         case .laboratory: return "flask"
         }
@@ -28,6 +34,8 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
     var destination: SidebarItem {
         switch self {
         case .newPlaylist: return .newPlaylist
+        case .playlists: return .playlists
+        case .sync: return .sync
         case .history: return .history
         case .laboratory: return .laboratory
         }
@@ -38,7 +46,7 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
         switch self {
         case .newPlaylist, .history:
             return true
-        case .laboratory:
+        case .playlists, .sync, .laboratory:
             return false
         }
     }

@@ -57,6 +57,12 @@ struct AppShellView: View {
             HomeView(selection: $selection)
         case .newPlaylist:
             PlaylistBuilderView(selection: $selection)
+        case .playlists:
+            PlaylistsView(selection: $selection, libraryService: workflow.engineBridge)
+        case .sync:
+            SyncView(selection: $selection, libraryService: workflow.engineBridge)
+        case .providers:
+            ProvidersView(service: workflow.engineBridge)
         case .history:
             HistoryView(selection: $selection, bridgeService: workflow.engineBridge)
         case .laboratory:

@@ -6,6 +6,7 @@ struct HomeView: View {
     @Binding var selection: SidebarItem?
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var workflow: AppWorkflowCoordinator
+    @StateObject private var playlistsModel = PlaylistsViewModel(service: MockPlaylistLibraryService())
 
     var body: some View {
         ThemedScreen {
@@ -17,18 +18,40 @@ struct HomeView: View {
                         Text("Bonjour")
                             .font(.largeTitle.weight(.semibold))
                             .foregroundStyle(palette.textPrimary)
-                        Text("Génère, importe et retrouve tes playlists depuis une interface macOS.")
+                        Text("Gère, synchronise et retrouve tes playlists depuis un tableau de bord macOS.")
                             .font(.body)
                             .foregroundStyle(palette.textSecondary)
                     }
 
-                    card(title: "Par où commencer", palette: palette) {
-                        Text("Ouvre Nouvelle Playlist, saisis un nom et une inspiration musicale, puis génère et importe dans Apple Music.")
-                            .font(.callout)
-                            .foregroundStyle(palette.textSecondary)
+                    card(title: "Playlists récentes", palette: palette) {
+                        if playlistsModel.recentPlaylists.isEmpty {
+                            Text("Aucune playlist locale pour le moment — génère ou importe une première playlist.")
+                                .font(.callout)
+                                .foregroundStyle(palette.textSecondary)
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(playlistsModel.recentPlaylists) { playlist in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(playlist.name)
+                                                .font(.callout.weight(.semibold))
+                                            Text("\(PlaylistLibraryDisplay.providerLabel(playlist.providerID)) · \(playlist.trackCount) morceaux")
+                                                .font(.caption)
+                                                .foregroundStyle(palette.textSecondary)
+                                        }
+                                        Spacer()
+                                        Text(PlaylistLibraryDisplay.syncStatusLabel(playlist.syncStatus))
+                                            .font(.caption2)
+                                            .foregroundStyle(palette.accentPrimary)
+                                    }
+                                }
+                                Button("Voir toutes les playlists") { selection = .playlists }
+                                    .buttonStyle(.bordered)
+                            }
+                        }
                     }
 
-                    card(title: "Raccourcis", palette: palette) {
+                    card(title: "Actions rapides", palette: palette) {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 16) {
                                 ForEach(HomeShortcut.allCases) { shortcut in
@@ -43,11 +66,23 @@ struct HomeView: View {
                         }
                     }
 
+                    card(title: "Reprise de workflow", palette: palette) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button("Historique des sessions") { selection = .history }
+                                .buttonStyle(.bordered)
+                            Button("Synchronisation provider") { selection = .sync }
+                                .buttonStyle(.bordered)
+                            Text("Reprends un import partiel, une acquisition manuelle ou une synchronisation en attente.")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                    }
+
                     card(title: "État", palette: palette) {
-                        Text("Resonance — Preview produit Phase 4.8")
+                        Text("Resonance — Gestionnaire de playlists (preview)")
                             .font(.callout.weight(.medium))
                             .foregroundStyle(palette.textPrimary)
-                        Text("Moteur Python provider-neutral, bridge runtime et historique local.")
+                        Text("Architecture provider-neutral, Apple Music principal, YouTube Music expérimental.")
                             .font(.callout)
                             .foregroundStyle(palette.textSecondary)
                     }
@@ -56,6 +91,10 @@ struct HomeView: View {
             }
         }
         .navigationTitle("Accueil")
+        .task {
+            playlistsModel.replaceService(workflow.engineBridge)
+            await playlistsModel.refresh()
+        }
     }
 
     @ViewBuilder

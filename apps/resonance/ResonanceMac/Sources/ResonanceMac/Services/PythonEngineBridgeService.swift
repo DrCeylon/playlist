@@ -103,7 +103,7 @@ public struct PythonEngineBridgeConfiguration: Sendable {
 }
 
 /// Immutable service wrapper around bridge transport and stateless fallback services.
-public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, DiagnosticsServing, SessionHistoryServing, AutocompleteServing, @unchecked Sendable {
+public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, PlaylistLibraryServing, DiagnosticsServing, SessionHistoryServing, AutocompleteServing, @unchecked Sendable {
     private let transport: BridgeTransport?
     private let configuration: PythonEngineBridgeConfiguration?
     private let fallbackGeneration: MockPlaylistGenerationService
@@ -438,6 +438,43 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             params: ["session_id": .string(sessionID)]
         )
         return BridgePayloadBuilder.exportHistorySession(from: response.result)
+    }
+
+    public func listManagedPlaylists() async throws -> [ManagedPlaylistSummary] {
+        guard let transport else {
+            return DefaultManagedPlaylists.samples
+        }
+        let (response, _) = try await transport.send(command: .listManagedPlaylists, params: [:])
+        return BridgePayloadBuilder.managedPlaylists(from: response.result)
+    }
+
+    public func getManagedPlaylist(localPlaylistID: String) async throws -> ManagedPlaylistDetail? {
+        guard let transport else {
+            return try await MockPlaylistLibraryService().getManagedPlaylist(localPlaylistID: localPlaylistID)
+        }
+        let (response, _) = try await transport.send(
+            command: .getManagedPlaylist,
+            params: ["local_playlist_id": .string(localPlaylistID)]
+        )
+        return BridgePayloadBuilder.managedPlaylistDetail(from: response.result)
+    }
+
+    public func syncManagedPlaylist(_ request: PlaylistSyncRequest) async throws -> PlaylistSyncResult {
+        guard let transport else {
+            return try await MockPlaylistLibraryService().syncManagedPlaylist(request)
+        }
+        let (response, _) = try await transport.send(
+            command: .syncManagedPlaylist,
+            params: [
+                "local_playlist_id": .string(request.localPlaylistID),
+                "direction": .string(request.direction.rawValue),
+                "provider_id": .string(request.providerID.rawValue),
+            ]
+        )
+        guard let result = BridgePayloadBuilder.playlistSyncResult(from: response.result) else {
+            throw PlaylistImportError.invalidResponse
+        }
+        return result
     }
 
     public func search(request: AutocompleteRequest) async throws -> AutocompleteResponse {
