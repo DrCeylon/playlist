@@ -32,6 +32,8 @@ from playlist_builder.canonical.contracts import (
     PlaylistDeliveryPort,
     ProviderGateway,
 )
+from playlist_builder.integration.ports.playlist_read import ProviderPlaylistReadPort
+from playlist_builder.integration.ports.playlist_write import ProviderPlaylistWritePort
 from playlist_builder.canonical.identity import normalize_identity_component
 from playlist_builder.core.models import PlaylistDefinition, PlaylistSection, TrackRef
 
@@ -193,6 +195,14 @@ class _FakeGateway(ProviderGateway):
 
     @property
     def delivery(self) -> PlaylistDeliveryPort | None:
+        return None
+
+    @property
+    def playlist_read(self) -> ProviderPlaylistReadPort | None:
+        return None
+
+    @property
+    def playlist_write(self) -> ProviderPlaylistWritePort | None:
         return None
 
 

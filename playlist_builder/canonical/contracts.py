@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from playlist_builder.canonical.enums import ProviderCapability, ProviderId
 from playlist_builder.canonical.models import (
@@ -11,6 +11,10 @@ from playlist_builder.canonical.models import (
     CanonicalSearchResponse,
     CanonicalTrack,
 )
+
+if TYPE_CHECKING:
+    from playlist_builder.integration.ports.playlist_read import ProviderPlaylistReadPort
+    from playlist_builder.integration.ports.playlist_write import ProviderPlaylistWritePort
 
 
 @runtime_checkable
@@ -52,3 +56,9 @@ class ProviderGateway(Protocol):
 
   @property
   def delivery(self) -> PlaylistDeliveryPort | None: ...
+
+  @property
+  def playlist_read(self) -> ProviderPlaylistReadPort | None: ...
+
+  @property
+  def playlist_write(self) -> ProviderPlaylistWritePort | None: ...

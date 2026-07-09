@@ -707,4 +707,91 @@ public enum BridgePayloadBuilder {
             message: object["message"]?.stringValue ?? ""
         )
     }
+
+    public static func remotePlaylists(from payload: BridgeJSONObject) -> [RemotePlaylist] {
+        let playlistsRaw = payload["remote_playlists"]?.arrayValue ?? []
+        return playlistsRaw.compactMap(\.objectValue).map(remotePlaylist)
+    }
+
+    public static func remotePlaylistSnapshot(from payload: BridgeJSONObject) -> RemotePlaylistSnapshot? {
+        guard let object = payload["remote_playlist"]?.objectValue else { return nil }
+        return remotePlaylistSnapshotObject(object)
+    }
+
+    public static func remoteProviderAccounts(from payload: BridgeJSONObject) -> [RemoteProviderAccount] {
+        let accountsRaw = payload["provider_accounts"]?.arrayValue ?? []
+        return accountsRaw.compactMap(\.objectValue).map(remoteProviderAccount)
+    }
+
+    public static func providerAuthState(from payload: BridgeJSONObject) -> ProviderAuthState? {
+        guard let raw = payload["auth_state"]?.stringValue else { return nil }
+        return ProviderAuthState(rawValue: raw)
+    }
+
+    private static func remotePlaylist(_ object: BridgeJSONObject) -> RemotePlaylist {
+        let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
+        return RemotePlaylist(
+            providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
+            remotePlaylistID: object["remote_playlist_id"]?.stringValue ?? "",
+            name: object["name"]?.stringValue ?? "",
+            trackCount: object["track_count"]?.intValue ?? 0,
+            isPublic: object["is_public"]?.boolValue ?? false,
+            ownerLabel: object["owner_label"]?.stringValue ?? "",
+            snapshotAtISO: object["snapshot_at_iso"]?.stringValue ?? "",
+            sourceURL: object["source_url"]?.stringValue ?? ""
+        )
+    }
+
+    private static func remotePlaylistSnapshotObject(_ object: BridgeJSONObject) -> RemotePlaylistSnapshot {
+        let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
+        let sourceRaw = object["source_kind"]?.stringValue ?? PlaylistSourceKind.providerLibrary.rawValue
+        let tracksRaw = object["tracks"]?.arrayValue ?? []
+        let tracks = tracksRaw.compactMap(\.objectValue).map(remotePlaylistTrack)
+        return RemotePlaylistSnapshot(
+            providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
+            remotePlaylistID: object["remote_playlist_id"]?.stringValue ?? "",
+            name: object["name"]?.stringValue ?? "",
+            snapshotAtISO: object["snapshot_at_iso"]?.stringValue ?? "",
+            tracks: tracks,
+            trackCount: object["track_count"]?.intValue ?? tracks.count,
+            checksum: object["checksum"]?.stringValue ?? "",
+            sourceKind: PlaylistSourceKind(rawValue: sourceRaw) ?? .providerLibrary,
+            sourceURL: object["source_url"]?.stringValue ?? ""
+        )
+    }
+
+    private static func remotePlaylistTrack(_ object: BridgeJSONObject) -> RemotePlaylistTrack {
+        let metadataRaw = object["provider_metadata"]?.objectValue ?? [:]
+        let metadata = metadataRaw.reduce(into: [String: String]()) { result, pair in
+            if let value = pair.value.stringValue {
+                result[pair.key] = value
+            }
+        }
+        return RemotePlaylistTrack(
+            remoteTrackID: object["remote_track_id"]?.stringValue ?? "",
+            artist: object["artist"]?.stringValue ?? "",
+            title: object["title"]?.stringValue ?? "",
+            album: object["album"]?.stringValue ?? "",
+            durationMS: object["duration_ms"]?.intValue ?? 0,
+            position: object["position"]?.intValue ?? 0,
+            providerMetadata: metadata
+        )
+    }
+
+    private static func remoteProviderAccount(_ object: BridgeJSONObject) -> RemoteProviderAccount {
+        let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
+        let authRaw = object["auth_state"]?.stringValue ?? ProviderAuthState.disconnected.rawValue
+        let capabilitiesRaw = object["capabilities"]?.arrayValue ?? []
+        let capabilities = capabilitiesRaw.compactMap { item -> ProviderCapability? in
+            guard let raw = item.stringValue else { return nil }
+            return ProviderCapability(rawValue: raw)
+        }
+        return RemoteProviderAccount(
+            providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
+            displayName: object["display_name"]?.stringValue ?? "",
+            authState: ProviderAuthState(rawValue: authRaw) ?? .disconnected,
+            lastConnectedAtISO: object["last_connected_at_iso"]?.stringValue ?? "",
+            capabilities: capabilities
+        )
+    }
 }

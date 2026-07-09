@@ -63,6 +63,14 @@ class AppleMusicProviderGateway(ProviderGateway):
         return self._delivery
 
     @property
+    def playlist_read(self) -> None:
+        return None
+
+    @property
+    def playlist_write(self) -> None:
+        return None
+
+    @property
     def import_service(self) -> AppleMusicImportService:
         return self._import_service
 
