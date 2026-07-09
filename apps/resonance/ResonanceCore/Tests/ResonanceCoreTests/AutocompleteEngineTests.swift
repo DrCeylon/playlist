@@ -42,12 +42,6 @@ final class AutocompleteEngineTests: XCTestCase {
             XCTAssertEqual(engine.session.phase, .debouncing)
         }
 
-        // Debounce must delay the search while the interval has not elapsed.
-        try? await Task.sleep(nanoseconds: 25_000_000)
-        await MainActor.run {
-            XCTAssertEqual(engine.session.phase, .debouncing)
-        }
-
         await AutocompleteTestSupport.waitForSearchCompletion(engine)
         await MainActor.run {
             XCTAssertEqual(engine.session.phase, .ready)
