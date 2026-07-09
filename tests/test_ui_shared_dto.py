@@ -128,6 +128,9 @@ def test_user_preferences_defaults():
 
 def test_app_route_values():
     assert AppRoute.HOME.value == "home"
+    assert AppRoute.PLAYLISTS.value == "playlists"
+    assert AppRoute.SYNC.value == "sync"
+    assert AppRoute.PROVIDERS.value == "providers"
     assert AppRoute.MANUAL_ACQUISITION.value == "manual_acquisition"
 
 

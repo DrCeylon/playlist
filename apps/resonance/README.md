@@ -1,14 +1,14 @@
-# Resonance — macOS SwiftUI shell (Phase 4.4)
+# Resonance — macOS SwiftUI shell
 
-Provider-neutral macOS application shell for the Resonance playlist platform.
+Provider-neutral macOS application for the Resonance playlist platform (generation, import, playlist manager, sync).
 
 ## Structure
 
 | Target | Role |
 |--------|------|
-| `ResonanceCore` | Shared routes and DTO mirrors (`AppRoute`, `ThemeOption`) |
+| `ResonanceCore` | Shared routes, DTO mirrors, bridge client |
 | `ResonanceDesign` | Theme engine (JSON tokens, `ThemeManager`) |
-| `ResonanceMac` | macOS SwiftUI executable — AppShell, Home, Settings |
+| `ResonanceMac` | macOS SwiftUI executable — AppShell, Home, Playlists, Sync, Providers, History, Settings |
 
 Bundled themes live in `ResonanceDesign/Resources/themes/` and mirror
 `playlist_builder/ui/shared/theme/themes/`.
@@ -41,11 +41,10 @@ Or use the helper script:
 ./scripts/build.sh
 ```
 
-## Constraints (Phase 4.4)
+## Constraints
 
-- No AppleScript or provider-specific UI code
-- No playlist/library delete actions
-- Python engine unchanged; bridge not required at runtime yet
+- No AppleScript or provider-specific UI code in screens/view models
+- Python engine via `PythonEngineBridgeService` when repo root is discoverable
 - Colors only via `ThemeManager` / design tokens
 
 ## Related
