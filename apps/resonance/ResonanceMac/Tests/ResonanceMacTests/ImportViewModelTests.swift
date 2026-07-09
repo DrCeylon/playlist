@@ -575,7 +575,12 @@ final class ImportViewModelTests: XCTestCase {
         ]
 
         final class LiveRetryService: PlaylistImportServing {
+            private let seedOutcomes: [ImportTrackOutcome]
             private(set) var receivedExistingOutcomes: [ImportTrackOutcome]?
+
+            init(seedOutcomes: [ImportTrackOutcome]) {
+                self.seedOutcomes = seedOutcomes
+            }
 
             func importPlaylist(
                 _ result: PlaylistGenerationResult,
@@ -583,10 +588,18 @@ final class ImportViewModelTests: XCTestCase {
             ) async throws -> ImportResultState {
                 ImportResultState(
                     playlistName: result.playlistName,
-                    outcomes: initialOutcomes,
+                    outcomes: seedOutcomes,
                     phase: .partialSuccess,
                     historySessionID: result.historySessionID
                 )
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                ImportResultState(playlistName: "Demo", phase: .completed)
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(found: false)
             }
 
             func retryImportTracks(
@@ -616,7 +629,7 @@ final class ImportViewModelTests: XCTestCase {
             }
         }
 
-        let service = LiveRetryService()
+        let service = LiveRetryService(seedOutcomes: initialOutcomes)
         let viewModel = ImportViewModel(service: service)
         let generation = PlaylistGenerationResult(
             playlistName: "3e test",
@@ -659,6 +672,12 @@ final class ImportViewModelTests: XCTestCase {
         ]
 
         final class LateEventRetryService: PlaylistImportServing {
+            private let seedOutcomes: [ImportTrackOutcome]
+
+            init(seedOutcomes: [ImportTrackOutcome]) {
+                self.seedOutcomes = seedOutcomes
+            }
+
             func importPlaylist(
                 _ result: PlaylistGenerationResult,
                 onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
@@ -678,9 +697,17 @@ final class ImportViewModelTests: XCTestCase {
                 }
                 return ImportResultState(
                     playlistName: result.playlistName,
-                    outcomes: initialOutcomes,
+                    outcomes: seedOutcomes,
                     phase: .partialSuccess
                 )
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                ImportResultState(playlistName: "Demo", phase: .completed)
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(found: false)
             }
 
             func retryImportTracks(
@@ -698,7 +725,7 @@ final class ImportViewModelTests: XCTestCase {
             }
         }
 
-        let viewModel = ImportViewModel(service: LateEventRetryService())
+        let viewModel = ImportViewModel(service: LateEventRetryService(seedOutcomes: initialOutcomes))
         let generation = PlaylistGenerationResult(
             playlistName: "Retry Late Events",
             sections: [
