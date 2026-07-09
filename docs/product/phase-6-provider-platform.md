@@ -1,8 +1,8 @@
 # Phase 6 — Provider Platform & Real Sync
 
-**Branche de conception :** `cursor/phase-provider-sync-real-gateways`  
-**Base :** `main` @ `d33ce9a` (tag `phase-playlist-manager-complete`)  
-**Statut :** Conception + sous-phases 6.1 (contrats) et 6.2 (lecture distante Apple Music) — voir ADR-013 à ADR-018 pour la vision identité Resonance (docs uniquement, hors scope runtime Phase 6)
+**Branche de conception :** `cursor/phase-provider-sync-real-gateways` (mergée PR #60)  
+**Base :** `main` @ `1f7e2e9` (post Phase 6.4)  
+**Statut :** 6.1 ✅, 6.4 dry-run ✅ mergés ; 6.2 en revue (PR #62) ; 6.3+ planifié — voir ADR-013 à ADR-018 pour la vision identité Resonance (docs uniquement, hors scope runtime Phase 6)
 
 ## Objectif
 
@@ -379,15 +379,14 @@ Un **publish** vers Apple Music réutilise la **delivery** existante pour l’aj
 | **Rollback** | Repository derrière interface |
 | **Validation** | Import visible dans Playlists UI |
 
-### 6.4 Sync Plan / Dry Run
+### 6.4 Sync Plan / Dry Run ✅ (mergé PR #64)
 
 | | |
 |--|--|
-| **Fichiers** | `PlaylistSyncEngine` ; `plan_sync` bridge ; ADR-016 |
-| **Tests** | Plan sur fixtures ; dry-run sans side effects |
-| **Risques** | Complexité diff — commencer append_only |
-| **Rollback** | Stub plan détaillé |
-| **Validation** | UI affiche actions proposées |
+| **Fichiers** | `app/playlist_sync/` ; `plan_sync` bridge ; ADR-016 |
+| **Tests** | `test_playlist_sync_planning.py`, `test_playlist_sync_bridge.py` |
+| **Statut** | **Terminé** sur `main` — dry-run uniquement, pas de write provider |
+| **Prochaine étape** | 6.5 sync apply après 6.2 + 6.3 |
 
 ### 6.5 Apple Music publish/read alignment
 

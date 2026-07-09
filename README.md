@@ -4,6 +4,23 @@ Génère des playlists Apple Music à partir de **mots-clés**, de **morceaux de
 
 📖 **[Documentation complète (Wiki)](https://github.com/DrCeylon/playlist/wiki)** — vision, guides, architecture, FAQ.
 
+## Resonance (app macOS)
+
+Le moteur Python est aussi accessible via **Resonance**, une app macOS SwiftUI (`apps/resonance/`) :
+
+- génération de playlists, import streaming, historique ;
+- gestionnaire de playlists (preview), sync dry-run (Phase 6.4) ;
+- architecture provider-neutral (Phase 6.1+).
+
+État des phases : [wiki/Etat-des-Phases.md](wiki/Etat-des-Phases.md) · dette technique : [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md).
+
+**Validation locale :**
+
+```bash
+python3.12 -m pytest -q          # 425 tests
+cd apps/resonance && ./scripts/build.sh   # macOS uniquement
+```
+
 ## Playlist incluse
 
 - **🏝 Orlando Pool Party 2026** : pool party Floride, bonne humeur, montée progressive, environ 6 h, sans reggaeton.

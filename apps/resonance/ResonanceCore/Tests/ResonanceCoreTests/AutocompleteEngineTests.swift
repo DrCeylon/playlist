@@ -1,6 +1,33 @@
 import ResonanceCore
 import XCTest
 
+private enum AutocompleteTestSupport {
+    /// Waits until the engine reaches a terminal search phase instead of relying on wall-clock sleeps.
+    static func waitForSearchCompletion<Provider: SuggestionProvider>(
+        _ engine: AutocompleteEngine<Provider>,
+        timeout: TimeInterval = 2.0,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let phase = await MainActor.run { engine.session.phase }
+            switch phase {
+            case .ready, .error:
+                return
+            case .idle, .debouncing, .searching:
+                try? await Task.sleep(nanoseconds: 5_000_000)
+            }
+        }
+        let phase = await MainActor.run { engine.session.phase }
+        XCTFail(
+            "Timed out waiting for autocomplete completion; last phase=\(String(describing: phase))",
+            file: file,
+            line: line
+        )
+    }
+}
+
 final class AutocompleteEngineTests: XCTestCase {
     func testDebounceReturnsResults() async {
         let engine = await MainActor.run {
@@ -15,7 +42,13 @@ final class AutocompleteEngineTests: XCTestCase {
             XCTAssertEqual(engine.session.phase, .debouncing)
         }
 
-        try? await Task.sleep(nanoseconds: 120_000_000)
+        // Debounce must delay the search while the interval has not elapsed.
+        try? await Task.sleep(nanoseconds: 25_000_000)
+        await MainActor.run {
+            XCTAssertEqual(engine.session.phase, .debouncing)
+        }
+
+        await AutocompleteTestSupport.waitForSearchCompletion(engine)
         await MainActor.run {
             XCTAssertEqual(engine.session.phase, .ready)
             XCTAssertFalse(engine.session.results.isEmpty)
@@ -28,7 +61,7 @@ final class AutocompleteEngineTests: XCTestCase {
             AutocompleteEngine(provider: MockArtistSuggestionProvider(), entityKind: .artist, debounceInterval: 0)
         }
         await MainActor.run { engine.updateQuery("mu") }
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        await AutocompleteTestSupport.waitForSearchCompletion(engine)
         await MainActor.run {
             XCTAssertEqual(engine.session.phase, .ready)
             XCTAssertFalse(engine.session.results.isEmpty)
@@ -43,7 +76,7 @@ final class AutocompleteEngineTests: XCTestCase {
             AutocompleteEngine(provider: MockArtistSuggestionProvider(), entityKind: .artist, debounceInterval: 0)
         }
         await MainActor.run { engine.updateQuery("a") }
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        await AutocompleteTestSupport.waitForSearchCompletion(engine)
         await MainActor.run {
             XCTAssertGreaterThanOrEqual(engine.session.visibleItems.count, 3)
             engine.moveHighlight(delta: 1)
@@ -138,13 +171,13 @@ final class MockTrackSuggestionProviderTests: XCTestCase {
             AutocompleteEngine(provider: provider, entityKind: .track, debounceInterval: 0)
         }
         await MainActor.run { engine.updateQuery("star") }
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        await AutocompleteTestSupport.waitForSearchCompletion(engine)
         await MainActor.run {
             XCTAssertEqual(engine.session.results.count, 1)
             XCTAssertEqual(engine.session.results[0].artistName, "Muse")
             engine.setContext(AutocompleteContext(artistName: "Kygo", artistID: "kygo"))
         }
-        try? await Task.sleep(nanoseconds: 50_000_000)
+        await AutocompleteTestSupport.waitForSearchCompletion(engine)
         await MainActor.run {
             XCTAssertEqual(engine.session.phase, .ready)
             XCTAssertTrue(engine.session.results.isEmpty)

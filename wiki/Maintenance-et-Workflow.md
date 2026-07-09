@@ -41,7 +41,9 @@ Ne **jamais** supprimer une branche dont la PR est encore ouverte ou contient du
 | **OPEN** + obsolète / doublon | Fermer avec commentaire explicatif |
 | **CLOSED** sans merge | Archivée ; branche supprimée si inutile |
 
-Les PR Cursor en brouillon (#34–#36) sont les seules ouvertes au juillet 2026.
+Les PR ouvertes pertinentes (juillet 2026) : #62 (6.2 read), #57 (fix import), #48 (agent OS), #53 (dev env).
+
+Les PR obsolètes (#46, #54, #56) doivent être fermées manuellement — le token GitHub App Cursor Cloud n'a pas la permission `pull_requests: write`.
 
 ## Tags et stash
 
