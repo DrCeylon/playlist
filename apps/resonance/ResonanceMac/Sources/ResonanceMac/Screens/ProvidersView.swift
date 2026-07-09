@@ -99,20 +99,25 @@ struct ProvidersView: View {
 
     @ViewBuilder
     private func statusBadge(_ provider: ProviderOption, palette: ThemePalette) -> some View {
-        let label: String
-        let color: Color
-        if provider.isAvailable {
-            label = provider.isConnected ? "Connecté" : "Disponible"
-            color = palette.statusSuccess
-        } else if provider.isExperimental {
-            label = "Expérimental"
-            color = palette.statusWarning
-        } else {
-            label = "Indisponible"
-            color = palette.textSecondary
-        }
-        Text(label)
+        let status = providerStatus(for: provider, palette: palette)
+        Text(status.label)
             .font(.caption2.weight(.semibold))
-            .foregroundStyle(color)
+            .foregroundStyle(status.color)
+    }
+
+    private func providerStatus(
+        for provider: ProviderOption,
+        palette: ThemePalette
+    ) -> (label: String, color: Color) {
+        if provider.isAvailable {
+            return (
+                provider.isConnected ? "Connecté" : "Disponible",
+                palette.statusSuccess
+            )
+        }
+        if provider.isExperimental {
+            return ("Expérimental", palette.statusWarning)
+        }
+        return ("Indisponible", palette.textSecondary)
     }
 }
