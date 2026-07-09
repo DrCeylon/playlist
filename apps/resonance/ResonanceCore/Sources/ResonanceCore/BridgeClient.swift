@@ -415,6 +415,18 @@ public enum BridgePayloadBuilder {
         ]
     }
 
+    public static func importOutcomesArray(from outcomes: [ImportTrackOutcome]) -> [BridgeJSONValue] {
+        outcomes.map { item in
+            .object([
+                "artist": .string(item.artist),
+                "title": .string(item.title),
+                "section": .string(item.section),
+                "status": .string(item.status.rawValue),
+                "message": .string(item.message),
+            ])
+        }
+    }
+
     public static func importResult(from payload: BridgeJSONObject) throws -> ImportResultState {
         guard let importObject = payload["import"]?.objectValue else {
             throw BridgeClientError.invalidResponse

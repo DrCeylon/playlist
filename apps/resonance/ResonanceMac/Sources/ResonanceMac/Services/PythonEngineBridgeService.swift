@@ -323,18 +323,28 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
     public func retryImportTracks(
         _ result: PlaylistGenerationResult,
         trackIndices: [Int],
+        existingOutcomes: [ImportTrackOutcome]? = nil,
         onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
     ) async throws -> ImportResultState {
         guard let transport else {
-            return try await fallbackImport.retryImportTracks(result, trackIndices: trackIndices, onEvent: onEvent)
+            return try await fallbackImport.retryImportTracks(
+                result,
+                trackIndices: trackIndices,
+                existingOutcomes: existingOutcomes,
+                onEvent: onEvent
+            )
         }
         let playlistPayload = BridgePayloadBuilder.playlistDictionary(from: result)
+        var params: BridgeJSONObject = [
+            "playlist": .object(playlistPayload),
+            "track_indices": .array(trackIndices.map { .number(Double($0)) }),
+        ]
+        if let existingOutcomes, !existingOutcomes.isEmpty {
+            params["existing_outcomes"] = .array(BridgePayloadBuilder.importOutcomesArray(from: existingOutcomes))
+        }
         let (response, _) = try await transport.send(
             command: .retryImportTracks,
-            params: [
-                "playlist": .object(playlistPayload),
-                "track_indices": .array(trackIndices.map { .number(Double($0)) }),
-            ],
+            params: params,
             onEvent: onEvent,
             onDiagnostic: { line in
                 bridgeServiceLogger.debug("Bridge stderr: \(line)")

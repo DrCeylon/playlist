@@ -508,6 +508,7 @@ public protocol PlaylistImportServing: Sendable {
     func retryImportTracks(
         _ generationResult: PlaylistGenerationResult,
         trackIndices: [Int],
+        existingOutcomes: [ImportTrackOutcome]?,
         onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
     ) async throws -> ImportResultState
 }
@@ -516,10 +517,12 @@ public extension PlaylistImportServing {
     func retryImportTracks(
         _ generationResult: PlaylistGenerationResult,
         trackIndices: [Int],
+        existingOutcomes: [ImportTrackOutcome]? = nil,
         onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
     ) async throws -> ImportResultState {
         _ = generationResult
         _ = trackIndices
+        _ = existingOutcomes
         _ = onEvent
         throw PlaylistImportError.bridgeUnavailable
     }

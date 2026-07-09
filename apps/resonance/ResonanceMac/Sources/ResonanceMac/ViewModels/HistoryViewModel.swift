@@ -204,6 +204,7 @@ final class HistoryViewModel: ObservableObject {
             let importResult = try await importService.retryImportTracks(
                 generation,
                 trackIndices: [index],
+                existingOutcomes: importReport(from: detail)?.outcomes,
                 onEvent: { [weak self] event in
                     Task { @MainActor in
                         self?.handleImportEvent(event)

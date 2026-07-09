@@ -18,7 +18,13 @@ from playlist_builder.ui.bridge.events import (
     track_progress_event,
 )
 from playlist_builder.infrastructure.perf import PerfSession, perf_record, perf_span, perf_trace_enabled
-from playlist_builder.app.bridge_runtime.import_session import ImportSessionCheckpoint, ImportSessionStore, new_session_id
+from playlist_builder.app.bridge_runtime.import_session import (
+    ImportSessionCheckpoint,
+    ImportSessionStore,
+    checkpoint_outcomes_from_provider_pairs,
+    new_session_id,
+    provider_pairs_from_checkpoint_outcomes,
+)
 from playlist_builder.app.bridge_runtime.manual_gate import ManualAcquisitionInterrupted
 from playlist_builder.app.bridge_runtime.mapping import track_add_results_to_import_state
 from playlist_builder.infrastructure.manual_continue_trace import log as manual_continue_trace
@@ -225,9 +231,14 @@ def _stream_import_playlist_body(
 
     outcomes: list = []
     if checkpoint is not None and start_index > 0:
-        outcomes = _prefill_resolved_outcomes_before_checkpoint(import_port, rows, start_index)
+        outcomes = _restore_outcomes_for_checkpoint_resume(
+            import_port,
+            checkpoint,
+            rows,
+            start_index,
+        )
         manual_continue_trace(
-            f"CALL stream_import_playlist(resume) prefilled_outcomes={len(outcomes)} start_index={start_index}"
+            f"CALL stream_import_playlist(resume) restored_outcomes={len(outcomes)} start_index={start_index}"
         )
     added_count = 0
     skipped_count = 0
@@ -292,6 +303,7 @@ def _stream_import_playlist_body(
                         sync=sync,
                         write_json_diagnostics=write_json_diagnostics,
                         history_session_id=history_session_id,
+                        resolved_outcomes=checkpoint_outcomes_from_provider_pairs(outcomes),
                     )
                 )
                 yield manual_acquisition_required_event(
@@ -511,6 +523,14 @@ def _stream_import_playlist_body(
 
     try:
         import_port.ensure_playlist(playlist.name)
+        if len(outcomes) != total:
+            _import_log(
+                f"sync_playlist outcome mismatch before delivery: outcomes={len(outcomes)} total={total}"
+            )
+            raise BridgeError(
+                BridgeErrorCode.ENGINE_ERROR,
+                "Impossible de finaliser l'import : la liste des morceaux résolus ne correspond pas à la playlist.",
+            )
         _import_log("sync_playlist starting")
         report = import_port.deliver_playlist(
             canonical,
@@ -671,6 +691,31 @@ def _stream_import_playlist_body(
     phase = _final_phase(aligned)
     import_state = track_add_results_to_import_state(playlist.name, aligned, phase=phase)
     yield ImportPlaylistResult(import_result=import_state)
+
+
+def _restore_outcomes_for_checkpoint_resume(
+    import_port,
+    checkpoint: ImportSessionCheckpoint,
+    rows: list,
+    start_index: int,
+) -> list:
+    """Rebuild prefix outcomes for resume, preferring checkpoint snapshots over re-resolution."""
+    prefilled = _prefill_resolved_outcomes_before_checkpoint(import_port, rows, start_index)
+    if not checkpoint.resolved_outcomes:
+        return prefilled
+
+    restored = provider_pairs_from_checkpoint_outcomes(checkpoint.resolved_outcomes, rows)
+    if len(restored) == start_index:
+        merged = restored
+    elif len(restored) < start_index and len(prefilled) == start_index:
+        merged = list(prefilled)
+        for index, pair in enumerate(restored):
+            merged[index] = pair
+    else:
+        merged = prefilled
+
+    import_port.resolve_batch([(track, section_name) for track, section_name in rows[:start_index]])
+    return merged
 
 
 def _prefill_resolved_outcomes_before_checkpoint(

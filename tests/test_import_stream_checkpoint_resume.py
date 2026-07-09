@@ -9,6 +9,7 @@ import pytest
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionCheckpoint, ImportSessionStore
 from playlist_builder.app.bridge_runtime.import_stream import (
     _prefill_resolved_outcomes_before_checkpoint,
+    _restore_outcomes_for_checkpoint_resume,
     stream_import_playlist,
 )
 from playlist_builder.app.factory import build_app_context
@@ -76,6 +77,115 @@ def test_prefill_resolved_outcomes_before_checkpoint_noop_at_zero():
     import_port = MagicMock()
     assert _prefill_resolved_outcomes_before_checkpoint(import_port, [], start_index=0) == []
     import_port.resolve_batch.assert_not_called()
+
+
+def _five_track_playlist() -> PlaylistDefinition:
+    return PlaylistDefinition(
+        name="Resume Align Five",
+        sections=(
+            PlaylistSection(
+                name="Main",
+                tracks=(
+                    TrackRef("Artist A", "Track A"),
+                    TrackRef("Artist B", "Track B"),
+                    TrackRef("Artist C", "Track C"),
+                    TrackRef("Artist D", "Track D"),
+                    TrackRef("Artist E", "Track E"),
+                ),
+            ),
+        ),
+    )
+
+
+def test_checkpoint_roundtrip_persists_resolved_outcomes(tmp_path):
+    playlist = _three_track_playlist()
+    store = ImportSessionStore(tmp_path / "checkpoints")
+    from playlist_builder.app.bridge_runtime.import_session import (
+        CheckpointResolvedOutcome,
+        checkpoint_outcomes_from_provider_pairs,
+    )
+    from playlist_builder.integration.ports.provider_import import (
+        ProviderImportResolutionOutcome,
+        ProviderImportResolutionStatus,
+    )
+
+    track = _canonical_track("Artist A", "Track A")
+    stored = checkpoint_outcomes_from_provider_pairs(
+        [
+            (
+                ProviderImportResolutionOutcome(
+                    track=track,
+                    status=ProviderImportResolutionStatus.RESOLVED,
+                    cache_hit=True,
+                ),
+                "Main",
+            )
+        ]
+    )
+    session_id = "persist-outcomes"
+    store.save(
+        ImportSessionCheckpoint(
+            session_id=session_id,
+            playlist=playlist,
+            next_index=1,
+            request_id="req",
+            sync=True,
+            write_json_diagnostics=False,
+            resolved_outcomes=stored,
+        )
+    )
+    loaded = store.load(session_id)
+    assert loaded is not None
+    assert len(loaded.resolved_outcomes) == 1
+    assert loaded.resolved_outcomes[0] == CheckpointResolvedOutcome(
+        artist="Artist A",
+        title="Track A",
+        section="Main",
+        status="resolved",
+        cache_hit=True,
+    )
+
+
+def test_restore_outcomes_prefers_checkpoint_snapshot_over_re_resolution():
+    rows = [
+        (_canonical_track("Artist A", "Track A"), "Main"),
+        (_canonical_track("Artist B", "Track B"), "Main"),
+        (_canonical_track("Artist C", "Track C"), "Main"),
+    ]
+    import_port = MagicMock()
+    import_port.resolve_batch.return_value = [
+        ProviderImportResolutionOutcome(
+            track=rows[0][0],
+            status=ProviderImportResolutionStatus.NOT_FOUND,
+        ),
+        ProviderImportResolutionOutcome(
+            track=rows[1][0],
+            status=ProviderImportResolutionStatus.NOT_FOUND,
+        ),
+    ]
+    from playlist_builder.app.bridge_runtime.import_session import CheckpointResolvedOutcome, ImportSessionCheckpoint
+
+    checkpoint = ImportSessionCheckpoint(
+        session_id="session",
+        playlist=_three_track_playlist(),
+        next_index=2,
+        request_id="req",
+        sync=True,
+        write_json_diagnostics=False,
+        resolved_outcomes=(
+            CheckpointResolvedOutcome(
+                artist="Artist A",
+                title="Track A",
+                section="Main",
+                status=ProviderImportResolutionStatus.RESOLVED.value,
+                cache_hit=True,
+            ),
+        ),
+    )
+    restored = _restore_outcomes_for_checkpoint_resume(import_port, checkpoint, rows, start_index=2)
+    assert len(restored) == 2
+    assert restored[0][0].status == ProviderImportResolutionStatus.RESOLVED
+    assert restored[1][0].status == ProviderImportResolutionStatus.NOT_FOUND
 
 
 @patch.object(sys, "platform", "darwin")

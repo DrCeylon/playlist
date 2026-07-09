@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from playlist_builder import __version__
-from playlist_builder.core.models import PlaylistDefinition, PlaylistSection, TrackRef
+from playlist_builder.core.models import PlaylistDefinition, PlaylistSection, TrackAddResult, TrackAddStatus, TrackRef
 from playlist_builder.ui.bridge.commands import (
     BridgeCommand,
     BridgeRequest,
@@ -141,10 +141,12 @@ class JsonRpcEngineBridge(EngineBridge):
             final_result: ImportPlaylistResult | None = None
             playlist = _playlist_from_params(request.params)
             track_indices = [int(value) for value in request.params.get("track_indices", [])]
+            existing_results = _track_add_results_from_params(request.params)
             for item in self.backend.retry_import_tracks_stream(
                 playlist,
                 track_indices=track_indices,
                 request_id=request.id,
+                existing_results=existing_results,
             ):
                 if isinstance(item, BridgeEvent):
                     yield item.to_dict()
@@ -369,6 +371,40 @@ def _playlist_from_params(params: dict[str, Any]) -> PlaylistDefinition:
         sections.append(PlaylistSection(name=section_name, tracks=tuple(tracks)))
 
     return PlaylistDefinition(name=name, sections=tuple(sections), description=description)
+
+
+def _track_add_results_from_params(params: dict[str, Any]) -> list[TrackAddResult] | None:
+    raw = params.get("existing_outcomes")
+    if not isinstance(raw, list) or not raw:
+        return None
+
+    results: list[TrackAddResult] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        artist = str(item.get("artist", "")).strip()
+        title = str(item.get("title", "")).strip()
+        if not artist or not title:
+            continue
+        section = str(item.get("section", "Playlist")).strip() or "Playlist"
+        status_raw = str(item.get("status", "")).strip().lower()
+        status = {
+            "added": TrackAddStatus.ADDED,
+            "skipped": TrackAddStatus.SKIPPED,
+            "not_found": TrackAddStatus.NOT_FOUND,
+            "error": TrackAddStatus.ERROR,
+            "acquiring": TrackAddStatus.NOT_FOUND,
+            "pending": TrackAddStatus.NOT_FOUND,
+        }.get(status_raw, TrackAddStatus.ERROR)
+        message = str(item.get("message", "")).strip()
+        results.append(
+            TrackAddResult(
+                track=TrackRef(artist=artist, title=title, section=section),
+                status=status,
+                error=message,
+            )
+        )
+    return results or None
 
 
 def _error_response(
