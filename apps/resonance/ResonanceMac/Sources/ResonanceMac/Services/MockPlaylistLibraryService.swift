@@ -34,4 +34,8 @@ public struct MockPlaylistLibraryService: PlaylistLibraryServing {
             message: "Synchronisation simulée — gateway provider en cours d'intégration."
         )
     }
+
+    public func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlan? {
+        nil
+    }
 }

@@ -342,6 +342,60 @@ class RuntimeEngineBridgeBackend:
 
         return sync_managed_playlist_stub(params)
 
+    def plan_sync(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.playlist_library import managed_playlist_detail
+        from playlist_builder.app.bridge_runtime.playlist_sync_plan import (
+            managed_playlist_detail_from_dict,
+            plan_sync,
+            remote_snapshot_from_dict,
+        )
+        from playlist_builder.ui.shared.dto.playlist_sync import SyncDirection, SyncMode
+
+        provider_raw = params.get("provider_id", ProviderId.APPLE_MUSIC.value)
+        try:
+            provider_id = ProviderId(str(provider_raw))
+        except ValueError as exc:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"provider_id invalide : {provider_raw!r}") from exc
+
+        direction_raw = str(params.get("direction", SyncDirection.PULL_FROM_PROVIDER.value))
+        try:
+            direction = SyncDirection(direction_raw)
+        except ValueError as exc:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"direction invalide : {direction_raw!r}") from exc
+
+        mode_raw = str(params.get("sync_mode", SyncMode.DRY_RUN.value))
+        try:
+            sync_mode = SyncMode(mode_raw)
+        except ValueError as exc:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"sync_mode invalide : {mode_raw!r}") from exc
+
+        remote_snapshot = None
+        if isinstance(params.get("remote_playlist"), dict):
+            remote_snapshot = remote_snapshot_from_dict({"remote_playlist": params["remote_playlist"]})
+
+        local_detail = None
+        if isinstance(params.get("local_playlist"), dict):
+            local_detail = managed_playlist_detail_from_dict({"playlist": params["local_playlist"]})
+        else:
+            local_playlist_id = str(params.get("local_playlist_id", "")).strip()
+            if not local_playlist_id:
+                raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "local_playlist_id est requis.")
+            playlist_payload = managed_playlist_detail(self, local_playlist_id)
+            if playlist_payload is None:
+                raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Playlist locale introuvable.")
+            local_detail = managed_playlist_detail_from_dict(playlist_payload)
+
+        remote_playlist_id = str(params.get("remote_playlist_id", "")).strip() or None
+        return plan_sync(
+            self._context.registry,
+            local_detail=local_detail,
+            remote_snapshot=remote_snapshot,
+            provider_id=provider_id,
+            direction=direction,
+            sync_mode=sync_mode,
+            remote_playlist_id=remote_playlist_id,
+        )
+
     @staticmethod
     def _build_generation_engine(context: AppContext) -> GenerationSessionEngine:
         settings = context.settings

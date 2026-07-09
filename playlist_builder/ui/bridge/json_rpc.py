@@ -255,6 +255,13 @@ class JsonRpcEngineBridge(EngineBridge):
             yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
             return
 
+        if request.command == BridgeCommand.PLAN_SYNC:
+            if self.backend is None or not hasattr(self.backend, "plan_sync"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de planification sync non configuré.")
+            result = self.backend.plan_sync(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
         raise BridgeError(
             BridgeErrorCode.UNKNOWN_COMMAND,
             f"Commande inconnue : {request.command.value}",

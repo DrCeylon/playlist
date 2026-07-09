@@ -728,6 +728,11 @@ public enum BridgePayloadBuilder {
         return ProviderAuthState(rawValue: raw)
     }
 
+    public static func playlistSyncPlan(from payload: BridgeJSONObject) -> PlaylistSyncPlan? {
+        guard let object = payload["sync_plan"]?.objectValue else { return nil }
+        return playlistSyncPlanObject(object)
+    }
+
     private static func remotePlaylist(_ object: BridgeJSONObject) -> RemotePlaylist {
         let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
         return RemotePlaylist(
@@ -739,6 +744,56 @@ public enum BridgePayloadBuilder {
             ownerLabel: object["owner_label"]?.stringValue ?? "",
             snapshotAtISO: object["snapshot_at_iso"]?.stringValue ?? "",
             sourceURL: object["source_url"]?.stringValue ?? ""
+        )
+    }
+
+    private static func playlistSyncPlanObject(_ object: BridgeJSONObject) -> PlaylistSyncPlan {
+        let providerRaw = object["target_provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
+        let directionRaw = object["direction"]?.stringValue ?? PlaylistSyncDirection.pullFromProvider.rawValue
+        let modeRaw = object["sync_mode"]?.stringValue ?? SyncMode.dryRun.rawValue
+        let actionsRaw = object["actions"]?.arrayValue ?? []
+        let actions = actionsRaw.compactMap(\.objectValue).map(playlistSyncAction)
+        let conflictsRaw = object["conflicts"]?.arrayValue ?? []
+        let conflicts = conflictsRaw.compactMap(\.objectValue).map(syncConflict)
+        let summaryObject = object["summary"]?.objectValue ?? [:]
+        return PlaylistSyncPlan(
+            localPlaylistID: object["local_playlist_id"]?.stringValue ?? "",
+            targetProviderID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
+            direction: PlaylistSyncDirection(rawValue: directionRaw) ?? .pullFromProvider,
+            syncMode: SyncMode(rawValue: modeRaw) ?? .dryRun,
+            remotePlaylistID: object["remote_playlist_id"]?.stringValue ?? "",
+            playlistNameLocal: object["playlist_name_local"]?.stringValue ?? "",
+            playlistNameRemote: object["playlist_name_remote"]?.stringValue ?? "",
+            actions: actions,
+            conflicts: conflicts,
+            summary: playlistSyncSummary(summaryObject)
+        )
+    }
+
+    private static func playlistSyncAction(_ object: BridgeJSONObject) -> PlaylistSyncAction {
+        let kindRaw = object["kind"]?.stringValue ?? PlaylistSyncActionKind.addTrack.rawValue
+        return PlaylistSyncAction(
+            kind: PlaylistSyncActionKind(rawValue: kindRaw) ?? .addTrack,
+            trackKey: object["track_key"]?.stringValue ?? "",
+            artist: object["artist"]?.stringValue ?? "",
+            title: object["title"]?.stringValue ?? "",
+            message: object["message"]?.stringValue ?? "",
+            localTrackID: object["local_track_id"]?.stringValue ?? "",
+            remoteTrackID: object["remote_track_id"]?.stringValue ?? "",
+            sourcePosition: object["source_position"]?.intValue,
+            targetPosition: object["target_position"]?.intValue
+        )
+    }
+
+    private static func playlistSyncSummary(_ object: BridgeJSONObject) -> PlaylistSyncSummary {
+        PlaylistSyncSummary(
+            additions: object["additions"]?.intValue ?? 0,
+            removals: object["removals"]?.intValue ?? 0,
+            alreadyPresent: object["already_present"]?.intValue ?? 0,
+            metadataMismatches: object["metadata_mismatches"]?.intValue ?? 0,
+            reorders: object["reorders"]?.intValue ?? 0,
+            conflicts: object["conflicts"]?.intValue ?? 0,
+            renameRequired: object["rename_required"]?.boolValue ?? false
         )
     }
 

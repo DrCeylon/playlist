@@ -19,6 +19,7 @@ public enum BridgeCommand: String, Codable, Sendable {
     case listManagedPlaylists = "list_managed_playlists"
     case getManagedPlaylist = "get_managed_playlist"
     case syncManagedPlaylist = "sync_managed_playlist"
+    case planSync = "plan_sync"
 }
 
 public enum BridgeEventType: String, Codable, Sendable {

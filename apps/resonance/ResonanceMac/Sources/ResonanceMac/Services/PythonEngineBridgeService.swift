@@ -477,6 +477,23 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return result
     }
 
+    public func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlan? {
+        guard let transport else {
+            return nil
+        }
+        var params: BridgeJSONObject = [
+            "local_playlist_id": .string(request.localPlaylistID),
+            "provider_id": .string(request.providerID.rawValue),
+            "direction": .string(request.direction.rawValue),
+            "sync_mode": .string(request.syncMode.rawValue),
+        ]
+        if !request.remotePlaylistID.isEmpty {
+            params["remote_playlist_id"] = .string(request.remotePlaylistID)
+        }
+        let (response, _) = try await transport.send(command: .planSync, params: params)
+        return BridgePayloadBuilder.playlistSyncPlan(from: response.result)
+    }
+
     public func search(request: AutocompleteRequest) async throws -> AutocompleteResponse {
         guard let transport else {
             return try await fallbackAutocomplete.search(request: request)
