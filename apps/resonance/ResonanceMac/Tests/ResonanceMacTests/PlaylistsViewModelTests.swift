@@ -38,6 +38,9 @@ final class PlaylistsViewModelTests: XCTestCase {
         await viewModel.refresh()
         await viewModel.select(localPlaylistID: "p1")
         await viewModel.syncSelected(direction: .pullFromProvider)
-        XCTAssertNotNil(viewModel.actionFeedback)
+        XCTAssertEqual(
+            viewModel.actionFeedback,
+            "Synchronisation simulée — gateway provider en cours d'intégration."
+        )
     }
 }

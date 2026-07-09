@@ -59,9 +59,9 @@ final class PlaylistsViewModel: ObservableObject {
                     providerID: summary.providerID
                 )
             )
-            actionFeedback = result.message
             await refresh()
             await select(localPlaylistID: summary.localPlaylistID)
+            actionFeedback = result.message
         } catch {
             actionFeedback = "Synchronisation impossible."
         }
