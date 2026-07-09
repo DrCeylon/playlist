@@ -20,3 +20,4 @@ dist/
 *.swo
 *~
 .cursor/
+.swiftpm/

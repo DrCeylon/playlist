@@ -18,6 +18,8 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **4.8A** | Stabilisation UX macOS, thèmes, import | PR #32 |
 | **5.1** | Smart Input Framework (autocomplete, refs canoniques) | PR #33 |
 | **5.1.1** | UX import Apple Music (progression live, Music deep links, acquisition auto) | PR #36 |
+| **5.2–5.5** | Workflow coordinator, historique live, ProviderImportPort, acquisition manuelle SSOT | `main` |
+| **Playlist Manager** | Dashboard, Playlists / Sync / Providers, DTO library, YouTube expérimental | Tag `phase-playlist-manager-complete` — [clôture](Phase-Playlist-Manager-Cloture) |
 
 Correctifs intégrés sur `main` :
 
@@ -27,45 +29,30 @@ Correctifs intégrés sur `main` :
 | [#35](https://github.com/DrCeylon/playlist/pull/35) | Filtre autocomplete morceaux par artiste sélectionné |
 | [#37](https://github.com/DrCeylon/playlist/pull/37) | Maintenance dépôt (Package.swift, workflow Git) |
 
-## Phase 5.2 — validée fonctionnellement (PR #39)
+## État courant (`main`)
 
-**Statut** : validée sur macOS — merge recommandé. Détail : [Phase 5.2 — Clôture](Phase-5-2-Cloture).
-
-| PR | Branche | Tests macOS |
-|----|---------|-------------|
-| [#39](https://github.com/DrCeylon/playlist/pull/39) | `cursor/phase-5-2-generation-import-ux-ef21` | `swift build`, `swift test`, `./scripts/build.sh`, `pytest` 332 passed |
-
-Livrables UX : workflow coordinator, historique live, bandeau processus, protection session active, import humanisé, instrumentation timings partielle.
-
-**Limites acceptées (non bloquantes)** — voir [Phase 5.3 — Performance](Phase-5-3-Performance) :
-
-- Polish textes / couleurs incomplet
-- Import encore lent
-- Génération ne remplit pas toujours le nombre de morceaux demandé
-- Bridge Python one-shot par commande
-
-| PR | Branche | Sujet | Statut |
-|----|---------|-------|--------|
-| [#38](https://github.com/DrCeylon/playlist/pull/38) | `cursor/phase-5-1-2-product-ux-stabilization-ef21` | Phase 5.1.2 — stabilisation UX produit (intégrée en grande partie dans 5.2) | Draft — à fermer après merge #39 |
+- **401** tests Python (`pytest -q`), **1** skipped (Swift build sur macOS uniquement)
+- App macOS : génération, import robuste, historique, **gestionnaire de playlists** (preview)
+- Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
 
 ## Prochaine phase
 
 | Phase | Thème | Référence |
 |-------|-------|-----------|
-| **5.3** | **Performance** — mesure, import, génération, bridge, cache | [Phase 5.3 — Performance](Phase-5-3-Performance) |
+| **Sync réelle / YouTube gateway** | Pull provider, tracks historiques | [Dette technique](../docs/TECHNICAL_DEBT.md) |
 | **5.4+** | Édition playlist, templates, polish UI | [Phase 5 — Vision](Phase-5-Vision) |
 
 ## Branches Git
 
-Sur `origin` : **`main`**, **`cursor/phase-5-2-generation-import-ux-ef21`** (PR #39 prête merge).
+Sur `origin` : **`main`** + branches `cursor/*` résiduelles (docs, dev env, tests isolés) — voir [Dette technique](../docs/TECHNICAL_DEBT.md).
 
-Les branches feature `cursor/*-ef21` sont supprimées après chaque merge squash.
+Les branches feature mergées sont supprimées après fast-forward ou squash.
 
-## Validation qualité (`main` + PR #39)
+## Validation qualité (`main`)
 
 ```bash
 python3.12 -m pytest -q
 cd apps/resonance && swift build && swift test && ./scripts/build.sh
 ```
 
-332 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+401 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).

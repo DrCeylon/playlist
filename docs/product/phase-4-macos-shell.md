@@ -16,11 +16,14 @@ Minimal launchable macOS application shell for Resonance.
 
 | Sidebar | Route | Phase |
 |---------|-------|-------|
-| Accueil | `home` | **4.4** |
-| Nouvelle Playlist | `new_playlist` | placeholder → 4.5 |
-| Historique | `history` | placeholder → 4.7 |
-| Laboratoire | `diagnostics` | placeholder → 4.7 |
-| Paramètres | `settings` | **4.4** (theme picker) |
+| Accueil | `home` | Dashboard (Playlist Manager preview) |
+| Nouvelle Playlist | `new_playlist` | Génération + import |
+| Playlists | `playlists` | Gestionnaire playlists locales |
+| Synchronisation | `sync` | Sync provider (stub) |
+| Providers | `providers` | Catalogue providers |
+| Historique | `history` | Sessions locales |
+| Laboratoire | `diagnostics` | Diagnostics bridge |
+| Paramètres | `settings` | Thèmes |
 
 ## Theme integration
 

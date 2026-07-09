@@ -18,6 +18,8 @@ Phase 4 — Product discovery & UI contracts.
 | [phase-4-6-bridge-runtime.md](phase-4-6-bridge-runtime.md) | Bridge runtime technical notes |
 | [ios-planned-structure.md](ios-planned-structure.md) | Future iOS layout |
 
+**État courant (post Playlist Manager)** : voir [wiki Phase Playlist Manager — clôture](../../wiki/Phase-Playlist-Manager-Cloture.md) et [dette technique](../TECHNICAL_DEBT.md).
+
 ## Phase 4.1 — Shared contracts (code)
 
 Python package `playlist_builder/ui/shared/` :
