@@ -13,6 +13,7 @@ class ProviderOption:
     is_connected: bool = False
     capabilities: frozenset[ProviderCapability] = frozenset()
     unavailable_reason: str = ""
+    is_experimental: bool = False
 
 
 def default_provider_options() -> tuple[ProviderOption, ...]:
@@ -28,6 +29,8 @@ def default_provider_options() -> tuple[ProviderOption, ...]:
                     ProviderCapability.CATALOG_SEARCH,
                     ProviderCapability.LIBRARY_RESOLVE,
                     ProviderCapability.PLAYLIST_DELIVERY,
+                    ProviderCapability.PLAYLIST_LIBRARY_BROWSE,
+                    ProviderCapability.PLAYLIST_SYNC,
                 }
             ),
         ),
@@ -41,7 +44,9 @@ def default_provider_options() -> tuple[ProviderOption, ...]:
             provider_id=ProviderId.YOUTUBE_MUSIC,
             display_name="YouTube Music",
             is_available=False,
-            unavailable_reason="Prévu — gateway non enregistré.",
+            unavailable_reason="Expérimental — gateway en cours d'intégration.",
+            capabilities=frozenset({ProviderCapability.CATALOG_SEARCH, ProviderCapability.EXPERIMENTAL}),
+            is_experimental=True,
         ),
         ProviderOption(
             provider_id=ProviderId.DEEZER,

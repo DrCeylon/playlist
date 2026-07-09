@@ -533,12 +533,19 @@ public enum BridgePayloadBuilder {
 
     private static func providerOption(_ object: BridgeJSONObject) -> ProviderOption {
         let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
+        let capabilitiesRaw = object["capabilities"]?.arrayValue ?? []
+        let capabilities = capabilitiesRaw.compactMap { item -> ProviderCapability? in
+            guard let raw = item.stringValue else { return nil }
+            return ProviderCapability(rawValue: raw)
+        }
         return ProviderOption(
             providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
             displayName: object["display_name"]?.stringValue ?? providerRaw,
             isAvailable: object["is_available"]?.boolValue ?? false,
             isConnected: object["is_connected"]?.boolValue ?? false,
-            unavailableReason: object["unavailable_reason"]?.stringValue ?? ""
+            unavailableReason: object["unavailable_reason"]?.stringValue ?? "",
+            capabilities: capabilities,
+            isExperimental: object["is_experimental"]?.boolValue ?? false
         )
     }
 
@@ -629,6 +636,75 @@ public enum BridgePayloadBuilder {
             generationResult: object["generation_result"]?.objectValue ?? [:],
             importResult: object["import_result"]?.objectValue ?? [:],
             diagnostics: object["diagnostics"]?.objectValue ?? [:]
+        )
+    }
+
+    public static func managedPlaylists(from payload: BridgeJSONObject) -> [ManagedPlaylistSummary] {
+        let playlistsRaw = payload["playlists"]?.arrayValue ?? []
+        return playlistsRaw.compactMap(\.objectValue).map(managedPlaylistSummary)
+    }
+
+    public static func managedPlaylistDetail(from payload: BridgeJSONObject) -> ManagedPlaylistDetail? {
+        guard let object = payload["playlist"]?.objectValue else { return nil }
+        let summary = managedPlaylistSummary(object)
+        let tracksRaw = object["tracks"]?.arrayValue ?? []
+        let tracks = tracksRaw.compactMap(\.objectValue).map(managedPlaylistTrack)
+        let conflictsRaw = object["sync_conflicts"]?.arrayValue ?? []
+        let conflicts = conflictsRaw.compactMap(\.objectValue).map(syncConflict)
+        return ManagedPlaylistDetail(summary: summary, tracks: tracks, syncConflicts: conflicts)
+    }
+
+    public static func playlistSyncResult(from payload: BridgeJSONObject) -> PlaylistSyncResult? {
+        guard let object = payload["sync"]?.objectValue else { return nil }
+        let conflictsRaw = object["conflicts"]?.arrayValue ?? []
+        let conflicts = conflictsRaw.compactMap(\.objectValue).map(syncConflict)
+        let statusRaw = object["sync_status"]?.stringValue ?? PlaylistSyncStatus.pending.rawValue
+        return PlaylistSyncResult(
+            localPlaylistID: object["local_playlist_id"]?.stringValue ?? "",
+            syncStatus: PlaylistSyncStatus(rawValue: statusRaw) ?? .pending,
+            message: object["message"]?.stringValue ?? "",
+            conflicts: conflicts
+        )
+    }
+
+    private static func managedPlaylistSummary(_ object: BridgeJSONObject) -> ManagedPlaylistSummary {
+        let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
+        let syncRaw = object["sync_status"]?.stringValue ?? PlaylistSyncStatus.unknown.rawValue
+        let sourceRaw = object["source_kind"]?.stringValue ?? PlaylistSourceKind.localSnapshot.rawValue
+        let importStatusRaw = object["import_status"]?.stringValue
+        return ManagedPlaylistSummary(
+            localPlaylistID: object["local_playlist_id"]?.stringValue ?? "",
+            name: object["name"]?.stringValue ?? "",
+            providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
+            trackCount: object["track_count"]?.intValue ?? 0,
+            syncStatus: PlaylistSyncStatus(rawValue: syncRaw) ?? .unknown,
+            lastSyncedAtISO: object["last_synced_at_iso"]?.stringValue ?? "",
+            providerPlaylistID: object["provider_playlist_id"]?.stringValue ?? "",
+            sourceKind: PlaylistSourceKind(rawValue: sourceRaw) ?? .localSnapshot,
+            importStatus: importStatusRaw.flatMap(SessionHistoryStatus.init(rawValue:)),
+            historySessionID: object["history_session_id"]?.stringValue ?? ""
+        )
+    }
+
+    private static func managedPlaylistTrack(_ object: BridgeJSONObject) -> ManagedPlaylistTrack {
+        let mappingRaw = object["mapping_status"]?.stringValue ?? PlaylistTrackMappingStatus.matched.rawValue
+        return ManagedPlaylistTrack(
+            localTrackID: object["local_track_id"]?.stringValue ?? "",
+            providerTrackID: object["provider_track_id"]?.stringValue ?? "",
+            artist: object["artist"]?.stringValue ?? "",
+            title: object["title"]?.stringValue ?? "",
+            section: object["section"]?.stringValue ?? "",
+            mappingStatus: PlaylistTrackMappingStatus(rawValue: mappingRaw) ?? .matched
+        )
+    }
+
+    private static func syncConflict(_ object: BridgeJSONObject) -> PlaylistSyncConflict {
+        let kindRaw = object["kind"]?.stringValue ?? PlaylistTrackMappingStatus.unresolved.rawValue
+        return PlaylistSyncConflict(
+            id: object["id"]?.stringValue ?? "",
+            trackKey: object["track_key"]?.stringValue ?? "",
+            kind: PlaylistTrackMappingStatus(rawValue: kindRaw) ?? .unresolved,
+            message: object["message"]?.stringValue ?? ""
         )
     }
 }

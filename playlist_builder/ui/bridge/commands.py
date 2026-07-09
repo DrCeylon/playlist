@@ -44,6 +44,9 @@ class BridgeCommand(StrEnum):
     AUTOCOMPLETE_SEARCH = "autocomplete_search"
     PROBE_MANUAL_ACQUISITION = "probe_manual_acquisition"
     RETRY_IMPORT_TRACKS = "retry_import_tracks"
+    LIST_MANAGED_PLAYLISTS = "list_managed_playlists"
+    GET_MANAGED_PLAYLIST = "get_managed_playlist"
+    SYNC_MANAGED_PLAYLIST = "sync_managed_playlist"
 
 
 @dataclass(frozen=True, slots=True)

@@ -21,6 +21,9 @@ class ProviderCapability(StrEnum):
     CATALOG_SEARCH = "catalog_search"
     LIBRARY_RESOLVE = "library_resolve"
     PLAYLIST_DELIVERY = "playlist_delivery"
+    PLAYLIST_LIBRARY_BROWSE = "playlist_library_browse"
+    PLAYLIST_SYNC = "playlist_sync"
+    EXPERIMENTAL = "experimental"
 
 
 class ResolutionDecision(StrEnum):

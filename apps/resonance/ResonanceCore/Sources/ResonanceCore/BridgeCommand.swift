@@ -16,6 +16,9 @@ public enum BridgeCommand: String, Codable, Sendable {
     case autocompleteSearch = "autocomplete_search"
     case probeManualAcquisition = "probe_manual_acquisition"
     case retryImportTracks = "retry_import_tracks"
+    case listManagedPlaylists = "list_managed_playlists"
+    case getManagedPlaylist = "get_managed_playlist"
+    case syncManagedPlaylist = "sync_managed_playlist"
 }
 
 public enum BridgeEventType: String, Codable, Sendable {

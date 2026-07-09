@@ -13,6 +13,10 @@ public enum AppRoute: String, Codable, CaseIterable, Identifiable, Hashable, Sen
     case settingsTheme = "settings_theme"
     case settingsProvider = "settings_provider"
     case manualAcquisition = "manual_acquisition"
+    case playlists = "playlists"
+    case playlistDetail = "playlist_detail"
+    case sync = "sync"
+    case providers = "providers"
 
     public var id: String { rawValue }
 }
@@ -21,6 +25,9 @@ public enum AppRoute: String, Codable, CaseIterable, Identifiable, Hashable, Sen
 public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable {
     case home
     case newPlaylist
+    case playlists
+    case sync
+    case providers
     case history
     case laboratory
     case settings
@@ -33,6 +40,12 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable 
             return "Accueil"
         case .newPlaylist:
             return "Nouvelle Playlist"
+        case .playlists:
+            return "Playlists"
+        case .sync:
+            return "Synchronisation"
+        case .providers:
+            return "Providers"
         case .history:
             return "Historique"
         case .laboratory:
@@ -48,6 +61,12 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable 
             return "house"
         case .newPlaylist:
             return "plus.rectangle.on.rectangle"
+        case .playlists:
+            return "music.note.list"
+        case .sync:
+            return "arrow.triangle.2.circlepath"
+        case .providers:
+            return "network"
         case .history:
             return "clock"
         case .laboratory:
@@ -63,6 +82,12 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable 
             return .home
         case .newPlaylist:
             return .newPlaylist
+        case .playlists:
+            return .playlists
+        case .sync:
+            return .sync
+        case .providers:
+            return .providers
         case .history:
             return .history
         case .laboratory:

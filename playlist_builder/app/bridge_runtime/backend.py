@@ -327,6 +327,21 @@ class RuntimeEngineBridgeBackend:
             self._session_store.delete(item.import_result.import_session_id)
         return ImportPlaylistResult(import_result=item.import_result, history_session_id=updated.session_id)
 
+    def list_managed_playlists(self) -> tuple[dict[str, Any], ...]:
+        from playlist_builder.app.bridge_runtime.playlist_library import list_managed_playlists_from_history
+
+        return list_managed_playlists_from_history(self.list_history())
+
+    def get_managed_playlist(self, local_playlist_id: str) -> dict[str, Any] | None:
+        from playlist_builder.app.bridge_runtime.playlist_library import managed_playlist_detail
+
+        return managed_playlist_detail(self, local_playlist_id)
+
+    def sync_managed_playlist(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.playlist_library import sync_managed_playlist_stub
+
+        return sync_managed_playlist_stub(params)
+
     @staticmethod
     def _build_generation_engine(context: AppContext) -> GenerationSessionEngine:
         settings = context.settings

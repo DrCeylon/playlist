@@ -231,6 +231,30 @@ class JsonRpcEngineBridge(EngineBridge):
             yield BridgeResponse(id=request.id, ok=True, result=result.to_dict()).to_dict()
             return
 
+        if request.command == BridgeCommand.LIST_MANAGED_PLAYLISTS:
+            if self.backend is None or not hasattr(self.backend, "list_managed_playlists"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de playlists géré non configuré.")
+            playlists = self.backend.list_managed_playlists()
+            yield BridgeResponse(id=request.id, ok=True, result={"playlists": list(playlists)}).to_dict()
+            return
+
+        if request.command == BridgeCommand.GET_MANAGED_PLAYLIST:
+            if self.backend is None or not hasattr(self.backend, "get_managed_playlist"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de playlists géré non configuré.")
+            playlist_id = str(request.params.get("local_playlist_id", "")).strip()
+            if not playlist_id:
+                raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "local_playlist_id est requis.")
+            playlist = self.backend.get_managed_playlist(playlist_id)
+            yield BridgeResponse(id=request.id, ok=True, result=playlist or {}).to_dict()
+            return
+
+        if request.command == BridgeCommand.SYNC_MANAGED_PLAYLIST:
+            if self.backend is None or not hasattr(self.backend, "sync_managed_playlist"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de synchronisation non configuré.")
+            result = self.backend.sync_managed_playlist(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
         raise BridgeError(
             BridgeErrorCode.UNKNOWN_COMMAND,
             f"Commande inconnue : {request.command.value}",

@@ -11,6 +11,9 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertEqual(BridgeCommand.listHistory.rawValue, "list_history")
         XCTAssertEqual(BridgeCommand.getHistorySession.rawValue, "get_history_session")
         XCTAssertEqual(BridgeCommand.autocompleteSearch.rawValue, "autocomplete_search")
+        XCTAssertEqual(BridgeCommand.listManagedPlaylists.rawValue, "list_managed_playlists")
+        XCTAssertEqual(BridgeCommand.getManagedPlaylist.rawValue, "get_managed_playlist")
+        XCTAssertEqual(BridgeCommand.syncManagedPlaylist.rawValue, "sync_managed_playlist")
     }
 
     func testDiagnosticsSnapshotDecoding() throws {

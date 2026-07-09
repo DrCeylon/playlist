@@ -1,11 +1,22 @@
 import Foundation
 
+public enum ProviderCapability: String, Codable, CaseIterable, Sendable {
+    case catalogSearch = "catalog_search"
+    case libraryResolve = "library_resolve"
+    case playlistDelivery = "playlist_delivery"
+    case playlistLibraryBrowse = "playlist_library_browse"
+    case playlistSync = "playlist_sync"
+    case experimental = "experimental"
+}
+
 public struct ProviderOption: Identifiable, Hashable, Sendable {
     public let providerID: ProviderID
     public let displayName: String
     public let isAvailable: Bool
     public let isConnected: Bool
     public let unavailableReason: String
+    public let capabilities: [ProviderCapability]
+    public let isExperimental: Bool
 
     public var id: String { providerID.rawValue }
 
@@ -14,13 +25,17 @@ public struct ProviderOption: Identifiable, Hashable, Sendable {
         displayName: String,
         isAvailable: Bool,
         isConnected: Bool = false,
-        unavailableReason: String = ""
+        unavailableReason: String = "",
+        capabilities: [ProviderCapability] = [],
+        isExperimental: Bool = false
     ) {
         self.providerID = providerID
         self.displayName = displayName
         self.isAvailable = isAvailable
         self.isConnected = isConnected
         self.unavailableReason = unavailableReason
+        self.capabilities = capabilities
+        self.isExperimental = isExperimental
     }
 }
 
@@ -30,7 +45,8 @@ public enum DefaultProviders {
             providerID: .appleMusic,
             displayName: "Apple Music",
             isAvailable: true,
-            isConnected: true
+            isConnected: true,
+            capabilities: [.catalogSearch, .libraryResolve, .playlistDelivery, .playlistLibraryBrowse, .playlistSync]
         ),
         ProviderOption(
             providerID: .spotify,
@@ -42,7 +58,9 @@ public enum DefaultProviders {
             providerID: .youtubeMusic,
             displayName: "YouTube Music",
             isAvailable: false,
-            unavailableReason: "Prévu — gateway non enregistré."
+            unavailableReason: "Expérimental — gateway en cours d'intégration.",
+            capabilities: [.catalogSearch, .experimental],
+            isExperimental: true
         ),
         ProviderOption(
             providerID: .deezer,
