@@ -477,6 +477,31 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return result
     }
 
+    public func listRemotePlaylists(providerID: ProviderID) async throws -> [RemotePlaylist] {
+        guard let transport else {
+            return []
+        }
+        let (response, _) = try await transport.send(
+            command: .listRemotePlaylists,
+            params: ["provider_id": .string(providerID.rawValue)]
+        )
+        return BridgePayloadBuilder.remotePlaylists(from: response.result)
+    }
+
+    public func getRemotePlaylist(providerID: ProviderID, remotePlaylistID: String) async throws -> RemotePlaylistSnapshot? {
+        guard let transport else {
+            return nil
+        }
+        let (response, _) = try await transport.send(
+            command: .getRemotePlaylist,
+            params: [
+                "provider_id": .string(providerID.rawValue),
+                "remote_playlist_id": .string(remotePlaylistID),
+            ]
+        )
+        return BridgePayloadBuilder.remotePlaylistSnapshot(from: response.result)
+    }
+
     public func search(request: AutocompleteRequest) async throws -> AutocompleteResponse {
         guard let transport else {
             return try await fallbackAutocomplete.search(request: request)

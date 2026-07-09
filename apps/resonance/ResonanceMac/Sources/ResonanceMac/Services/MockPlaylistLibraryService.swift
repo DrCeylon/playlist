@@ -34,4 +34,12 @@ public struct MockPlaylistLibraryService: PlaylistLibraryServing {
             message: "Synchronisation simulée — gateway provider en cours d'intégration."
         )
     }
+
+    public func listRemotePlaylists(providerID: ProviderID) async throws -> [RemotePlaylist] {
+        []
+    }
+
+    public func getRemotePlaylist(providerID: ProviderID, remotePlaylistID: String) async throws -> RemotePlaylistSnapshot? {
+        nil
+    }
 }

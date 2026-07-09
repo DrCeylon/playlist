@@ -47,6 +47,8 @@ class BridgeCommand(StrEnum):
     LIST_MANAGED_PLAYLISTS = "list_managed_playlists"
     GET_MANAGED_PLAYLIST = "get_managed_playlist"
     SYNC_MANAGED_PLAYLIST = "sync_managed_playlist"
+    LIST_REMOTE_PLAYLISTS = "list_remote_playlists"
+    GET_REMOTE_PLAYLIST = "get_remote_playlist"
 
 
 @dataclass(frozen=True, slots=True)

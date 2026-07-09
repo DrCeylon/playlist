@@ -255,6 +255,20 @@ class JsonRpcEngineBridge(EngineBridge):
             yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
             return
 
+        if request.command == BridgeCommand.LIST_REMOTE_PLAYLISTS:
+            if self.backend is None or not hasattr(self.backend, "list_remote_playlists"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de lecture distante non configuré.")
+            result = self.backend.list_remote_playlists(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
+        if request.command == BridgeCommand.GET_REMOTE_PLAYLIST:
+            if self.backend is None or not hasattr(self.backend, "get_remote_playlist"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend de lecture distante non configuré.")
+            result = self.backend.get_remote_playlist(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
         raise BridgeError(
             BridgeErrorCode.UNKNOWN_COMMAND,
             f"Commande inconnue : {request.command.value}",

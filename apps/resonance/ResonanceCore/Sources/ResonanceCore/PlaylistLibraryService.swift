@@ -4,6 +4,8 @@ public protocol PlaylistLibraryServing: Sendable {
     func listManagedPlaylists() async throws -> [ManagedPlaylistSummary]
     func getManagedPlaylist(localPlaylistID: String) async throws -> ManagedPlaylistDetail?
     func syncManagedPlaylist(_ request: PlaylistSyncRequest) async throws -> PlaylistSyncResult
+    func listRemotePlaylists(providerID: ProviderID) async throws -> [RemotePlaylist]
+    func getRemotePlaylist(providerID: ProviderID, remotePlaylistID: String) async throws -> RemotePlaylistSnapshot?
 }
 
 public enum DefaultManagedPlaylists {

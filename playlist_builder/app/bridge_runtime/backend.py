@@ -342,6 +342,38 @@ class RuntimeEngineBridgeBackend:
 
         return sync_managed_playlist_stub(params)
 
+    def list_remote_playlists(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.remote_playlist import list_remote_playlists
+
+        provider_raw = params.get("provider_id", ProviderId.APPLE_MUSIC.value)
+        try:
+            provider_id = ProviderId(str(provider_raw))
+        except ValueError as exc:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"provider_id invalide : {provider_raw!r}") from exc
+        account_id = str(params.get("account_id", "")).strip() or None
+        playlists = list_remote_playlists(
+            self._context.registry,
+            provider_id=provider_id,
+            account_id=account_id,
+        )
+        return {"remote_playlists": list(playlists)}
+
+    def get_remote_playlist(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.remote_playlist import get_remote_playlist
+
+        provider_raw = params.get("provider_id", ProviderId.APPLE_MUSIC.value)
+        try:
+            provider_id = ProviderId(str(provider_raw))
+        except ValueError as exc:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"provider_id invalide : {provider_raw!r}") from exc
+        remote_playlist_id = str(params.get("remote_playlist_id", "")).strip()
+        snapshot = get_remote_playlist(
+            self._context.registry,
+            provider_id=provider_id,
+            remote_playlist_id=remote_playlist_id,
+        )
+        return {"remote_playlist": snapshot}
+
     @staticmethod
     def _build_generation_engine(context: AppContext) -> GenerationSessionEngine:
         settings = context.settings
