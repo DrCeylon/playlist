@@ -118,6 +118,112 @@ end tell
             return set()
         return {self._normalize_key(part) for part in output.split(RESULT_DELIMITER) if part}
 
+    def list_user_playlists(self) -> list[tuple[str, str, int]]:
+        """Return user playlists as (playlist_id, name, track_count) from Music.app."""
+        self.ensure_running(activate=False)
+        output = run_applescript(
+            f'''
+tell application "Music"
+    set rowList to {{}}
+    repeat with p in user playlists
+        set playlistID to (id of p) as text
+        set playlistName to (name of p) as text
+        set playlistCount to (count of tracks of p) as text
+        set end of rowList to playlistID & "{FIELD_DELIMITER}" & playlistName & "{FIELD_DELIMITER}" & playlistCount
+    end repeat
+    set AppleScript's text item delimiters to "{RESULT_DELIMITER}"
+    return rowList as text
+end tell
+''',
+            operation="list_user_playlists",
+        )
+        return self._parse_user_playlist_rows(output)
+
+    def load_playlist_tracks_by_id(self, remote_playlist_id: str) -> list[tuple[str, str, str, str, int, int]]:
+        """Return playlist tracks as (remote_track_id, artist, title, album, duration_ms, position)."""
+        self.ensure_running(activate=False)
+        escaped_id = apple_escape(remote_playlist_id)
+        output = run_applescript(
+            f'''
+tell application "Music"
+    set targetPlaylist to missing value
+    repeat with p in user playlists
+        if (id of p as text) is "{escaped_id}" then
+            set targetPlaylist to p
+            exit repeat
+        end if
+    end repeat
+    if targetPlaylist is missing value then
+        return ""
+    end if
+    set rowList to {{}}
+    set trackPosition to 1
+    repeat with t in (tracks of targetPlaylist)
+        set trackID to (persistent ID of t) as text
+        set trackArtist to (artist of t) as text
+        set trackTitle to (name of t) as text
+        set trackAlbum to (album of t) as text
+        set trackDuration to (duration of t) as text
+        set end of rowList to trackID & "{FIELD_DELIMITER}" & trackArtist & "{FIELD_DELIMITER}" & trackTitle & "{FIELD_DELIMITER}" & trackAlbum & "{FIELD_DELIMITER}" & trackDuration & "{FIELD_DELIMITER}" & (trackPosition as text)
+        set trackPosition to trackPosition + 1
+    end repeat
+    set AppleScript's text item delimiters to "{RESULT_DELIMITER}"
+    return rowList as text
+end tell
+''',
+            operation="load_playlist_tracks_by_id",
+        )
+        return self._parse_playlist_track_rows(output)
+
+    @staticmethod
+    def _parse_user_playlist_rows(output: str) -> list[tuple[str, str, int]]:
+        if not output.strip():
+            return []
+        rows: list[tuple[str, str, int]] = []
+        for row in output.split(RESULT_DELIMITER):
+            if not row:
+                continue
+            parts = row.split(FIELD_DELIMITER)
+            if len(parts) < 3:
+                continue
+            playlist_id, name, count_raw = parts[0].strip(), parts[1].strip(), parts[2].strip()
+            if not playlist_id or not name:
+                continue
+            try:
+                track_count = max(0, int(count_raw))
+            except ValueError:
+                track_count = 0
+            rows.append((playlist_id, name, track_count))
+        return rows
+
+    @staticmethod
+    def _parse_playlist_track_rows(output: str) -> list[tuple[str, str, str, str, int, int]]:
+        if not output.strip():
+            return []
+        rows: list[tuple[str, str, str, str, int, int]] = []
+        for row in output.split(RESULT_DELIMITER):
+            if not row:
+                continue
+            parts = row.split(FIELD_DELIMITER)
+            if len(parts) < 6:
+                continue
+            remote_track_id = parts[0].strip()
+            artist = parts[1].strip()
+            title = parts[2].strip()
+            album = parts[3].strip()
+            try:
+                duration_seconds = max(0, int(float(parts[4].strip())))
+            except ValueError:
+                duration_seconds = 0
+            try:
+                position = max(1, int(parts[5].strip()))
+            except ValueError:
+                position = len(rows) + 1
+            if not remote_track_id:
+                continue
+            rows.append((remote_track_id, artist, title, album, duration_seconds * 1000, position))
+        return rows
+
     def collect_candidates_batch(self, tracks: list[TrackRef]) -> list[list[AppleMusicTrack]]:
         if not tracks:
             return []
