@@ -63,6 +63,7 @@ final class ImportViewModel: ObservableObject {
     func retryImportTrack(at index: Int) async {
         guard let importedGeneration else {
             screenState = .failed("Impossible de réessayer : playlist source introuvable.")
+            activeImportToken = nil
             return
         }
         let existingOutcomes = report?.outcomes
@@ -110,6 +111,7 @@ final class ImportViewModel: ObservableObject {
         guard let importSessionID else {
             ManualContinueTrace.log("EXIT confirmManualAcquisition() early — importSessionID nil")
             screenState = .failed("Session d'import introuvable.")
+            activeImportToken = nil
             syncManualWorkflow(manualWorkflow.applyBridgeError(
                 "Session d'import introuvable.",
                 architectDetail: nil

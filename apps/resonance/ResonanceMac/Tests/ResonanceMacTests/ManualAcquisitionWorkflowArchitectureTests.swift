@@ -17,6 +17,22 @@ final class ManualAcquisitionWorkflowArchitectureTests: XCTestCase {
         XCTAssertFalse(source.contains("if probe.found {\n                await confirmManualAcquisition()"))
     }
 
+    func testEarlyTerminalFailedPathsClearActiveImportToken() throws {
+        let source = try String(contentsOf: importViewModelSourceURL(), encoding: .utf8)
+        XCTAssertNotNil(
+            source.range(
+                of: #"playlist source introuvable\.\"\)\s*\n\s*activeImportToken = nil"#,
+                options: .regularExpression
+            )
+        )
+        XCTAssertNotNil(
+            source.range(
+                of: #"Session d'import introuvable\.\"\)\s*\n\s*activeImportToken = nil"#,
+                options: .regularExpression
+            )
+        )
+    }
+
     func testManualAcquisitionCardReflectsWorkflowState() throws {
         let source = try String(contentsOf: manualAcquisitionCardSourceURL(), encoding: .utf8)
         XCTAssertTrue(source.contains("status.phase.userFacingStep"))
