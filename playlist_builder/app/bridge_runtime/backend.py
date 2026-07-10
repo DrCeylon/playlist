@@ -110,7 +110,9 @@ class RuntimeEngineBridgeBackend:
         ):
             if isinstance(item, ImportPlaylistResult):
                 manual_continue_trace("YIELD backend.continue_manual_acquisition_stream ImportPlaylistResult")
-                yield self._attach_history_import_result(item, checkpoint.history_session_id)
+                yield self._attach_history_import_result(
+                    item, checkpoint.history_session_id, provider_id=ProviderId.APPLE_MUSIC
+                )
                 continue
             yield item
         manual_continue_trace("EXIT backend.continue_manual_acquisition_stream")
@@ -153,23 +155,7 @@ class RuntimeEngineBridgeBackend:
     def list_providers(self) -> ListProvidersResult:
         from playlist_builder.app.bridge_runtime.provider_platform import provider_options_from_registry
 
-        providers: list[ProviderOption] = []
-        for option in provider_options_from_registry(self._context.registry):
-            if option.provider_id == ProviderId.APPLE_MUSIC and sys.platform != "darwin":
-                providers.append(
-                    ProviderOption(
-                        provider_id=option.provider_id,
-                        display_name=option.display_name,
-                        is_available=False,
-                        is_connected=False,
-                        capabilities=option.capabilities,
-                        unavailable_reason="Import Apple Music disponible uniquement sur macOS.",
-                        is_experimental=option.is_experimental,
-                    )
-                )
-                continue
-            providers.append(option)
-        return ListProvidersResult(providers=tuple(providers))
+        return ListProvidersResult(providers=provider_options_from_registry(self._context.registry))
 
     def generate_playlist(self, request: PlaylistGenerationRequest, request_id: str = "generate") -> GeneratePlaylistResult:
         playlist_request = ui_request_to_playlist_request(request)
@@ -245,6 +231,7 @@ class RuntimeEngineBridgeBackend:
         write_json_diagnostics: bool,
         request_id: str = "import",
         history_session_id: str | None = None,
+        provider_id: ProviderId = ProviderId.APPLE_MUSIC,
     ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
         del sync  # sync import only for MVP — incremental arrives later
         for item in stream_import_playlist(
@@ -255,9 +242,10 @@ class RuntimeEngineBridgeBackend:
             write_json_diagnostics=write_json_diagnostics,
             session_store=self._session_store,
             history_session_id=history_session_id or "",
+            provider_id=provider_id,
         ):
             if isinstance(item, ImportPlaylistResult):
-                yield self._attach_history_import_result(item, history_session_id)
+                yield self._attach_history_import_result(item, history_session_id, provider_id=provider_id)
                 continue
             yield item
 
@@ -305,7 +293,9 @@ class RuntimeEngineBridgeBackend:
             existing_results=existing_results,
         ):
             if isinstance(item, ImportPlaylistResult):
-                yield self._attach_history_import_result(item, history_session_id)
+                yield self._attach_history_import_result(
+                    item, history_session_id, provider_id=ProviderId.APPLE_MUSIC
+                )
             else:
                 yield item
 
@@ -325,6 +315,8 @@ class RuntimeEngineBridgeBackend:
         self,
         item: ImportPlaylistResult,
         history_session_id: str | None,
+        *,
+        provider_id: ProviderId,
     ) -> ImportPlaylistResult:
         diagnostics = HistoryDiagnosticsSummary()
         if item.import_result.phase.value == "failed":
@@ -332,7 +324,7 @@ class RuntimeEngineBridgeBackend:
         updated = self._history.attach_import_result(
             session_id=history_session_id,
             playlist_name=item.import_result.playlist_name,
-            provider_id=ProviderId.APPLE_MUSIC,
+            provider_id=provider_id,
             result=item.import_result,
             diagnostics=diagnostics,
         )

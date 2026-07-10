@@ -27,19 +27,10 @@ def get_provider_import_port(
             f"Le fournisseur {provider_id.value} n'est pas disponible.",
         )
 
-    import_service = getattr(gateway, "import_service", None)
-    if import_service is None:
-        raise BridgeError(
-            BridgeErrorCode.PROVIDER_UNAVAILABLE,
-            f"Le fournisseur {provider_id.value} ne supporte pas l'import streamé.",
-        )
-
-    if provider_id == ProviderId.APPLE_MUSIC:
-        from playlist_builder.integration.apple_music.provider_import_port import AppleMusicProviderImportPort
-
-        port = AppleMusicProviderImportPort(import_service)
-        manual_continue_trace(f"RETURN get_provider_import_port -> AppleMusicProviderImportPort")
-        return port
+    import_port = getattr(gateway, "import_port", None)
+    if import_port is not None:
+        manual_continue_trace(f"RETURN get_provider_import_port -> {type(import_port).__name__}")
+        return import_port
 
     raise BridgeError(
         BridgeErrorCode.PROVIDER_UNAVAILABLE,

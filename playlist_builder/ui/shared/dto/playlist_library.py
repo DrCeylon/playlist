@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import Any
 
 from playlist_builder.canonical.enums import ProviderId
+from playlist_builder.canonical.provider_ids import parse_provider_id
 from playlist_builder.ui.shared.dto.sync_conflict import (
     ConflictKind,
     ConflictResolutionStrategy,
@@ -46,11 +47,7 @@ class LinkedRemoteRef:
 
 
 def linked_remote_ref_from_dict(raw: dict[str, Any]) -> LinkedRemoteRef:
-    provider_raw = str(raw.get("provider_id", ProviderId.APPLE_MUSIC.value))
-    try:
-        provider_id = ProviderId(provider_raw)
-    except ValueError:
-        provider_id = ProviderId.APPLE_MUSIC
+    provider_id = parse_provider_id(raw.get("provider_id"), default=ProviderId.APPLE_MUSIC)
     legacy_checksum = str(raw.get("snapshot_checksum", ""))
     last_seen = str(raw.get("last_seen_snapshot_checksum", "")) or legacy_checksum
     last_applied = str(raw.get("last_applied_snapshot_checksum", ""))
@@ -211,11 +208,7 @@ def managed_playlist_from_history_session(session: dict[str, Any]) -> ManagedPla
     playlist_name = str(session.get("playlist_name", "")).strip()
     if not session_id or not playlist_name:
         return None
-    provider_raw = str(session.get("provider_id", ProviderId.APPLE_MUSIC.value))
-    try:
-        provider_id = ProviderId(provider_raw)
-    except ValueError:
-        provider_id = ProviderId.APPLE_MUSIC
+    provider_id = parse_provider_id(session.get("provider_id"), default=ProviderId.APPLE_MUSIC)
     status = str(session.get("status", ""))
     sync_status = "synced" if status == "imported" else "partial" if status == "partial_success" else "pending"
     finished_at = str(session.get("finished_at_iso", "") or "")

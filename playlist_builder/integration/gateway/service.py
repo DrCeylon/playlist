@@ -70,15 +70,13 @@ class IntegrationGateway:
                 f"Provider {provider_id.value} incremental import requires an import service."
             )
 
-        applescript = getattr(import_service, "applescript", None)
-        if applescript is None:
+        prepare = getattr(import_service, "prepare_incremental_import", None)
+        if not callable(prepare):
             raise ValueError(
-                f"Provider {provider_id.value} incremental import requires a runtime client."
+                f"Provider {provider_id.value} incremental import requires prepare_incremental_import."
             )
 
-        applescript.ensure_running()
-        applescript.ensure_playlist(playlist_name)
-        existing_keys = None if allow_duplicates else applescript.load_playlist_keys(playlist_name)
+        existing_keys = prepare(playlist_name, allow_duplicates=allow_duplicates)
         return IncrementalImportContext(existing_keys=existing_keys)
 
     def search_catalog(

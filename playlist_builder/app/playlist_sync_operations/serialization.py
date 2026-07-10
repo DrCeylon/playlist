@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from playlist_builder.canonical.enums import ProviderId
+from playlist_builder.canonical.provider_ids import parse_provider_id
 from playlist_builder.ui.shared.dto.playlist_sync import (
     PlaylistSyncOperation,
     SyncActionOutcome,
@@ -15,11 +16,7 @@ SCHEMA_VERSION = 1
 
 
 def operation_from_dict(raw: dict[str, Any]) -> PlaylistSyncOperation:
-    provider_raw = str(raw.get("provider_id", ProviderId.APPLE_MUSIC.value))
-    try:
-        provider_id = ProviderId(provider_raw)
-    except ValueError:
-        provider_id = ProviderId.APPLE_MUSIC
+    provider_id = parse_provider_id(raw.get("provider_id"), default=ProviderId.APPLE_MUSIC)
     direction_raw = str(raw.get("direction", SyncDirection.PUSH_TO_PROVIDER.value))
     try:
         direction = SyncDirection(direction_raw)

@@ -5,6 +5,7 @@ from collections.abc import Iterator
 
 from playlist_builder.app.factory import AppContext, get_provider_import_port
 from playlist_builder.canonical.compat import canonical_playlist_from_legacy
+from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.core.models import PlaylistDefinition, TrackAddResult, TrackAddStatus
 from playlist_builder.integration.ports.provider_import import ProviderImportResolutionStatus
 from playlist_builder.integration.compat import track_results_aligned_with_playlist
@@ -100,16 +101,19 @@ def stream_import_playlist(
     session_store: ImportSessionStore,
     checkpoint: ImportSessionCheckpoint | None = None,
     history_session_id: str = "",
+    provider_id: ProviderId = ProviderId.APPLE_MUSIC,
 ) -> Iterator[BridgeEvent | ImportPlaylistResult]:
-    import sys
-
-    if sys.platform != "darwin":
+    gateway = context.registry.get(provider_id)
+    if gateway is None:
         raise BridgeError(
             BridgeErrorCode.PROVIDER_UNAVAILABLE,
-            "L'import Apple Music nécessite macOS.",
+            f"Le fournisseur {provider_id.value} n'est pas disponible.",
         )
+    unavailable_reason = getattr(gateway, "unavailable_reason", lambda: "")()
+    if unavailable_reason:
+        raise BridgeError(BridgeErrorCode.PROVIDER_UNAVAILABLE, unavailable_reason)
 
-    import_port = get_provider_import_port(context)
+    import_port = get_provider_import_port(context, provider_id)
     labels = import_port.runtime_labels
 
     if context.settings.wait_for_manual_catalog_add:
