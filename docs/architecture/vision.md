@@ -1,5 +1,7 @@
 # Architecture vision
 
+> **Product strategy:** [RESONANCE_VISION_2030.md](../product/RESONANCE_VISION_2030.md) · **Target state:** [TARGET_ARCHITECTURE.md](TARGET_ARCHITECTURE.md) · **Tiers:** [ADR-019](ADR-019-resonance-product-tiers.md)
+
 ## Goal
 
 Build a multi-provider playlist composition and delivery platform that can integrate
@@ -83,3 +85,4 @@ remain in Python so they are deterministic, testable, and provider-agnostic.
 - 100% unit test coverage for new canonical and scoring modules
 - Existing CLI workflows remain backward compatible during migration
 - A new provider can be bootstrapped with gateway + mapper + tests only
+- Product tiers (MVP → 1.0 → 2.0 → 2030) respected — see [ADR-019](ADR-019-resonance-product-tiers.md)

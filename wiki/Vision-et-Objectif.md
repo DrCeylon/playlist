@@ -1,59 +1,90 @@
 # Vision et objectif
 
-*Pourquoi cette application existe — la boussole du projet.*
+*Pourquoi Resonance existe — la boussole du projet.*
+
+📖 **Vision long terme :** [RESONANCE_VISION_2030](../docs/product/RESONANCE_VISION_2030.md) · [Roadmap](../docs/ROADMAP.md)
 
 ---
 
 ## En une phrase
 
-**Générer des playlists Apple Music à partir de mots-clés ou de morceaux de référence** — simplement, proprement, pour tout le monde.
+**Resonance est un système d'exploitation local-first pour vos playlists** — composer intelligemment, posséder votre bibliothèque sur votre machine, synchroniser avec les services musicaux que *vous* choisissez.
+
+Ce n'est pas un service de streaming. Ce n'est pas un hébergeur de fichiers audio. C'est **l'infrastructure ouverte** qui rend vos playlists portables.
 
 ---
 
-## L'objectif
+## Pourquoi Resonance existe
 
-Tu donnes une **intention musicale**. L'application construit la playlist.
+| Problème | Réponse Resonance |
+|----------|-------------------|
+| Playlists prisonnières d'un seul service | Bibliothèque locale = source de vérité ; sync multi-provider |
+| Convertisseurs one-shot (Soundiiz…) | Sync continu avec résolution de conflits |
+| Smart playlists silotées | Règles composables cross-provider (objectif 2.0) |
+| Pas d'historique ni d'undo | Versioning et snapshots (fondations en place) |
+| Lock-in écosystème | Open source, MIT, gateways remplaçables |
 
-Deux façons d'exprimer cette intention :
+---
 
-| Mode | Tu fournis… | L'app… |
-|------|-------------|--------|
-| **Manuel** | Un fichier JSON avec sections et morceaux choisis | Crée la playlist dans Apple Music |
-| **Assisté** *(Phase 2)* | Des mots-clés, des morceaux de référence, des contraintes | Propose et assemble une playlist, puis la crée |
-| **App Resonance** *(Phase 4)* | Interface macOS SwiftUI | Génération + import Apple Music |
+## Ce qui nous différencie
 
-Les modes coexistent. C'est **composer à la main**, **générer en CLI**, ou **utiliser l'app** selon ton envie.
+1. **Playlist comme objet de première classe** — versionnée, historisée, synchronisable
+2. **Intelligence de correspondance** — scoring explicable, cache d'identité par provider
+3. **Sync consciente des conflits** — plan → conflits → résolution → apply
+4. **Neutralité provider** — le moteur ne connaît pas Apple Music
+5. **Automatisation ouverte** — CLI, API locale (2.0), raccourcis, Home Assistant (2030)
 
-### Exemples concrets
+---
 
-**Mode manuel** — tu sais exactement ce que tu veux :
-```
-« 7 sections, montée progressive, 96 morceaux, pool party. »
-→ Fichier JSON → create_playlist.py
-```
+## Paliers produit
 
-**Mode assisté** — tu as une direction, pas une tracklist :
-```
-« Morceaux de référence : Kygo – Firestone, Avicii – Levels »
-« Mots-clés : tropical, dance, rising energy »
-« Durée : 4 h, pas de shuffle »
-→ Génération → prévisualisation → Apple Music
-```
+| Palier | Promesse |
+|--------|----------|
+| **MVP** (2026) | Composer + livrer sur Apple Music ; fondations sync |
+| **1.0** (2027) | Open Source public ; 2 providers ; UX sync complète |
+| **2.0** (2028) | Bibliothèque personnelle : règles, undo, sync multi-destination |
+| **2030** | Standard ouvert pour la portabilité des playlists |
+
+Détail complet : [RESONANCE_VISION_2030](../docs/product/RESONANCE_VISION_2030.md)
+
+---
+
+## Principes non négociables
+
+| Principe | Signification |
+|----------|---------------|
+| **Local-first** | Tout fonctionne sans cloud Resonance |
+| **Compte optionnel** | Identity / cloud = métadonnées uniquement, jamais obligatoire |
+| **Pas d'audio hébergé** | Snapshots = métadonnées + références provider |
+| **Music Providers ≠ Resonance Services** | Jamais confondus dans le code |
+| **Open source** | MIT — fork, contribue, étends |
+
+---
+
+## L'objectif concret aujourd'hui (MVP)
+
+Tu donnes une **intention musicale**. Resonance construit la playlist et la livre.
+
+| Mode | Tu fournis… | Resonance… |
+|------|-------------|------------|
+| **Génération** | Seeds, mots-clés, contraintes | Compose via le moteur de scoring |
+| **Import** | Playlist générée ou JSON | Livre dans Apple Music (manual acquisition si besoin) |
+| **Sync** | Playlist locale liée à un provider | Plan dry-run → résolution conflits → apply |
+| **App macOS** | Interface SwiftUI | Génération, import, historique, gestionnaire |
+
+Les modes coexistent avec le **CLI historique** (JSON manuel, `create_playlist.py`).
 
 ---
 
 ## Pour qui ?
 
-**Tout le monde.**
-
-Pas un outil fermé pour un usage privé. Un projet perso ouvert, que n'importe qui peut cloner, adapter, et faire sien.
+**Tout le monde** — particuliers, DJs, curateurs, développeurs.
 
 - Tu veux une playlist pool party ? OK
-- Tu veux du reggaeton toute la nuit ? OK *(c'est ton choix, pas le mien)*
-- Tu veux une playlist étude, running, anniversaire ? OK
-- Tu veux juste comprendre comment ça marche ? OK
-
-Le créateur du repo a ses **préférences personnelles** (voir Orlando), mais l'outil n'impose aucun style musical à personne.
+- Tu veux synchroniser Apple Music et Spotify ? OK (objectif 1.0)
+- Tu veux des règles automatiques le vendredi ? OK (objectif 2.0)
+- Tu veux automatiser via Home Assistant ? OK (objectif 2030)
+- Tu veux comprendre et contribuer au code ? OK
 
 ---
 
@@ -61,52 +92,44 @@ Le créateur du repo a ses **préférences personnelles** (voir Orlando), mais l
 
 | Question | Réponse |
 |----------|---------|
-| Commercial ? | Non — projet perso |
-| Open source ? | Oui — fork, adapte, améliore |
-| Produit Guidewire ? | Non — side project sans lien employeur |
-| App iOS ? | Objectif long terme |
-| MusicKit payant requis ? | Non — workflow gratuit disponible |
+| Commercial ? | Non — projet perso open source |
+| Open source ? | Oui — MIT |
+| Produit employeur ? | Non |
+| App iOS ? | Vision 2030 |
+| Compte obligatoire ? | Non — jamais |
 
 ---
 
-## Où on en est aujourd'hui
+## Où on en est (juillet 2026)
 
 ```
-CLI manuel (JSON)                 OK
-CLI generate_playlist              OK
-Verification catalogue             OK
-Creation Apple Music               OK
-Gateway providers Phases 2-3       OK
-Contrats UI Phase 4.1              OK
-Engine Bridge Phase 4.2            OK
-Theme engine Phase 4.3             OK
-App macOS shell Phase 4.4          OK
-Builder playlist Phase 4.5         OK
-Import UX Phase 4.6                OK
-App iOS Phase 4.9                  A faire
+Génération intelligente + scoring        OK
+Import Apple Music (streaming)           OK
+App macOS Resonance                      OK
+Repository local (SSOT)                  OK
+Sync plan / apply / conflits             OK
+YouTube Music expérimental               En cours
+Multi-provider (architecture)            OK
+UX sync wizard + providers               En cours (6.8)
 ```
 
-La **CLI** reste le socle fiable.  
-La **Phase 4** apporte l'interface **Resonance** — même moteur, expérience produit.
+État détaillé : [Etat-des-Phases](Etat-des-Phases.md)
 
 ---
 
-## Ce qui ne changera pas
+## Où on va
 
-Quel que soit le mode (manuel ou assisté) :
+Voir [Roadmap](../docs/ROADMAP.md) et [Backlog produit](../docs/product/BACKLOG.md).
 
-1. **Apple Music** comme destination
-2. **Ordre des sections** respecté
-3. **Non destructif** — on crée, on ne supprime pas
-4. **Gratuit d'abord** — pas de licence payante obligatoire
-5. **Liberté musicale totale** — tu écoutes ce que tu veux
+**Resonance 2.0** = votre bibliothèque musicale personnelle, intelligente, versionnée, synchronisée partout, sous votre contrôle.
+
+**2030** = l'infrastructure ouverte de référence pour posséder sa musique dans un monde multi-cloud.
 
 ---
 
-## La phrase du créateur
+## Références
 
-> *« J'ai construit ça pour moi, pour Arthur et Léonard, et pour tous ceux qui en ont marre de cliquer 96 morceaux à la main. Donne-moi une vibe ou une liste — je te sors une playlist. »*
-
----
-
-→ Suite : [À propos](A-propos) · [Phase 2 — Génération](Phase-2-Generation) · [Phase 4 — Resonance](Phase-4-Interface-Resonance) · [Feuille de route iOS](Feuille-de-route-iOS)
+- [RESONANCE_VISION_2030](../docs/product/RESONANCE_VISION_2030.md)
+- [Architecture cible](../docs/architecture/TARGET_ARCHITECTURE.md)
+- [ADR-013 — Multi-provider](../docs/architecture/ADR-013-multi-provider-platform-vision.md)
+- [Phase 6 — Provider Platform](../docs/product/phase-6-provider-platform.md)
