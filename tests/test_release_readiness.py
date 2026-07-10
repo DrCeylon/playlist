@@ -15,14 +15,18 @@ def test_package_version_matches_pyproject() -> None:
 
 def test_release_docs_exist() -> None:
     required = (
+        "docs/README.md",
         "docs/RELEASE_PLAN.md",
         "docs/RELEASE_CHECKLIST.md",
         "docs/KNOWN_LIMITATIONS.md",
         "docs/MIGRATION_GUIDE.md",
         "docs/COMPATIBILITY_MATRIX.md",
+        "docs/engineering/ENGINEERING_GUIDE.md",
         "LICENSE",
         "SECURITY.md",
         "CONTRIBUTING.md",
+        "SUPPORT.md",
+        "AGENTS.md",
     )
     for path in required:
         assert Path(path).is_file(), f"missing {path}"

@@ -29,6 +29,7 @@
 - [**Phase 5.3 — Performance**](Phase-5-3-Performance)
 - [Smart Input Framework](Smart-Input-Framework)
 - [État des phases](Etat-des-Phases)
+- [Docs contributeur (EN)](../docs/README.md)
 - [Phase 5 — Vision produit](Phase-5-Vision)
 - [Maintenance & workflow Git](Maintenance-et-Workflow)
 - [MusicKit expérimental](MusicKit-Experimental)

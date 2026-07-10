@@ -8,8 +8,8 @@ This directory contains the long-lived architectural documentation for **Resonan
 |----------|---------|
 | [vision.md](vision.md) | Engineering vision and layering |
 | [TARGET_ARCHITECTURE.md](TARGET_ARCHITECTURE.md) | Target state for Resonance 2.0 |
-| [../product/RESONANCE_VISION_2030.md](../product/RESONANCE_VISION_2030.md) | Product vision 2030 |
-| [ADR-019-resonance-product-tiers.md](ADR-019-resonance-product-tiers.md) | MVP / 1.0 / 2.0 / 2030 boundaries |
+| [../README.md](../README.md) | Full documentation map |
+| [../engineering/ENGINEERING_GUIDE.md](../engineering/ENGINEERING_GUIDE.md) | DoD, ADR workflow, stop criteria |
 
 ## Documents
 
