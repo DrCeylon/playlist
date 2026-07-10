@@ -56,6 +56,7 @@ class BridgeCommand(StrEnum):
     PROVIDER_CONNECT = "provider_connect"
     PROVIDER_DISCONNECT = "provider_disconnect"
     LOAD_REMOTE_PLAYLIST_FROM_FILE = "load_remote_playlist_from_file"
+    RESOLVE_SYNC_CONFLICTS = "resolve_sync_conflicts"
 
 
 @dataclass(frozen=True, slots=True)

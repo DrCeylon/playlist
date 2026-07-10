@@ -65,7 +65,17 @@ Provider sync never requires a Resonance account. Cloud metadata sync (future) r
    e. JsonPlaylistSyncOperationRepository — audit trail
 ```
 
-`plan_sync` must never create operations or mutate repository/snapshots.
+### Conflict resolution (Phase 6.7)
+
+```text
+plan_sync → conflicts[] (enriched, UI-ready)
+resolve_sync_conflicts(resolutions[]) → new plan + plan_checksum
+apply_sync (only when conflicts cleared or non-manual_resolve)
+```
+
+`PlaylistConflictDetector` and `PlaylistConflictResolver` are provider-neutral.
+Resolutions: `keep_local`, `keep_remote`, `merge`, `ignore`, `defer`.
+Never mutates repository or snapshots — output is always a new plan.
 
 Idempotency key: `local_playlist_id + provider + remote + direction + mode + plan_checksum + versions`.
 

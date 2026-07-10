@@ -420,15 +420,14 @@ Un **publish** vers Apple Music réutilise la **delivery** existante pour l’aj
 | **Guide** | `docs/guides/youtube-music-experimental.md` |
 | **Prochaine étape** | 6.7 résolution conflits ; comparaison Apple/YouTube UX (6.8) |
 
-### 6.7 Conflict resolution
+### 6.7 Intelligent conflict resolution ✅
 
 | | |
 |--|--|
-| **Fichiers** | `PlaylistConflictResolver` ; enrichir `PlaylistSyncConflict` |
-| **Tests** | Cas duplicate, missing, metadata mismatch |
-| **Risques** | UX complexe — manual_resolve par défaut |
-| **Rollback** | Stop at first conflict |
-| **Validation** | Conflits visibles Sync UI |
+| **Fichiers** | `PlaylistConflictDetector`, `PlaylistConflictResolver`, `ResolveSyncConflicts`, bridge `resolve_sync_conflicts` |
+| **DTO** | `PlaylistSyncConflict` enrichi (scope, severity, available_resolutions, recommended_resolution) |
+| **Scope livré** | Détection provider-neutral ; résolution → nouveau plan ; stratégies keep_local/remote/merge/ignore/defer |
+| **Prochaine étape** | 6.8 UX wizard sync + comparateur |
 
 ### 6.8 UX polish
 

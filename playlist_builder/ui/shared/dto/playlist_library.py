@@ -5,6 +5,14 @@ from enum import StrEnum
 from typing import Any
 
 from playlist_builder.canonical.enums import ProviderId
+from playlist_builder.ui.shared.dto.sync_conflict import (
+    ConflictKind,
+    ConflictResolutionStrategy,
+    ConflictScope,
+    ConflictSeverity,
+    DEFAULT_RESOLUTIONS_BY_KIND,
+    recommended_resolution_for_kind,
+)
 from playlist_builder.ui.shared.validation import dto_to_dict
 
 
@@ -101,9 +109,70 @@ class PlaylistSyncConflict:
     track_key: str
     kind: str
     message: str
+    scope: str = ConflictScope.TRACK.value
+    severity: str = ConflictSeverity.BLOCKING.value
+    local_track_id: str = ""
+    remote_track_id: str = ""
+    local_position: int | None = None
+    remote_position: int | None = None
+    affected_fields: tuple[str, ...] = ()
+    available_resolutions: tuple[str, ...] = ()
+    recommended_resolution: str = ""
+    related_action_ids: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
-        return dto_to_dict(self)
+        payload = dto_to_dict(self)
+        if not self.affected_fields:
+            payload["affected_fields"] = []
+        if not self.available_resolutions:
+            payload["available_resolutions"] = list(
+                DEFAULT_RESOLUTIONS_BY_KIND.get(self.kind, (ConflictResolutionStrategy.DEFER.value,))
+            )
+        if not self.recommended_resolution:
+            payload["recommended_resolution"] = recommended_resolution_for_kind(self.kind)
+        if not self.related_action_ids:
+            payload["related_action_ids"] = []
+        return payload
+
+
+def playlist_sync_conflict_from_dict(raw: dict[str, Any]) -> PlaylistSyncConflict:
+    kind = str(raw.get("kind", "")).strip()
+    legacy_kind = "duplicate_local" if kind == "duplicate" and str(raw.get("id", "")).startswith("dup-local") else kind
+    if kind == "duplicate" and str(raw.get("id", "")).startswith("dup-remote"):
+        legacy_kind = "duplicate_remote"
+    elif kind == "duplicate":
+        legacy_kind = ConflictKind.DUPLICATE_LOCAL.value if "local" in str(raw.get("message", "")).lower() else ConflictKind.DUPLICATE_REMOTE.value
+    normalized_kind = legacy_kind or ConflictKind.METADATA_MISMATCH.value
+    available_raw = raw.get("available_resolutions", [])
+    available: tuple[str, ...] = ()
+    if isinstance(available_raw, list):
+        available = tuple(str(item) for item in available_raw)
+    fields_raw = raw.get("affected_fields", [])
+    affected_fields: tuple[str, ...] = ()
+    if isinstance(fields_raw, list):
+        affected_fields = tuple(str(item) for item in fields_raw)
+    related_raw = raw.get("related_action_ids", [])
+    related_ids: tuple[str, ...] = ()
+    if isinstance(related_raw, list):
+        related_ids = tuple(str(item) for item in related_raw)
+    local_pos = raw.get("local_position")
+    remote_pos = raw.get("remote_position")
+    return PlaylistSyncConflict(
+        id=str(raw.get("id", "")),
+        track_key=str(raw.get("track_key", "")),
+        kind=normalized_kind,
+        message=str(raw.get("message", "")),
+        scope=str(raw.get("scope", ConflictScope.TRACK.value)),
+        severity=str(raw.get("severity", ConflictSeverity.BLOCKING.value)),
+        local_track_id=str(raw.get("local_track_id", "")),
+        remote_track_id=str(raw.get("remote_track_id", "")),
+        local_position=int(local_pos) if isinstance(local_pos, int) else None,
+        remote_position=int(remote_pos) if isinstance(remote_pos, int) else None,
+        affected_fields=affected_fields,
+        available_resolutions=available,
+        recommended_resolution=str(raw.get("recommended_resolution", "")),
+        related_action_ids=related_ids,
+    )
 
 
 @dataclass(frozen=True, slots=True)

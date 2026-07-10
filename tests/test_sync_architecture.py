@@ -26,6 +26,18 @@ def test_managed_playlist_repository_has_no_write_port_imports() -> None:
         assert forbidden not in source, f"{path} must not reference write port"
 
 
+def test_conflict_modules_have_no_provider_imports() -> None:
+    root = Path("playlist_builder/app/playlist_sync")
+    targets = ("conflict_detector.py", "conflict_resolver.py", "resolve_conflicts.py")
+    forbidden = ("apple_music", "youtube_music", "integration.apple", "integration.youtube")
+    for name in targets:
+        path = root / name
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and any(token in node.module for token in forbidden):
+                raise AssertionError(f"{path} imports {node.module}")
+
+
 def test_plan_sync_does_not_write_sync_operations(tmp_path: Path, monkeypatch) -> None:
     from playlist_builder.app.bridge_runtime.playlist_sync_plan import plan_sync
     from playlist_builder.canonical.enums import ProviderCapability, ProviderId

@@ -23,6 +23,7 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertEqual(BridgeCommand.providerConnect.rawValue, "provider_connect")
         XCTAssertEqual(BridgeCommand.providerDisconnect.rawValue, "provider_disconnect")
         XCTAssertEqual(BridgeCommand.loadRemotePlaylistFromFile.rawValue, "load_remote_playlist_from_file")
+        XCTAssertEqual(BridgeCommand.resolveSyncConflicts.rawValue, "resolve_sync_conflicts")
     }
 
     func testDiagnosticsSnapshotDecoding() throws {

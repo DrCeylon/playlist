@@ -29,7 +29,6 @@ class PlaylistSyncPlanner:
         comparison: PlaylistComparisonResult,
     ) -> PlaylistSyncPlan:
         actions: list[PlaylistSyncAction] = []
-        conflicts: list[PlaylistSyncConflict] = []
         stats: dict[str, Any] = {
             "additions": 0,
             "removals": 0,
@@ -51,7 +50,7 @@ class PlaylistSyncPlanner:
                 )
             )
 
-        self._append_duplicate_conflicts(comparison, conflicts, stats)
+        self._append_duplicate_conflicts(comparison, stats)
 
         allow_removals = sync_mode in {SyncMode.MIRROR, SyncMode.DRY_RUN}
 
@@ -71,10 +70,25 @@ class PlaylistSyncPlanner:
             self._plan_additions(comparison.only_local, actions, stats, target="provider")
             self._plan_removals(comparison.only_remote, actions, stats, source="remote")
 
-        self._plan_metadata(comparison, sync_mode, actions, conflicts, stats)
+        self._plan_metadata(comparison, sync_mode, actions, stats)
 
         actions.sort(key=self._action_sort_key)
-        conflicts.sort(key=lambda item: item.track_key)
+
+        from playlist_builder.app.playlist_sync.conflict_detector import PlaylistConflictDetector, SyncConflictContext
+
+        detector = PlaylistConflictDetector()
+        conflicts = detector.detect(
+            local=local,
+            remote=remote,
+            comparison=comparison,
+            actions=tuple(actions),
+            context=SyncConflictContext(
+                provider_id=remote.provider_id,
+                direction=direction,
+                sync_mode=sync_mode,
+            ),
+        )
+        stats["conflicts"] = len(conflicts)
 
         summary = PlaylistSyncSummary(
             additions=stats["additions"],
@@ -93,7 +107,7 @@ class PlaylistSyncPlanner:
             sync_mode=sync_mode,
             remote_playlist_id=remote.remote_playlist_id,
             actions=tuple(actions),
-            conflicts=tuple(conflicts),
+            conflicts=conflicts,
             summary=summary,
             playlist_name_local=local.summary.name,
             playlist_name_remote=remote.name,
@@ -228,60 +242,31 @@ class PlaylistSyncPlanner:
         comparison: PlaylistComparisonResult,
         sync_mode: SyncMode,
         actions: list[PlaylistSyncAction],
-        conflicts: list[PlaylistSyncConflict],
         stats: dict[str, Any],
     ) -> None:
         for mismatch in comparison.metadata_mismatches:
             if sync_mode == SyncMode.MANUAL_RESOLVE:
-                conflicts.append(
-                    PlaylistSyncConflict(
-                        id=f"meta-{mismatch.track_key}",
-                        track_key=mismatch.track_key,
-                        kind="metadata_mismatch",
-                        message=f"Écart métadonnées : {', '.join(mismatch.fields)}",
-                    )
-                )
-                stats["conflicts"] += 1
-            else:
-                actions.append(
-                    PlaylistSyncAction(
-                        kind=PlaylistSyncActionKind.MAP_TRACK,
-                        track_key=mismatch.track_key,
-                        artist=mismatch.local.artist,
-                        title=mismatch.local.title,
-                        local_track_id=mismatch.local.local_track_id,
-                        remote_track_id=mismatch.remote.remote_track_id,
-                        message=f"Mapper métadonnées ({', '.join(mismatch.fields)})",
-                    )
-                )
                 stats["metadata_mismatches"] += 1
+                continue
+            actions.append(
+                PlaylistSyncAction(
+                    kind=PlaylistSyncActionKind.MAP_TRACK,
+                    track_key=mismatch.track_key,
+                    artist=mismatch.local.artist,
+                    title=mismatch.local.title,
+                    local_track_id=mismatch.local.local_track_id,
+                    remote_track_id=mismatch.remote.remote_track_id,
+                    message=f"Mapper métadonnées ({', '.join(mismatch.fields)})",
+                )
+            )
+            stats["metadata_mismatches"] += 1
 
     @staticmethod
     def _append_duplicate_conflicts(
         comparison: PlaylistComparisonResult,
-        conflicts: list[PlaylistSyncConflict],
         stats: dict[str, Any],
     ) -> None:
-        for key in comparison.local_duplicates:
-            conflicts.append(
-                PlaylistSyncConflict(
-                    id=f"dup-local-{key}",
-                    track_key=key,
-                    kind="duplicate",
-                    message="Doublon détecté dans la playlist locale",
-                )
-            )
-            stats["conflicts"] += 1
-        for key in comparison.remote_duplicates:
-            conflicts.append(
-                PlaylistSyncConflict(
-                    id=f"dup-remote-{key}",
-                    track_key=key,
-                    kind="duplicate",
-                    message="Doublon détecté dans la playlist distante",
-                )
-            )
-            stats["conflicts"] += 1
+        del comparison, stats
 
     @staticmethod
     def _action_sort_key(action: PlaylistSyncAction) -> tuple[str, str, int]:

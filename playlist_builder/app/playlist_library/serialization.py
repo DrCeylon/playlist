@@ -11,6 +11,7 @@ from playlist_builder.ui.shared.dto.playlist_library import (
     PlaylistOrigin,
     PlaylistSyncConflict,
     linked_remote_ref_from_dict,
+    playlist_sync_conflict_from_dict,
 )
 
 SCHEMA_VERSION = 1
@@ -72,14 +73,7 @@ def playlist_detail_from_dict(raw: dict[str, Any]) -> ManagedPlaylistDetail:
         for item in conflicts_raw:
             if not isinstance(item, dict):
                 continue
-            conflicts.append(
-                PlaylistSyncConflict(
-                    id=str(item.get("id", "")),
-                    track_key=str(item.get("track_key", "")),
-                    kind=str(item.get("kind", "")),
-                    message=str(item.get("message", "")),
-                )
-            )
+            conflicts.append(playlist_sync_conflict_from_dict(item))
 
     return ManagedPlaylistDetail(summary=summary, tracks=tuple(tracks), sync_conflicts=tuple(conflicts))
 
