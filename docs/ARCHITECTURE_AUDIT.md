@@ -378,10 +378,10 @@ Voir [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md). Priorités pour les 2–3 prochaine
 **Avant :** `list_playlists()` triait tout le catalogue à chaque lookup.  
 **Après :** scan direct sans tri — gain immédiat sur écrans détail/sync.
 
-### 7.3 Snapshots verrouillés
+### 7.3 Snapshots verrouillés et immuables
 
-**Avant :** `temp.replace()` sans `fcntl` — course si 2 processus bridge importent le même snapshot.  
-**Après :** `locked_json_document` — cohérent avec managed playlists.
+**Avant :** `temp.replace()` sans verrou — course possible ; variante PR initiale utilisait `locked_json_document` (truncate/write sur fichier final, non immuable).  
+**Après :** `advisory_file_lock` + `replace_file_atomic` (`temp` + `os.replace`) ; fichier existant valide jamais réécrit ; `SnapshotChecksumMismatchError` / `SnapshotCorruptionError` si contenu invalide.
 
 ### 7.4 Guards architecture
 
@@ -417,7 +417,7 @@ Correction analyse statique dans `action_executor.py` — pas de changement comp
 |---------|------|-------------|
 | Modularité | 8/10 | Packages clairs, sync engine exemplaire |
 | Couplage | 6/10 | Inversion UI ↔ integration |
-| Testabilité | 8/10 | 534 tests, guards AST, E2E en PR séparée |
+| Testabilité | 8/10 | 539 tests, guards AST, E2E en PR séparée |
 | Évolutivité 2.0 | 7/10 | Protocols présents, domaine mal placé |
 | Documentation | 9/10 | ADR, TARGET_ARCHITECTURE, vision 2030 |
 | Performance | 7/10 | OK local-first MVP, limites JSON connues |
