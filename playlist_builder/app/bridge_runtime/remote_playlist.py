@@ -15,14 +15,22 @@ def _parse_provider_id(value: object) -> ProviderId:
         raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"provider_id invalide : {value!r}") from exc
 
 
-def _require_read_port(registry: ProviderGatewayRegistry, provider_id: ProviderId):
+def _require_read_port(registry: ProviderGatewayRegistry, provider_id: ProviderId, *, for_list: bool):
     gateway = registry.get(provider_id)
     if gateway is None:
         raise BridgeError(
             BridgeErrorCode.PROVIDER_UNAVAILABLE,
             f"Le fournisseur {provider_id.value} n'est pas disponible.",
         )
-    if ProviderCapability.PLAYLIST_LIBRARY_BROWSE not in gateway.capabilities:
+    if for_list:
+        if ProviderCapability.PLAYLIST_LIBRARY_BROWSE not in gateway.capabilities:
+            raise BridgeError(
+                BridgeErrorCode.PROVIDER_UNAVAILABLE,
+                f"Le fournisseur {provider_id.value} ne supporte pas la lecture de bibliothèque.",
+            )
+    elif ProviderCapability.PUBLIC_PLAYLIST_IMPORT not in gateway.capabilities and (
+        ProviderCapability.PLAYLIST_LIBRARY_BROWSE not in gateway.capabilities
+    ):
         raise BridgeError(
             BridgeErrorCode.PROVIDER_UNAVAILABLE,
             f"Le fournisseur {provider_id.value} ne supporte pas la lecture de playlists.",
@@ -42,7 +50,7 @@ def list_remote_playlists(
     provider_id: ProviderId,
     account_id: str | None = None,
 ) -> tuple[dict[str, Any], ...]:
-    read_port = _require_read_port(registry, provider_id)
+    read_port = _require_read_port(registry, provider_id, for_list=True)
     playlists = read_port.list_playlists(account_id=account_id)
     return tuple(_remote_playlist_dict(playlist) for playlist in playlists)
 
@@ -56,7 +64,7 @@ def get_remote_playlist(
     playlist_id = remote_playlist_id.strip()
     if not playlist_id:
         raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "remote_playlist_id est requis.")
-    read_port = _require_read_port(registry, provider_id)
+    read_port = _require_read_port(registry, provider_id, for_list=False)
     try:
         snapshot = read_port.get_playlist(playlist_id)
     except ValueError as exc:

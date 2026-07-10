@@ -45,7 +45,14 @@ def default_provider_options() -> tuple[ProviderOption, ...]:
             display_name="YouTube Music",
             is_available=False,
             unavailable_reason="Expérimental — gateway en cours d'intégration.",
-            capabilities=frozenset({ProviderCapability.CATALOG_SEARCH, ProviderCapability.EXPERIMENTAL}),
+            capabilities=frozenset(
+                {
+                    ProviderCapability.CATALOG_SEARCH,
+                    ProviderCapability.EXPERIMENTAL,
+                    ProviderCapability.AUTHENTICATION,
+                    ProviderCapability.PUBLIC_PLAYLIST_IMPORT,
+                }
+            ),
             is_experimental=True,
         ),
         ProviderOption(

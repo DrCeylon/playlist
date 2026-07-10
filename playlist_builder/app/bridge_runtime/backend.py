@@ -37,7 +37,7 @@ from playlist_builder.app.bridge_runtime.mapping import (
     generated_playlist_to_ui_result,
     ui_request_to_playlist_request,
 )
-from playlist_builder.ui.shared.dto import PlaylistGenerationRequest, ProviderOption, default_provider_options
+from playlist_builder.ui.shared.dto import PlaylistGenerationRequest, ProviderOption
 from playlist_builder.ui.shared.history import (
     HistoryDiagnosticsSummary,
     SessionHistoryRepository,
@@ -151,8 +151,10 @@ class RuntimeEngineBridgeBackend:
         return final
 
     def list_providers(self) -> ListProvidersResult:
+        from playlist_builder.app.bridge_runtime.provider_platform import provider_options_from_registry
+
         providers: list[ProviderOption] = []
-        for option in default_provider_options():
+        for option in provider_options_from_registry(self._context.registry):
             if option.provider_id == ProviderId.APPLE_MUSIC and sys.platform != "darwin":
                 providers.append(
                     ProviderOption(
@@ -162,6 +164,7 @@ class RuntimeEngineBridgeBackend:
                         is_connected=False,
                         capabilities=option.capabilities,
                         unavailable_reason="Import Apple Music disponible uniquement sur macOS.",
+                        is_experimental=option.is_experimental,
                     )
                 )
                 continue
@@ -473,6 +476,36 @@ class RuntimeEngineBridgeBackend:
             remote_playlist_id=remote_playlist_id,
         )
         return {"remote_playlist": snapshot}
+
+    def provider_auth_status(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.provider_platform import provider_auth_status
+
+        provider_id = self._parse_provider_id(params.get("provider_id"))
+        return provider_auth_status(self._context.registry, provider_id=provider_id)
+
+    def provider_connect(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.provider_platform import provider_connect
+
+        provider_id = self._parse_provider_id(params.get("provider_id"))
+        return provider_connect(self._context.registry, provider_id=provider_id, params=params)
+
+    def provider_disconnect(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.provider_platform import provider_disconnect
+
+        provider_id = self._parse_provider_id(params.get("provider_id"))
+        return provider_disconnect(self._context.registry, provider_id=provider_id)
+
+    def load_remote_playlist_from_file(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.provider_platform import load_snapshot_from_file
+
+        return load_snapshot_from_file(params)
+
+    @staticmethod
+    def _parse_provider_id(value: object) -> ProviderId:
+        try:
+            return ProviderId(str(value))
+        except ValueError as exc:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"provider_id invalide : {value!r}") from exc
 
     @staticmethod
     def _build_generation_engine(context: AppContext) -> GenerationSessionEngine:
