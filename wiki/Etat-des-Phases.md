@@ -22,38 +22,50 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **Playlist Manager** | Dashboard, Playlists / Sync / Providers, DTO library, YouTube expérimental | Tag `phase-playlist-manager-complete` — [clôture](Phase-Playlist-Manager-Cloture) |
 | **6.1** | Contrats provider platform (ports read/write/auth, DTO remote playlist) | PR #61 |
 | **6+ docs** | Vision Resonance Identity — Music Providers vs Resonance Services | PR #63 |
+| **6.2** | Remote Playlist Read Apple Music (`list_remote_playlists`, `get_remote_playlist`) | `main` @ `32be564` |
 | **6.4** | Sync planning & dry-run (`PlaylistSyncEngine`, bridge `plan_sync`) | PR #64 |
+
+Correctifs intégrés sur `main` :
+
+| Commit | Sujet |
+|--------|-------|
+| `809df0b` | Isolation IdentityCache dans tests acquisition manuelle (ex-PR #57) |
 
 ## Phase en cours
 
 | Phase | Statut | Référence |
 |-------|--------|-----------|
-| **6.2** — Remote Playlist Read | PR #62 ouverte (Apple Music read adapter + bridge) | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md) § 6.2 |
-| **6.3+** — Import local provider | Planifié après 6.2 | § 6.3 |
-| **6.5+** — Sync apply / publish | Après 6.2 + 6.3 | ADR-016 |
+| **6.3** — Import local provider | Prochaine étape recommandée | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md) § 6.3 |
+| **6.5+** — Sync apply / publish | Après 6.3 | ADR-016 |
 
-Correctifs en revue (non mergés) :
+PR ouvertes (non fonctionnelles) :
 
 | PR | Sujet |
 |----|-------|
-| [#57](https://github.com/DrCeylon/playlist/pull/57) | Fix Swift — ignorer événements bridge tardifs après fin d'import |
 | [#48](https://github.com/DrCeylon/playlist/pull/48) | Agent OS — `AGENTS.md` + handbook engineering |
 | [#53](https://github.com/DrCeylon/playlist/pull/53) | Setup environnement Cursor Cloud |
 
 ## État courant (`main`)
 
-- **425** tests Python (`pytest -q`), **1** skipped (Swift build sur macOS uniquement)
+- **444** tests Python (`pytest -q`), **1** skipped (Swift build sur macOS uniquement)
 - **~135** tests Swift (`swift test` sur macOS, CI `resonance-macos.yml`)
-- App macOS : génération, import robuste, historique, gestionnaire de playlists (preview), contrats provider platform (6.1), sync planning dry-run (6.4)
+- App macOS : génération, import robuste, historique, gestionnaire de playlists (preview), lecture distante Apple Music (6.2), sync planning dry-run (6.4)
 - Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
+
+## Limitations connues
+
+- Pas de write provider (6.5+)
+- Pas de `LocalPlaylistRepository` complet (6.3)
+- Pas de sync apply (6.5+)
+- Pas de YouTube Music réel (6.6)
+- Resonance Identity : vision long terme (docs uniquement)
 
 ## Prochaine phase
 
 | Phase | Thème | Référence |
 |-------|-------|-----------|
-| **6.2** | Lecture playlists distantes Apple Music | PR #62 |
 | **6.3** | Import local depuis provider | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md) § 6.3 |
-| **6.5** | Sync apply (après dry-run 6.4) | ADR-016 |
+| **6.5** | Sync apply (après dry-run 6.4 + lecture 6.2) | ADR-016 |
 | **Post-6** | Resonance Identity & Cloud Sync (métadonnées, optionnel) | [ADR-013](../docs/architecture/ADR-013-multi-provider-platform-vision.md) |
 
 ## Branches Git (`origin`, juillet 2026)
@@ -61,12 +73,10 @@ Correctifs en revue (non mergés) :
 | Branche | Justification |
 |---------|---------------|
 | `main` | Branche de référence |
-| `cursor/phase-6-2-remote-playlist-read-ef21` | PR #62 — travail non intégré |
-| `cursor/fix-post-import-late-events-ef21` | PR #57 — fix import + isolation tests |
 | `cursor/resonance-agent-os-docs-c172` | PR #48 — documentation agent OS |
 | `cursor/setup-dev-environment-62d3` | PR #53 — setup Cursor Cloud |
 
-Les branches feature mergées sont supprimées après fast-forward. Les PR obsolètes (#46, #54, #56) doivent être fermées manuellement (permission GitHub App insuffisante pour l'agent Cloud).
+Les branches feature mergées sont supprimées après fast-forward.
 
 ## Validation qualité (`main`)
 
@@ -75,4 +85,4 @@ python3.12 -m pytest -q
 cd apps/resonance && swift build && swift test && ./scripts/build.sh
 ```
 
-425 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+444 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).

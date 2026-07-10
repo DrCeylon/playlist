@@ -1,8 +1,8 @@
 # Phase 6 — Provider Platform & Real Sync
 
 **Branche de conception :** `cursor/phase-provider-sync-real-gateways` (mergée PR #60)  
-**Base :** `main` @ `1f7e2e9` (post Phase 6.4)  
-**Statut :** 6.1 ✅, 6.4 dry-run ✅ mergés ; 6.2 en revue (PR #62) ; 6.3+ planifié — voir ADR-013 à ADR-018 pour la vision identité Resonance (docs uniquement, hors scope runtime Phase 6)
+**Base :** `main` @ `32be564` (post Phase 6.2 + 6.4)  
+**Statut :** 6.1 ✅, 6.2 lecture distante Apple Music ✅, 6.4 dry-run ✅ ; 6.3 planifié — voir ADR-013 à ADR-018 pour la vision identité Resonance (docs uniquement, hors scope runtime Phase 6)
 
 ## Objectif
 
@@ -359,15 +359,14 @@ Un **publish** vers Apple Music réutilise la **delivery** existante pour l’aj
 | **Rollback** | Ports sans implémentation |
 | **Validation** | `pytest` ports ; `swift test` DTO decode |
 
-### 6.2 Remote Playlist Read
+### 6.2 Remote Playlist Read ✅ (mergé `main` @ `32be564`)
 
 | | |
 |--|--|
-| **Fichiers** | Apple read adapter ; bridge `list_remote_playlists`, `get_remote_playlist` |
-| **Tests** | Mock gateway ; bridge round-trip |
-| **Risques** | Apple Music library API limitée — scope « playlists utilisateur Music.app » |
-| **Rollback** | Feature flag bridge command |
-| **Validation** | Liste non vide sur compte test macOS |
+| **Fichiers** | `AppleMusicPlaylistReadPort` ; `remote_playlist.py` ; bridge `list_remote_playlists`, `get_remote_playlist` |
+| **Tests** | `test_apple_music_playlist_read.py`, `test_remote_playlist_bridge.py`, `RemotePlaylistBridgeTests.swift` |
+| **Statut** | **Terminé** — lecture seule Music.app via AppleScript ; pas de write |
+| **Prochaine étape** | 6.3 import local provider |
 
 ### 6.3 Local Import from Provider
 

@@ -16,7 +16,7 @@
 |------|--------|-------------|
 | **CLI manuel** | ✅ Disponible | JSON → `create_playlist.py` |
 | **CLI assisté** | ✅ Disponible | Seeds + mots-clés → `generate_playlist.py` |
-| **App macOS Resonance** | ✅ MVP + Playlist Manager + sync dry-run (6.4) | SwiftUI — génération, import, historique, Playlists, Sync, Providers, thèmes |
+| **App macOS Resonance** | ✅ MVP + Playlist Manager + lecture distante (6.2) + sync dry-run (6.4) | SwiftUI — génération, import, historique, Playlists, Sync, Providers, thèmes |
 
 ## Ce que tu peux faire aujourd'hui
 
@@ -70,7 +70,7 @@ Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive
 - [**Phase 5.1.1 — Import UX**](Phase-5-1-1-Import-UX) ← **clôturée**
 - [Smart Input Framework — architecture](Smart-Input-Framework)
 - [**Phase Playlist Manager — clôture**](Phase-Playlist-Manager-Cloture) ← **état courant macOS**
-- [**État des phases**](Etat-des-Phases) ← **425 tests Python, Phase 6.4 ✅**
+- [**État des phases**](Etat-des-Phases) ← **444 tests Python, Phases 6.2 + 6.4 ✅**
 - [Dette technique](../docs/TECHNICAL_DEBT.md) · [Maintenance Git](Maintenance-et-Workflow)
 - [Phase 5 — Vision produit](Phase-5-Vision)
 - [MusicKit (expérimental)](MusicKit-Experimental)

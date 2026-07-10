@@ -17,7 +17,7 @@ Le moteur Python est aussi accessible via **Resonance**, une app macOS SwiftUI (
 **Validation locale :**
 
 ```bash
-python3.12 -m pytest -q          # 425 tests
+python3.12 -m pytest -q          # 444 tests
 cd apps/resonance && ./scripts/build.sh   # macOS uniquement
 ```
 
