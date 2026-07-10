@@ -10,25 +10,11 @@ from playlist_builder.ui.shared.dto.playlist_library import (
     ManagedPlaylistTrack,
     PlaylistOrigin,
     PlaylistSyncConflict,
+    linked_remote_ref_from_dict,
 )
 
 SCHEMA_VERSION = 1
 ENTITY_VERSION_DEFAULT = 1
-
-
-def linked_remote_ref_from_dict(raw: dict[str, Any]) -> LinkedRemoteRef:
-    provider_raw = str(raw.get("provider_id", ProviderId.APPLE_MUSIC.value))
-    try:
-        provider_id = ProviderId(provider_raw)
-    except ValueError:
-        provider_id = ProviderId.APPLE_MUSIC
-    return LinkedRemoteRef(
-        provider_id=provider_id,
-        remote_playlist_id=str(raw.get("remote_playlist_id", "")),
-        snapshot_checksum=str(raw.get("snapshot_checksum", "")),
-        sync_state=str(raw.get("sync_state", "")),
-        last_sync_at=str(raw.get("last_sync_at", "")),
-    )
 
 
 def playlist_detail_from_dict(raw: dict[str, Any]) -> ManagedPlaylistDetail:

@@ -43,6 +43,7 @@ class ImportRemotePlaylist:
             provider_id=snapshot.provider_id,
             remote_playlist_id=snapshot.remote_playlist_id,
             snapshot_checksum=checksum,
+            last_seen_snapshot_checksum=checksum,
         )
 
         tracks = tuple(

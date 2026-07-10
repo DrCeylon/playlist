@@ -20,14 +20,41 @@ class PlaylistOrigin(StrEnum):
 class LinkedRemoteRef:
     provider_id: ProviderId
     remote_playlist_id: str
-    snapshot_checksum: str
+    snapshot_checksum: str = ""
+    last_seen_snapshot_checksum: str = ""
+    last_applied_snapshot_checksum: str = ""
     sync_state: str = ""
     last_sync_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = dto_to_dict(self)
         payload["provider_id"] = self.provider_id.value
+        seen = self.last_seen_snapshot_checksum or self.snapshot_checksum
+        if seen:
+            payload["last_seen_snapshot_checksum"] = seen
+        if self.snapshot_checksum:
+            payload["snapshot_checksum"] = self.snapshot_checksum
         return payload
+
+
+def linked_remote_ref_from_dict(raw: dict[str, Any]) -> LinkedRemoteRef:
+    provider_raw = str(raw.get("provider_id", ProviderId.APPLE_MUSIC.value))
+    try:
+        provider_id = ProviderId(provider_raw)
+    except ValueError:
+        provider_id = ProviderId.APPLE_MUSIC
+    legacy_checksum = str(raw.get("snapshot_checksum", ""))
+    last_seen = str(raw.get("last_seen_snapshot_checksum", "")) or legacy_checksum
+    last_applied = str(raw.get("last_applied_snapshot_checksum", ""))
+    return LinkedRemoteRef(
+        provider_id=provider_id,
+        remote_playlist_id=str(raw.get("remote_playlist_id", "")),
+        snapshot_checksum=legacy_checksum or last_seen,
+        last_seen_snapshot_checksum=last_seen,
+        last_applied_snapshot_checksum=last_applied,
+        sync_state=str(raw.get("sync_state", "")),
+        last_sync_at=str(raw.get("last_sync_at", "")),
+    )
 
 
 @dataclass(frozen=True, slots=True)

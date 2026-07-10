@@ -17,3 +17,4 @@ class AppSettings:
     use_catalog_cache: bool = True
     managed_playlists_path: Path = Path("data/playlists/managed_playlists.json")
     playlist_snapshots_dir: Path = Path("data/playlists/snapshots")
+    sync_operations_path: Path = Path("data/playlists/sync_operations.json")
