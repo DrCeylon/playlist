@@ -2,27 +2,29 @@
 
 Ce document distingue **couverture unitaire**, **intégration** et **End-to-End** pour chaque fichier de test. Il sert de rapport de couverture fonctionnelle (pas de couverture de lignes de code).
 
-Dernière mise à jour : suite `558` tests collectés, `557` pass + `1` skip.
+Dernière mise à jour : suite **575** tests collectés, **574** pass + **1** skip (juillet 2026, post-#78).
 
 ## Synthèse
 
-| Niveau | Fichiers | Tests (~) | Rôle |
-|--------|----------|-----------|------|
-| **E2E** | 4 (+ audit) | 7 marqués + 20 audit/harness | Parcours utilisateur via bridge JSON-RPC |
-| **Intégration** | ~12 | ~40+ | Multi-modules, fakes, mocks réseau |
-| **Unitaire** | ~70 | ~510 | Logique isolée, DTO, planning, scoring |
+| Niveau | Tests marqués | Rôle |
+|--------|---------------|------|
+| **E2E** | **2** | Parcours transversal bridge → persistance → sync |
+| **Intégration** | **13** | Bridge/harness multi-composants, fakes |
+| **Unitaire** | ~560 (implicite) | Modules isolés |
+| **Audit** (`tests/e2e/`) | 23 | Registre scénarios, pas de parcours produit |
 
-## Tests E2E (`tests/e2e/`)
+## Tests `tests/e2e/` (35 total, ~0,1 s)
 
-| Fichier | Scénarios couverts | Marqueur |
-|---------|-------------------|----------|
-| `harness.py` | Infrastructure (non test) | — |
-| `scenarios.py` | Registre des 17 scénarios | — |
-| `conftest.py` | Fixture `e2e_harness` | — |
-| `test_user_journey_sync.py` | import.file.remote, create.local.repository, sync.dry_run, sync.apply.append, sync.partial_failure, sync.conflicts.resolve | e2e / integration |
-| `test_user_journey_providers.py` | providers.list, import.youtube.file, observability.diagnostics, plugins.extension_points | e2e |
-| `test_user_journey_history.py` | history.migration, migration.history_idempotent | e2e |
-| `test_functional_coverage.py` | Audit scénario→fichier, détection orphelins | — |
+| Fichier | Tier réel | Contenu |
+|---------|-----------|---------|
+| `harness.py` | infra | Isolation tmp_path, mocks documentés |
+| `scenarios.py` | doc | 22 scénarios, 20 automatisés |
+| `conftest.py` | infra | Fixture `e2e_harness` |
+| `test_user_journey_sync.py` | **e2e (2)** | import→plan ; import→apply+observability |
+| `test_integration_bridge_sync.py` | **integration (6)** | idempotent, stale, mirror, partial, conflits |
+| `test_user_journey_providers.py` | **integration (3)** | providers, fichier, diagnostics |
+| `test_user_journey_history.py` | **integration (1)** | migration history |
+| `test_functional_coverage.py` | **audit (23)** | mapping scénario→fichier |
 
 ## Tests d'intégration (hors `tests/e2e/`)
 

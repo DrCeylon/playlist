@@ -28,8 +28,8 @@ class _HistoryBackendMixin:
         )
 
 
-@pytest.mark.e2e
-def test_e2e_history_migration_via_list_managed_playlists(e2e_harness: E2EHarness) -> None:
+@pytest.mark.integration
+def test_integration_history_migration_via_list_managed_playlists(e2e_harness: E2EHarness) -> None:
     """Scenario: history.migration + migration.history_idempotent"""
     e2e_harness.backend.list_history = _HistoryBackendMixin.list_history.__get__(  # type: ignore[method-assign]
         e2e_harness.backend,

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("PIL")
 from PIL import Image
 
 RESONANCE_ROOT = Path(__file__).resolve().parents[1] / "apps" / "resonance"

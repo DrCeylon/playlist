@@ -9,9 +9,9 @@ from playlist_builder.ui.bridge import BridgeCommand
 from tests.e2e.harness import E2EHarness, sample_remote_playlist_dict
 
 
-@pytest.mark.e2e
-def test_e2e_list_providers_apple_and_youtube_experimental(e2e_harness: E2EHarness) -> None:
-    """Scenario: providers.list"""
+@pytest.mark.integration
+def test_integration_list_providers_apple_and_youtube_experimental(e2e_harness: E2EHarness) -> None:
+    """Bridge list_providers — registry metadata only, no provider API calls."""
     result = e2e_harness.last_result(
         e2e_harness.call(BridgeCommand.LIST_PROVIDERS.value, request_id="list-providers")
     )
@@ -22,9 +22,9 @@ def test_e2e_list_providers_apple_and_youtube_experimental(e2e_harness: E2EHarne
     assert providers["youtube_music"].get("is_experimental") is True
 
 
-@pytest.mark.e2e
-def test_e2e_load_remote_playlist_from_json_file(e2e_harness: E2EHarness, tmp_path: Path) -> None:
-    """Scenario: import.youtube.file"""
+@pytest.mark.integration
+def test_integration_load_remote_playlist_from_json_file(e2e_harness: E2EHarness, tmp_path: Path) -> None:
+    """Bridge load_remote_playlist_from_file — parses local JSON, no import yet."""
     payload = {
         "provider_id": "youtube_music",
         "remote_playlist_id": "yt-file-1",
@@ -57,9 +57,9 @@ def test_e2e_load_remote_playlist_from_json_file(e2e_harness: E2EHarness, tmp_pa
     assert snapshot["name"] == "YT File Import"
 
 
-@pytest.mark.e2e
-def test_e2e_diagnostics_observability_and_plugins(e2e_harness: E2EHarness) -> None:
-    """Scenario: observability.diagnostics + plugins.extension_points"""
+@pytest.mark.integration
+def test_integration_diagnostics_observability_no_secret_leak(e2e_harness: E2EHarness) -> None:
+    """Bridge diagnostics after sync plan — observability + plugins, no credential payload."""
     imported = e2e_harness.last_result(
         e2e_harness.call(
             BridgeCommand.IMPORT_REMOTE_PLAYLIST.value,
@@ -93,3 +93,7 @@ def test_e2e_diagnostics_observability_and_plugins(e2e_harness: E2EHarness) -> N
     assert "extension_points" in summary
     assert "extension_api_version" in summary
     assert result["engine_version"]
+
+    blob = json.dumps(result).lower()
+    for forbidden in ("cookie", "password", "secret", "bearer", "authorization"):
+        assert forbidden not in blob

@@ -1,11 +1,27 @@
 from __future__ import annotations
 
+"""Bridge journey test harness.
+
+Isolation (per ``tmp_path`` fixture):
+- ``data/managed_playlists.json``, ``data/snapshots/``, ``data/sync_operations.json``
+- ``data/provider_auth/``, ``data/history/sessions.json``
+- ``cache/catalog.json``, ``cache/identity.json``
+
+Mocks — no Music.app, no network, no real accounts:
+- ``FakeSyncGateway`` replaces Apple Music for sync (``ProviderPlaylistWritePort`` via ``FakeWritePort``)
+- ``YouTubeMusicProviderGateway`` registered for capability listing only (no API calls in these tests)
+
+Determinism:
+- Fixed ISO timestamps and checksums in ``sample_remote_playlist_dict``
+- ``reset_default_bus()`` before each harness build
+"""
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from playlist_builder.app.bridge_runtime.backend import RuntimeEngineBridgeBackend
-from playlist_builder.app.factory import AppContext, build_app_context
+from playlist_builder.app.factory import AppContext
 from playlist_builder.app.settings import AppSettings
 from playlist_builder.app.playlist_library.provider import RepositoryProvider
 from playlist_builder.canonical.enums import ProviderCapability, ProviderId
@@ -15,10 +31,11 @@ from playlist_builder.integration.ports.playlist_write import ProviderPlaylistWr
 from playlist_builder.observability import reset_default_bus
 from playlist_builder.ui.bridge import JsonRpcEngineBridge
 from playlist_builder.ui.shared.dto.remote_playlist import RemotePlaylistTrack
+from playlist_builder.ui.shared.history import SessionHistoryRepository, SessionHistoryService
 
 
 class FakeWritePort(ProviderPlaylistWritePort):
-    """Deterministic write port for sync E2E — records calls, no network."""
+    """Deterministic write port — records calls, simulates failures, no I/O."""
 
     def __init__(self, *, fail_on_call: int | None = None) -> None:
         self.upserted: list[tuple[str, tuple[RemotePlaylistTrack, ...]]] = []
@@ -43,6 +60,8 @@ class FakeWritePort(ProviderPlaylistWritePort):
 
 
 class FakeSyncGateway:
+    """Minimal Apple Music stand-in for sync bridge tests."""
+
     provider_id = ProviderId.APPLE_MUSIC
     capabilities = frozenset(
         {
@@ -99,6 +118,9 @@ class E2EHarness:
         assert final.get("ok") is True, final
         return final["result"]
 
+    def sync_apply(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
+        return self.last_result(messages)["sync_apply"]
+
 
 def build_e2e_harness(tmp_path: Path, *, write_port: FakeWritePort | None = None) -> E2EHarness:
     """Isolated harness — tmp paths only, fake sync gateway, reset observability bus."""
@@ -130,6 +152,9 @@ def build_e2e_harness(tmp_path: Path, *, write_port: FakeWritePort | None = None
     )
     backend = RuntimeEngineBridgeBackend(context)
     backend._repository_provider = provider
+    backend._history = SessionHistoryService(
+        SessionHistoryRepository(tmp_path / "data" / "history" / "sessions.json")
+    )
     return E2EHarness(
         tmp_path=tmp_path,
         settings=settings,
