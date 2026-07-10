@@ -283,6 +283,13 @@ class JsonRpcEngineBridge(EngineBridge):
             yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
             return
 
+        if request.command == BridgeCommand.APPLY_SYNC:
+            if self.backend is None or not hasattr(self.backend, "apply_sync"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'application sync non configuré.")
+            result = self.backend.apply_sync(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
         raise BridgeError(
             BridgeErrorCode.UNKNOWN_COMMAND,
             f"Commande inconnue : {request.command.value}",

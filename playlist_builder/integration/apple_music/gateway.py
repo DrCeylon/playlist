@@ -12,8 +12,10 @@ from playlist_builder.integration.apple_music.catalog_gateway import AppleCatalo
 from playlist_builder.integration.apple_music.import_service import AppleMusicImportService
 from playlist_builder.integration.apple_music.itunes_client import ITunesSearchClient
 from playlist_builder.integration.apple_music.playlist_read_port import AppleMusicPlaylistReadPort
+from playlist_builder.integration.apple_music.playlist_write_port import AppleMusicPlaylistWritePort
 from playlist_builder.integration.gateway.registry import ProviderGatewayRegistry
 from playlist_builder.integration.ports.playlist_read import ProviderPlaylistReadPort
+from playlist_builder.integration.ports.playlist_write import ProviderPlaylistWritePort
 
 
 class AppleMusicDeliveryGateway(PlaylistDeliveryPort):
@@ -35,11 +37,13 @@ class AppleMusicProviderGateway(ProviderGateway):
         import_service: AppleMusicImportService,
         *,
         playlist_read: AppleMusicPlaylistReadPort,
+        playlist_write: AppleMusicPlaylistWritePort,
     ) -> None:
         self._catalog = catalog
         self._import_service = import_service
         self._delivery = AppleMusicDeliveryGateway(import_service)
         self._playlist_read = playlist_read
+        self._playlist_write = playlist_write
 
     @property
     def provider_id(self) -> ProviderId:
@@ -53,6 +57,7 @@ class AppleMusicProviderGateway(ProviderGateway):
                 ProviderCapability.LIBRARY_RESOLVE,
                 ProviderCapability.PLAYLIST_DELIVERY,
                 ProviderCapability.PLAYLIST_LIBRARY_BROWSE,
+                ProviderCapability.PLAYLIST_SYNC,
             }
         )
 
@@ -73,8 +78,8 @@ class AppleMusicProviderGateway(ProviderGateway):
         return self._playlist_read
 
     @property
-    def playlist_write(self) -> None:
-        return None
+    def playlist_write(self) -> ProviderPlaylistWritePort:
+        return self._playlist_write
 
     @property
     def import_service(self) -> AppleMusicImportService:
@@ -110,7 +115,14 @@ def build_apple_music_gateway(
         wait_for_manual_catalog_add=wait_for_manual_catalog_add,
         catalog_acquisition_min_confidence=catalog_acquisition_min_confidence,
     )
-    return AppleMusicProviderGateway(catalog_gateway, import_service, playlist_read=AppleMusicPlaylistReadPort(script_client))
+    read_port = AppleMusicPlaylistReadPort(script_client)
+    write_port = AppleMusicPlaylistWritePort(script_client)
+    return AppleMusicProviderGateway(
+        catalog_gateway,
+        import_service,
+        playlist_read=read_port,
+        playlist_write=write_port,
+    )
 
 
 def build_apple_music_import_service(

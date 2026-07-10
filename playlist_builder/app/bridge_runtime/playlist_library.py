@@ -60,8 +60,8 @@ def sync_managed_playlist_stub(params: dict[str, Any]) -> dict[str, Any]:
     playlist_id = str(params.get("local_playlist_id", "")).strip()
     provider_id = str(params.get("provider_id", "")).strip()
     message = (
-        "Synchronisation en file d'attente — gateway provider "
-        f"{provider_id or 'inconnu'} en cours d'intégration."
+        "Utilisez plan_sync pour prévisualiser, puis apply_sync pour appliquer — "
+        f"gateway provider {provider_id or 'inconnu'}."
     )
     result = PlaylistSyncResult(
         local_playlist_id=playlist_id,

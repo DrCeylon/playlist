@@ -97,6 +97,41 @@ end tell
             operation="clear_playlist_tracks",
         )
 
+    def remove_tracks_by_id(self, playlist_name: str, remote_track_ids: list[str]) -> None:
+        if not remote_track_ids:
+            return
+        escaped_playlist = apple_escape(playlist_name)
+        id_literals = ", ".join(f'"{apple_escape(track_id)}"' for track_id in remote_track_ids if track_id.strip())
+        if not id_literals:
+            return
+        run_applescript(
+            f'''
+tell application "Music"
+    if not (exists user playlist "{escaped_playlist}") then
+        return
+    end if
+    set targetPlaylist to user playlist "{escaped_playlist}"
+    set idsToRemove to {{{id_literals}}}
+    repeat with targetId in idsToRemove
+        repeat with t in (tracks of targetPlaylist)
+            if (id of t as text) is equal to (targetId as text) then
+                delete t
+                exit repeat
+            end if
+        end repeat
+    end repeat
+end tell
+''',
+            operation="remove_tracks_by_id",
+        )
+
+    def playlist_name_for_id(self, remote_playlist_id: str) -> str:
+        playlist_id = remote_playlist_id.strip()
+        for listed_id, name, _ in self.list_user_playlists():
+            if listed_id == playlist_id:
+                return name
+        raise ValueError(f"Playlist distante introuvable : {playlist_id}")
+
     def load_playlist_keys(self, playlist_name: str) -> set[str]:
         escaped = apple_escape(playlist_name)
         output = run_applescript(

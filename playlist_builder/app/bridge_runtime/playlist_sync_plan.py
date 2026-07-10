@@ -3,15 +3,16 @@ from __future__ import annotations
 from typing import Any
 
 from playlist_builder.app.playlist_sync.engine import PlaylistSyncEngine
+from playlist_builder.app.playlist_sync.plan_checksum import plan_checksum
 from playlist_builder.canonical.enums import ProviderCapability, ProviderId
 from playlist_builder.integration.gateway.registry import ProviderGatewayRegistry
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.shared.dto.playlist_library import (
-    LinkedRemoteRef,
     ManagedPlaylistDetail,
     ManagedPlaylistSummary,
     ManagedPlaylistTrack,
     PlaylistOrigin,
+    linked_remote_ref_from_dict,
 )
 from playlist_builder.ui.shared.dto.playlist_sync import SyncDirection, SyncMode
 from playlist_builder.ui.shared.dto.remote_playlist import RemotePlaylistSnapshot, RemotePlaylistTrack
@@ -53,7 +54,7 @@ def plan_sync(
         direction=direction,
         sync_mode=sync_mode,
     )
-    return {"sync_plan": plan.to_dict()}
+    return {"sync_plan": plan.to_dict(), "plan_checksum": plan_checksum(plan)}
 
 
 def _ensure_provider_can_plan(registry: ProviderGatewayRegistry, provider_id: ProviderId) -> None:
@@ -94,24 +95,11 @@ def managed_playlist_detail_from_dict(payload: dict[str, Any]) -> ManagedPlaylis
     if not isinstance(summary_raw, dict):
         raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "playlist invalide.")
     refs_raw = summary_raw.get("linked_remote_refs", [])
-    linked_refs: list[LinkedRemoteRef] = []
+    linked_refs: list = []
     if isinstance(refs_raw, list):
         for item in refs_raw:
             if isinstance(item, dict):
-                provider_raw = str(item.get("provider_id", ProviderId.APPLE_MUSIC.value))
-                try:
-                    ref_provider = ProviderId(provider_raw)
-                except ValueError:
-                    ref_provider = ProviderId.APPLE_MUSIC
-                linked_refs.append(
-                    LinkedRemoteRef(
-                        provider_id=ref_provider,
-                        remote_playlist_id=str(item.get("remote_playlist_id", "")),
-                        snapshot_checksum=str(item.get("snapshot_checksum", "")),
-                        sync_state=str(item.get("sync_state", "")),
-                        last_sync_at=str(item.get("last_sync_at", "")),
-                    )
-                )
+                linked_refs.append(linked_remote_ref_from_dict(item))
 
     summary = ManagedPlaylistSummary(
         local_playlist_id=str(summary_raw.get("local_playlist_id", "")),
