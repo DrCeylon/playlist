@@ -33,3 +33,11 @@ public struct MockDiagnosticsService: DiagnosticsServing {
         DefaultProviders.options
     }
 }
+
+extension MockDiagnosticsService: ProviderPlatformServing {
+    public func providerAuthStatus(providerID: ProviderID) async throws -> RemoteProviderAccount? { nil }
+
+    public func providerConnect(providerID: ProviderID, params: [String: String]) async throws -> RemoteProviderAccount? { nil }
+
+    public func providerDisconnect(providerID: ProviderID) async throws -> RemoteProviderAccount? { nil }
+}

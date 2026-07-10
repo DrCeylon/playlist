@@ -29,17 +29,11 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **6.6** | YouTube Music experimental gateway (lecture, auth, fallback fichier) | `main` @ `7383b78` — PR #67 |
 | **6.7** | Intelligent conflict resolution (`resolve_sync_conflicts`) | `main` @ `a5874c7` — PR #68 |
 
-Correctifs intégrés sur `main` :
-
-| Commit | Sujet |
-|--------|-------|
-| `809df0b` | Isolation IdentityCache dans tests acquisition manuelle (ex-PR #57) |
-
 ## Phase en cours
 
 | Phase | Statut | Référence |
 |-------|--------|-----------|
-| **6.6+** — Gateways YouTube/Spotify | Prochaine étape | ADR-018 |
+| **6.8** — Product Experience (UX macOS) | En cours | `docs/product/phase-6-8-product-experience.md` |
 
 PR ouvertes (non fonctionnelles) :
 

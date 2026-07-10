@@ -21,7 +21,7 @@ public enum AppRoute: String, Codable, CaseIterable, Identifiable, Hashable, Sen
     public var id: String { rawValue }
 }
 
-/// Primary macOS sidebar destinations for the Phase 4.4 shell.
+/// Primary macOS sidebar destinations for the product shell.
 public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable {
     case home
     case newPlaylist
@@ -29,7 +29,6 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable 
     case sync
     case providers
     case history
-    case laboratory
     case settings
 
     public var id: String { rawValue }
@@ -39,17 +38,15 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable 
         case .home:
             return "Accueil"
         case .newPlaylist:
-            return "Nouvelle Playlist"
+            return "Créer"
         case .playlists:
             return "Playlists"
         case .sync:
             return "Synchronisation"
         case .providers:
-            return "Providers"
+            return "Services musicaux"
         case .history:
             return "Historique"
-        case .laboratory:
-            return "Laboratoire"
         case .settings:
             return "Paramètres"
         }
@@ -66,11 +63,9 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable 
         case .sync:
             return "arrow.triangle.2.circlepath"
         case .providers:
-            return "network"
+            return "music.note.house"
         case .history:
             return "clock"
-        case .laboratory:
-            return "flask"
         case .settings:
             return "gearshape"
         }
@@ -90,8 +85,6 @@ public enum SidebarItem: String, CaseIterable, Identifiable, Hashable, Sendable 
             return .providers
         case .history:
             return .history
-        case .laboratory:
-            return .diagnostics
         case .settings:
             return .settings
         }

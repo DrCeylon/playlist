@@ -3,21 +3,22 @@ import ResonanceDesign
 import SwiftUI
 
 struct ProvidersView: View {
-    @StateObject private var viewModel: ProvidersViewModel
+    @StateObject private var viewModel = ProvidersViewModel()
     @EnvironmentObject private var themeManager: ThemeManager
-
-    init(service: any DiagnosticsServing = MockDiagnosticsService()) {
-        _viewModel = StateObject(wrappedValue: ProvidersViewModel(service: service))
-    }
+    @EnvironmentObject private var workflow: AppWorkflowCoordinator
 
     var body: some View {
         ThemedScreen {
             let palette = ThemePalette(theme: themeManager.active)
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    header(palette: palette)
+                    ProductSectionCard(title: "Services musicaux", palette: palette) {
+                        Text("Connecte tes comptes pour importer et synchroniser tes playlists.")
+                            .font(.callout)
+                            .foregroundStyle(palette.textSecondary)
+                    }
                     providerSection(
-                        title: "Providers principaux",
+                        title: "Principaux",
                         providers: viewModel.primaryProviders,
                         palette: palette
                     )
@@ -35,21 +36,15 @@ struct ProvidersView: View {
                 .padding(24)
             }
         }
-        .navigationTitle("Providers")
-        .task { await viewModel.refresh() }
-    }
-
-    @ViewBuilder
-    private func header(palette: ThemePalette) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Providers musicaux")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Text("Resonance reste provider-neutral : l'UI ne doit pas supposer Apple Music comme seul backend.")
-                .font(.callout)
-                .foregroundStyle(palette.textSecondary)
+        .navigationTitle("Services musicaux")
+        .onAppear {
+            viewModel.replaceServices(
+                diagnosticsService: workflow.engineBridge,
+                platformService: workflow.engineBridge
+            )
         }
-        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
+        .task { await viewModel.refresh() }
+        .refreshable { await viewModel.refresh() }
     }
 
     @ViewBuilder
@@ -58,11 +53,9 @@ struct ProvidersView: View {
         providers: [ProviderOption],
         palette: ThemePalette
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
+        ProductSectionCard(title: title, palette: palette) {
             if providers.isEmpty {
-                Text("Aucun provider dans cette catégorie.")
+                Text("Aucun service dans cette catégorie.")
                     .font(.callout)
                     .foregroundStyle(palette.textSecondary)
             } else {
@@ -71,20 +64,19 @@ struct ProvidersView: View {
                 }
             }
         }
-        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
     }
 
     @ViewBuilder
     private func providerRow(_ provider: ProviderOption, palette: ThemePalette) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(provider.displayName)
                     .font(.callout.weight(.semibold))
                 Spacer()
-                statusBadge(provider, palette: palette)
+                StatusChip(label: statusLabel(for: provider), color: statusColor(for: provider, palette: palette))
             }
             if !provider.capabilities.isEmpty {
-                Text(provider.capabilities.map(\.rawValue).joined(separator: ", "))
+                Text(provider.capabilities.map(ProductDisplay.providerCapabilityLabel).joined(separator: " · "))
                     .font(.caption2)
                     .foregroundStyle(palette.textSecondary)
             }
@@ -93,34 +85,37 @@ struct ProvidersView: View {
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
             }
+            if provider.isAvailable && viewModel.supportsAuthentication(provider) {
+                HStack {
+                    if provider.isConnected {
+                        Button("Déconnecter") {
+                            Task { await viewModel.disconnect(providerID: provider.providerID) }
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Button("Connecter") {
+                            Task { await viewModel.connect(providerID: provider.providerID) }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+                .disabled(viewModel.isBusy)
+            }
         }
         .padding(.vertical, 4)
     }
 
-    @ViewBuilder
-    private func statusBadge(_ provider: ProviderOption, palette: ThemePalette) -> some View {
-        let status = providerStatus(for: provider, palette: palette)
-        Text(status.label)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(status.color)
+    private func statusLabel(for provider: ProviderOption) -> String {
+        if provider.isConnected { return "Connecté" }
+        if provider.isAvailable { return "Disponible" }
+        if provider.isExperimental { return "Expérimental" }
+        return "Indisponible"
     }
 
-    private func providerStatus(
-        for provider: ProviderOption,
-        palette: ThemePalette
-    ) -> (label: String, color: Color) {
-        if provider.isAvailable {
-            return (
-                provider.isConnected ? "Connecté" : "Disponible",
-                palette.statusSuccess
-            )
-        }
-            if provider.isExperimental {
-                if provider.isAvailable {
-                    return ("Expérimental — prêt", palette.statusWarning)
-                }
-                return ("Expérimental — indisponible", palette.statusWarning)
-            }
-        return ("Indisponible", palette.textSecondary)
+    private func statusColor(for provider: ProviderOption, palette: ThemePalette) -> Color {
+        if provider.isConnected { return palette.statusSuccess }
+        if provider.isAvailable { return palette.accentPrimary }
+        if provider.isExperimental { return palette.statusWarning }
+        return palette.textSecondary
     }
 }

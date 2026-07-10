@@ -229,7 +229,7 @@ struct HistoryView: View {
             Text(session.playlistName)
                 .font(.headline)
                 .foregroundStyle(palette.textPrimary)
-            Text("\(session.startedAtISO) · \(session.providerID.rawValue)")
+            Text("\(session.startedAtISO) · \(PlaylistLibraryDisplay.providerLabel(session.providerID))")
                 .font(.caption)
                 .foregroundStyle(palette.textTertiary)
             Text(SessionHistoryDisplay.statusLabel(for: session.status))

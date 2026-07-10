@@ -3,17 +3,9 @@ import ResonanceDesign
 import SwiftUI
 
 struct PlaylistsView: View {
-    @StateObject private var viewModel: PlaylistsViewModel
     @Binding var selection: SidebarItem?
     @EnvironmentObject private var themeManager: ThemeManager
-
-    init(
-        selection: Binding<SidebarItem?>,
-        libraryService: any PlaylistLibraryServing = MockPlaylistLibraryService()
-    ) {
-        _selection = selection
-        _viewModel = StateObject(wrappedValue: PlaylistsViewModel(service: libraryService))
-    }
+    @EnvironmentObject private var workflow: AppWorkflowCoordinator
 
     var body: some View {
         ThemedScreen {
@@ -27,40 +19,47 @@ struct PlaylistsView: View {
             .padding(24)
         }
         .navigationTitle("Playlists")
-        .task { await viewModel.refresh() }
+        .refreshable { await workflow.libraryStore.refresh() }
     }
 
     @ViewBuilder
     private func playlistList(palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Playlists locales")
+            Text("Mes playlists")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)
-            if let feedback = viewModel.actionFeedback {
+            if let feedback = workflow.libraryStore.actionFeedback {
                 Text(feedback)
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
             }
-            if viewModel.isBusy && viewModel.playlists.isEmpty {
+            if workflow.libraryStore.isBusy && workflow.libraryStore.playlists.isEmpty {
                 ProgressView()
-            } else if viewModel.playlists.isEmpty {
-                Text("Aucune playlist enregistrée pour le moment.")
-                    .font(.callout)
-                    .foregroundStyle(palette.textSecondary)
+            } else if workflow.libraryStore.playlists.isEmpty {
+                ProductEmptyState(
+                    title: "Aucune playlist",
+                    message: "Crée ou importe une playlist pour commencer.",
+                    systemImage: "music.note.list",
+                    palette: palette
+                )
             } else {
-                List(viewModel.playlists) { playlist in
+                List(workflow.libraryStore.playlists) { playlist in
                     Button {
-                        Task { await viewModel.select(localPlaylistID: playlist.localPlaylistID) }
+                        Task { await workflow.libraryStore.select(localPlaylistID: playlist.localPlaylistID) }
                     } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(playlist.name)
-                                .font(.headline)
-                            Text("\(PlaylistLibraryDisplay.providerLabel(playlist.providerID)) · \(playlist.trackCount) morceaux")
-                                .font(.caption)
-                                .foregroundStyle(palette.textSecondary)
-                            Text(PlaylistLibraryDisplay.syncStatusLabel(playlist.syncStatus))
-                                .font(.caption2)
-                                .foregroundStyle(palette.accentPrimary)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(playlist.name)
+                                    .font(.headline)
+                                Text("\(PlaylistLibraryDisplay.providerLabel(playlist.providerID)) · \(playlist.trackCount) morceaux")
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                            }
+                            Spacer()
+                            StatusChip(
+                                label: PlaylistLibraryDisplay.syncStatusLabel(playlist.syncStatus),
+                                color: palette.accentPrimary
+                            )
                         }
                     }
                     .buttonStyle(.plain)
@@ -73,7 +72,7 @@ struct PlaylistsView: View {
 
     @ViewBuilder
     private func playlistDetail(palette: ThemePalette) -> some View {
-        if let detail = viewModel.selectedDetail {
+        if let detail = workflow.libraryStore.selectedDetail {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(detail.summary.name)
@@ -89,15 +88,12 @@ struct PlaylistsView: View {
             }
             .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
         } else {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Sélectionne une playlist")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(palette.textPrimary)
-                Text("Consulte le statut d'import, la synchronisation provider et les morceaux connus localement.")
-                    .font(.callout)
-                    .foregroundStyle(palette.textSecondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            ProductEmptyState(
+                title: "Sélectionne une playlist",
+                message: "Consulte les morceaux, l'état de synchronisation et les différences à résoudre.",
+                systemImage: "sidebar.left",
+                palette: palette
+            )
             .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
         }
     }
@@ -105,14 +101,15 @@ struct PlaylistsView: View {
     @ViewBuilder
     private func detailMetrics(_ summary: ManagedPlaylistSummary, palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            metricRow("Provider", PlaylistLibraryDisplay.providerLabel(summary.providerID), palette: palette)
-            metricRow("Synchronisation", PlaylistLibraryDisplay.syncStatusLabel(summary.syncStatus), palette: palette)
+            ProductMetricRow(title: "Service", value: PlaylistLibraryDisplay.providerLabel(summary.providerID), palette: palette)
+            ProductMetricRow(title: "Synchronisation", value: PlaylistLibraryDisplay.syncStatusLabel(summary.syncStatus), palette: palette)
             if let importStatus = summary.importStatus {
-                metricRow("Import", SessionHistoryDisplay.statusLabel(for: importStatus), palette: palette)
+                ProductMetricRow(title: "Import", value: SessionHistoryDisplay.statusLabel(for: importStatus), palette: palette)
             }
             if !summary.lastSyncedAtISO.isEmpty {
-                metricRow("Dernière sync", summary.lastSyncedAtISO, palette: palette)
+                ProductMetricRow(title: "Dernière sync", value: summary.lastSyncedAtISO, palette: palette)
             }
+            ProductMetricRow(title: "Morceaux", value: "\(summary.trackCount)", palette: palette)
         }
     }
 
@@ -120,18 +117,15 @@ struct PlaylistsView: View {
     private func actionRow(_ summary: ManagedPlaylistSummary, palette: ThemePalette) -> some View {
         HStack(spacing: 12) {
             Button("Synchroniser") {
-                Task { await viewModel.syncSelected(direction: .pullFromProvider) }
+                Task {
+                    await workflow.libraryStore.select(localPlaylistID: summary.localPlaylistID)
+                    selection = .sync
+                }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(viewModel.isBusy)
-            Button("Réessayer les introuvables") {
-                selection = .history
-            }
-            .buttonStyle(.bordered)
-            Button("Historique") {
-                selection = .history
-            }
-            .buttonStyle(.bordered)
+            .disabled(workflow.libraryStore.isBusy)
+            Button("Historique") { selection = .history }
+                .buttonStyle(.bordered)
         }
         .font(.callout)
     }
@@ -139,13 +133,27 @@ struct PlaylistsView: View {
     @ViewBuilder
     private func conflictsSection(_ conflicts: [PlaylistSyncConflict], palette: ThemePalette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Conflits")
+            Text("Différences à résoudre")
                 .font(.headline)
             ForEach(conflicts) { conflict in
-                Text("• \(conflict.message)")
-                    .font(.caption)
-                    .foregroundStyle(palette.statusWarning)
+                HStack(alignment: .top, spacing: 8) {
+                    StatusChip(
+                        label: ProductDisplay.conflictSeverityLabel(conflict.severity),
+                        color: palette.statusWarning
+                    )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(ProductDisplay.conflictKindLabel(conflict.conflictKind))
+                            .font(.callout.weight(.medium))
+                        Text(conflict.message)
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                }
             }
+            Button("Résoudre les différences") {
+                selection = .sync
+            }
+            .buttonStyle(.bordered)
         }
     }
 
@@ -155,7 +163,7 @@ struct PlaylistsView: View {
             Text("Morceaux")
                 .font(.headline)
             if tracks.isEmpty {
-                Text("Aucun morceau détaillé pour cette playlist — structure prête pour l'édition future.")
+                Text("Aucun morceau enregistré pour cette playlist.")
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
             } else {
@@ -166,21 +174,12 @@ struct PlaylistsView: View {
                             Text(track.artist).font(.caption).foregroundStyle(palette.textSecondary)
                         }
                         Spacer()
-                        Text(track.mappingStatus.rawValue)
+                        Text(ProductDisplay.mappingStatusLabel(track.mappingStatus))
                             .font(.caption2)
                             .foregroundStyle(palette.textSecondary)
                     }
                 }
             }
         }
-    }
-
-    private func metricRow(_ title: String, _ value: String, palette: ThemePalette) -> some View {
-        HStack {
-            Text(title).foregroundStyle(palette.textSecondary)
-            Spacer()
-            Text(value).foregroundStyle(palette.textPrimary)
-        }
-        .font(.callout)
     }
 }

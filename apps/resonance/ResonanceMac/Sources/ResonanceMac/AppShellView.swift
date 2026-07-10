@@ -12,16 +12,20 @@ struct AppShellView: View {
         NavigationSplitView {
             SidebarView(selection: $selection)
         } detail: {
-            detailView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    workflowBanner
-                }
-                .focusSection()
+            NavigationStack {
+                detailView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                workflowBanner
+            }
+            .focusSection()
         }
         .navigationSplitViewStyle(.balanced)
         .onAppear {
             themeManager.updateColorScheme(colorScheme)
+            workflow.libraryStore.replaceService(workflow.engineBridge)
+            Task { await workflow.libraryStore.refresh() }
         }
         .onChange(of: colorScheme) { _, newValue in
             themeManager.updateColorScheme(newValue)
@@ -58,15 +62,13 @@ struct AppShellView: View {
         case .newPlaylist:
             PlaylistBuilderView(selection: $selection)
         case .playlists:
-            PlaylistsView(selection: $selection, libraryService: workflow.engineBridge)
+            PlaylistsView(selection: $selection)
         case .sync:
-            SyncView(selection: $selection, libraryService: workflow.engineBridge)
+            SyncView(selection: $selection)
         case .providers:
-            ProvidersView(service: workflow.engineBridge)
+            ProvidersView()
         case .history:
             HistoryView(selection: $selection)
-        case .laboratory:
-            DiagnosticsView()
         case .settings:
             SettingsView()
         }

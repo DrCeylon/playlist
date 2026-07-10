@@ -7,16 +7,13 @@ final class HomeNavigationTests: XCTestCase {
         XCTAssertEqual(HomeShortcut.newPlaylist.destination, .newPlaylist)
         XCTAssertEqual(HomeShortcut.playlists.destination, .playlists)
         XCTAssertEqual(HomeShortcut.sync.destination, .sync)
+        XCTAssertEqual(HomeShortcut.providers.destination, .providers)
         XCTAssertEqual(HomeShortcut.history.destination, .history)
-        XCTAssertEqual(HomeShortcut.laboratory.destination, .laboratory)
     }
 
-    func testHomeShortcutTitlesMatchSidebarLabels() {
-        XCTAssertEqual(HomeShortcut.newPlaylist.title, SidebarItem.newPlaylist.title)
-        XCTAssertEqual(HomeShortcut.playlists.title, SidebarItem.playlists.title)
-        XCTAssertEqual(HomeShortcut.sync.title, SidebarItem.sync.title)
-        XCTAssertEqual(HomeShortcut.history.title, SidebarItem.history.title)
-        XCTAssertEqual(HomeShortcut.laboratory.title, SidebarItem.laboratory.title)
+    func testHomeShortcutTitlesAreHumanReadable() {
+        XCTAssertEqual(HomeShortcut.newPlaylist.title, "Créer une playlist")
+        XCTAssertEqual(HomeShortcut.providers.title, SidebarItem.providers.title)
     }
 
     func testWorkflowShortcutsAreMarked() {
@@ -24,6 +21,10 @@ final class HomeNavigationTests: XCTestCase {
         XCTAssertTrue(HomeShortcut.history.triggersWorkflow)
         XCTAssertFalse(HomeShortcut.playlists.triggersWorkflow)
         XCTAssertFalse(HomeShortcut.sync.triggersWorkflow)
-        XCTAssertFalse(HomeShortcut.laboratory.triggersWorkflow)
+        XCTAssertFalse(HomeShortcut.providers.triggersWorkflow)
+    }
+
+    func testSidebarExcludesLaboratory() {
+        XCTAssertFalse(SidebarItem.allCases.contains(where: { $0.title == "Laboratoire" }))
     }
 }
