@@ -29,25 +29,17 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **6.6** | YouTube Music experimental gateway (lecture, auth, fallback fichier) | `main` @ `7383b78` — PR #67 |
 | **6.7** | Intelligent conflict resolution (`resolve_sync_conflicts`) | `main` @ `a5874c7` — PR #68 |
 
-## Phase en cours
+| **6.8** — Product Experience (UX macOS) | Intégrée sur `main` (juillet 2026) | `docs/product/phase-6-8-product-experience.md` |
 
-| Phase | Statut | Référence |
-|-------|--------|-----------|
-| **6.8** — Product Experience (UX macOS) | En cours | `docs/product/phase-6-8-product-experience.md` |
+Documentation OSS et stratégie E2E : consolidées sur `main` (juillet 2026) — voir [docs/README.md](../docs/README.md).
 
-PR ouvertes (non fonctionnelles) :
+## État courant (`main`, juillet 2026)
 
-| PR | Sujet |
-|----|-------|
-| [#48](https://github.com/DrCeylon/playlist/pull/48) | Agent OS — `AGENTS.md` + handbook engineering |
-| [#53](https://github.com/DrCeylon/playlist/pull/53) | Setup environnement Cursor Cloud |
-
-## État courant (`main`, juillet 2026 — pré-v1.0.0)
-
-- **486** tests Python (`pytest -q`), **1** skipped
-- App macOS : sync apply (6.5), **YouTube Music expérimental** lecture/import (6.6)
-- Release engineering : [docs/RELEASE_PLAN.md](../docs/RELEASE_PLAN.md)
-- Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
+- **574** tests Python (`pytest -q`), **1** skipped
+- Version dans le code : **1.0.0** — tag git soumis à validation mainteneur
+- App macOS : sync apply, YouTube Music expérimental (lecture/import)
+- Onboarding : [CONTRIBUTING.md](../CONTRIBUTING.md) · [AGENTS.md](../AGENTS.md) · [docs/README.md](../docs/README.md)
+- Release : [docs/RELEASE_PLAN.md](../docs/RELEASE_PLAN.md)
 
 ## Limitations connues
 
@@ -64,13 +56,11 @@ PR ouvertes (non fonctionnelles) :
 
 ## Branches Git (`origin`, juillet 2026)
 
-| Branche | Justification |
-|---------|---------------|
-| `main` | Branche de référence |
-| `cursor/resonance-agent-os-docs-c172` | PR #48 — documentation agent OS |
-| `cursor/setup-dev-environment-62d3` | PR #53 — setup Cursor Cloud |
+| Branche | Rôle |
+|---------|------|
+| `main` | Branche de référence — toujours déployable |
 
-Les branches feature mergées sont supprimées après fast-forward.
+Les branches feature sont supprimées après merge. Voir [Maintenance-et-Workflow](Maintenance-et-Workflow).
 
 ## Validation qualité (`main`)
 
@@ -79,4 +69,4 @@ python3.12 -m pytest -q
 cd apps/resonance && swift build && swift test && ./scripts/build.sh
 ```
 
-486 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml` + `python-ci.yml`).
+574 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml` + `python-ci.yml`).

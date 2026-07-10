@@ -44,7 +44,7 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests Python | voir `pytest -q` sur CI |
+| Tests Python | voir `python3.12 -m pytest -q` (~574 pass, 1 skip) |
 | Tests Swift | ~135 (macOS CI) |
 | Version cible release | 1.0.0 |
 | LICENSE | MIT |

@@ -37,8 +37,8 @@ There is no formal foundation. Decisions are made by maintainers with transparen
 
 ## Releases
 
-- Tagged on `main` when [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) is complete
-- First public target: **v1.0.0**
+- Tagged on `main` when [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) is complete **and the maintainer approves**
+- Version in tree: **1.0.0** (`playlist_builder.__version__`) — documentation may say "release ready" without a published tag
 - Status: [RELEASE_PLAN.md](RELEASE_PLAN.md), [wiki/Etat-des-Phases.md](../wiki/Etat-des-Phases.md)
 
 ## Licensing

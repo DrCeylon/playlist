@@ -4,22 +4,23 @@ Génère des playlists Apple Music à partir de **mots-clés**, de **morceaux de
 
 📖 **[Documentation complète (Wiki)](https://github.com/DrCeylon/playlist/wiki)** — vision, guides, architecture, FAQ.
 
-**Release v1.0** — voir [docs/RELEASE_PLAN.md](docs/RELEASE_PLAN.md), [limitations connues](docs/KNOWN_LIMITATIONS.md), [matrice de compatibilité](docs/COMPATIBILITY_MATRIX.md).
+**Release v1.0 (in tree)** — voir [docs/RELEASE_PLAN.md](docs/RELEASE_PLAN.md), [limitations](docs/KNOWN_LIMITATIONS.md), [matrice de compatibilité](docs/COMPATIBILITY_MATRIX.md). Le tag git `v1.0.0` requiert validation du mainteneur.
 
 ## Resonance (app macOS)
 
-Le moteur Python est aussi accessible via **Resonance**, une app macOS SwiftUI (`apps/resonance/`) :
+Plateforme **local-first, multi-provider** — le dépôt local est la source de vérité. Apple Music est un provider parmi d'autres.
+
+Le moteur Python est accessible via **Resonance**, une app macOS SwiftUI (`apps/resonance/`) :
 
 - génération de playlists, import streaming, historique ;
-- gestionnaire de playlists (preview), sync dry-run (Phase 6.4), **sync apply** push/pull append_only (Phase 6.5), **YouTube Music expérimental** lecture/import (Phase 6.6) ;
-- architecture provider-neutral (Phase 6.1+).
+- gestionnaire de playlists, sync dry-run + apply append_only, YouTube Music expérimental (lecture/import).
 
-État des phases : [wiki/Etat-des-Phases.md](wiki/Etat-des-Phases.md) · dette technique : [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) · **limitations v1.0** : [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
+État : [wiki/Etat-des-Phases.md](wiki/Etat-des-Phases.md) · dette : [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) · limitations : [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md) · onboarding : [docs/README.md](docs/README.md)
 
 **Validation locale :**
 
 ```bash
-python3.12 -m pytest -q          # 528+ tests
+python3.12 -m pytest -q          # ~574 tests (Linux CI)
 cd apps/resonance && ./scripts/build.sh   # macOS uniquement
 ```
 

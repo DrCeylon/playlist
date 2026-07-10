@@ -6,11 +6,12 @@ Thank you for your interest in Resonance. This guide helps you go from clone to 
 
 **Resonance** is a local-first playlist platform: Python engine + macOS SwiftUI app.
 
-- Product context: [wiki/Vision-et-Objectif.md](wiki/Vision-et-Objectif.md)
+- Product context: [docs/PRODUCT_VISION.md](docs/PRODUCT_VISION.md)
+- Documentation map: [docs/README.md](docs/README.md)
 - Architecture: [docs/architecture/vision.md](docs/architecture/vision.md)
-- Provider platform: [docs/product/phase-6-provider-platform.md](docs/product/phase-6-provider-platform.md)
+- Engineering guide: [docs/engineering/ENGINEERING_GUIDE.md](docs/engineering/ENGINEERING_GUIDE.md)
+- Agent instructions: [AGENTS.md](AGENTS.md)
 - Release status: [docs/RELEASE_PLAN.md](docs/RELEASE_PLAN.md)
-- Quality baseline: [docs/QUALITY_AUDIT.md](docs/QUALITY_AUDIT.md)
 
 ## Prerequisites
 

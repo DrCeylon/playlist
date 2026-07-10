@@ -70,7 +70,8 @@ Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive
 - [**Phase 5.1.1 — Import UX**](Phase-5-1-1-Import-UX) ← **clôturée**
 - [Smart Input Framework — architecture](Smart-Input-Framework)
 - [**Phase Playlist Manager — clôture**](Phase-Playlist-Manager-Cloture) ← **état courant macOS**
-- [**État des phases**](Etat-des-Phases) ← **488 tests Python, v1.0 en préparation**
+- [**État des phases**](Etat-des-Phases) ← **574 tests Python, v1.0.0 in tree**
+- [Documentation contributeur (EN)](../docs/README.md) · [AGENTS.md](../AGENTS.md)
 - [Dette technique](../docs/TECHNICAL_DEBT.md) · [Maintenance Git](Maintenance-et-Workflow)
 - [Phase 5 — Vision produit](Phase-5-Vision)
 - [MusicKit (expérimental)](MusicKit-Experimental)
@@ -78,6 +79,7 @@ Playlist d'exemple du créateur — 7 sections, 96 morceaux, montée progressive
 
 **Support**
 - [Dépannage et FAQ](Depannage-et-FAQ)
+- [Documentation contributeur](../docs/README.md)
 
 ## Vision long terme
 
