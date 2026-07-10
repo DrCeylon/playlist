@@ -187,3 +187,64 @@ def test_json_repository_rejects_newer_schema_version(repo_paths: tuple[Path, Pa
     with pytest.raises(UnsupportedSchemaVersionError):
         repository.list_playlists()
 
+
+def test_snapshot_archive_rejects_checksum_mismatch_on_disk(repo_paths: tuple[Path, Path]) -> None:
+    import json
+
+    from playlist_builder.app.playlist_library.errors import SnapshotChecksumMismatchError
+
+    _, snapshots_dir = repo_paths
+    archive = SnapshotArchive(snapshots_dir)
+    snapshot = _sample_snapshot()
+    checksum = snapshot.checksum
+    path = snapshots_dir / f"{checksum}.json"
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"checksum": "wrong-checksum-value", "name": "Corrupt"}),
+        encoding="utf-8",
+    )
+    with pytest.raises(SnapshotChecksumMismatchError):
+        archive.store(snapshot)
+
+
+def test_snapshot_archive_rejects_corrupt_existing_file(repo_paths: tuple[Path, Path]) -> None:
+    from playlist_builder.app.playlist_library.errors import SnapshotCorruptionError
+
+    _, snapshots_dir = repo_paths
+    archive = SnapshotArchive(snapshots_dir)
+    snapshot = _sample_snapshot()
+    path = snapshots_dir / f"{snapshot.checksum}.json"
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+    path.write_text("{not-valid-json", encoding="utf-8")
+    with pytest.raises(SnapshotCorruptionError):
+        archive.store(snapshot)
+
+
+def test_snapshot_archive_concurrent_store_same_checksum(repo_paths: tuple[Path, Path]) -> None:
+    import threading
+
+    _, snapshots_dir = repo_paths
+    archive = SnapshotArchive(snapshots_dir)
+    snapshot = _sample_snapshot()
+    barrier = threading.Barrier(2)
+    errors: list[BaseException] = []
+
+    def store_once() -> None:
+        try:
+            barrier.wait(timeout=5)
+            archive.store(snapshot)
+        except BaseException as exc:  # pragma: no cover - collected for assertion
+            errors.append(exc)
+
+    threads = [threading.Thread(target=store_once) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert not errors
+    assert len(list(snapshots_dir.glob("*.json"))) == 1
+    loaded = archive.get(snapshot.checksum)
+    assert loaded is not None
+    assert loaded.name == snapshot.name
+

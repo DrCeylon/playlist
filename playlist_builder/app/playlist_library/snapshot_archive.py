@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from playlist_builder.infrastructure.atomic_json import locked_json_document
+from playlist_builder.app.playlist_library.errors import (
+    SnapshotChecksumMismatchError,
+    SnapshotCorruptionError,
+)
+from playlist_builder.infrastructure.atomic_json import advisory_file_lock, replace_file_atomic
 from playlist_builder.ui.shared.dto.remote_playlist import (
     RemotePlaylistSnapshot,
     RemotePlaylistTrack,
@@ -28,15 +32,18 @@ class SnapshotArchive:
     def store(self, snapshot: RemotePlaylistSnapshot) -> str:
         checksum = snapshot.checksum or remote_playlist_snapshot_checksum(snapshot.tracks)
         path = self._path_for_checksum(checksum)
-        self._directory.mkdir(parents=True, exist_ok=True)
-        payload = snapshot.to_dict()
-        payload["checksum"] = checksum
-        payload["snapshot_id"] = snapshot_id_from_checksum(checksum)
-        with locked_json_document(path) as locked:
-            if locked.get("checksum") == checksum:
+        lock_path = path.with_suffix(f"{path.suffix}.lock")
+        with advisory_file_lock(lock_path):
+            if path.exists():
+                _assert_snapshot_checksum_on_disk(path, checksum)
                 return checksum
-            locked.clear()
-            locked.update(payload)
+            payload = snapshot.to_dict()
+            payload["checksum"] = checksum
+            payload["snapshot_id"] = snapshot_id_from_checksum(checksum)
+            replace_file_atomic(
+                path,
+                json.dumps(payload, indent=2, ensure_ascii=False),
+            )
         return checksum
 
     def get(self, checksum: str) -> RemotePlaylistSnapshot | None:
@@ -57,6 +64,18 @@ class SnapshotArchive:
     def _path_for_checksum(self, checksum: str) -> Path:
         safe = "".join(char for char in checksum if char.isalnum() or char in "-_")
         return self._directory / f"{safe}.json"
+
+
+def _assert_snapshot_checksum_on_disk(path: Path, expected_checksum: str) -> None:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SnapshotCorruptionError(str(path), str(exc)) from exc
+    if not isinstance(raw, dict):
+        raise SnapshotCorruptionError(str(path), "root is not a JSON object")
+    stored = str(raw.get("checksum", ""))
+    if stored != expected_checksum:
+        raise SnapshotChecksumMismatchError(str(path), expected_checksum, stored)
 
 
 def _snapshot_from_dict(raw: dict[str, object]) -> RemotePlaylistSnapshot:

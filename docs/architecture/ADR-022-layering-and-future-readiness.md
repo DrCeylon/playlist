@@ -24,7 +24,7 @@ This ADR records **accepted fixes** (ROI demonstrated) and **deferred work** (no
 |--------|-----------|
 | `UnsupportedSchemaVersionError` on newer schema | Prevents silent data loss — real bug class |
 | `get_playlist` direct scan without sort | Measurable perf win, zero schema change |
-| `SnapshotArchive` uses `locked_json_document` | Aligns with managed playlist locking |
+| `SnapshotArchive` immutable publish | `advisory_file_lock` + temp `os.replace` ; mismatch raises explicit error |
 | `tests/test_layer_architecture.py` | Prevents regression during domain extraction |
 | `ProviderPlaylistWritePort` import in `action_executor` | Fixes static analysis; no behavior change |
 

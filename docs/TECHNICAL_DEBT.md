@@ -28,7 +28,7 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 | `sync` ignoré à l'import bridge | Paramètre transmis à `stream_import_playlist` |
 | JSON repos sans verrou | `infrastructure/atomic_json.py` + RMW atomique |
 | Schema version silencieux | `UnsupportedSchemaVersionError` — rejet explicite (ADR-022) |
-| Snapshots sans verrou | `SnapshotArchive` via `locked_json_document` (ADR-022) |
+| Snapshots sans verrou | `SnapshotArchive` : lock advisory + `os.replace` immuable (ADR-022) |
 | `assert_bridge_safe_mapping` inutilisé | Vérification sorties `provider_account` |
 | CI Python absente | `.github/workflows/python-ci.yml` |
 | Multi-provider hardcoding | `provider_platform.py`, `parse_provider_id()` |
