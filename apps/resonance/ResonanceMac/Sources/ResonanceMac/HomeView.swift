@@ -79,7 +79,7 @@ struct HomeView: View {
                     }
 
                     card(title: "État", palette: palette) {
-                        Text("Resonance — Gestionnaire de playlists (preview)")
+                        Text("Resonance 1.0.0")
                             .font(.callout.weight(.medium))
                             .foregroundStyle(palette.textPrimary)
                         Text("Architecture provider-neutral, Apple Music principal, YouTube Music expérimental.")

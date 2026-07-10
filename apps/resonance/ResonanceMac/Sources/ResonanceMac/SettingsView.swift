@@ -39,7 +39,7 @@ struct SettingsView: View {
                         Text("À propos")
                             .font(.headline)
                             .foregroundStyle(palette.textPrimary)
-                        infoRow(title: "Version shell", value: "Playlist Manager (preview)", palette: palette)
+                        infoRow(title: "Version", value: "Resonance 1.0.0", palette: palette)
                         infoRow(title: "Thème actif", value: themeManager.activeDisplayName, palette: palette)
                     }
                     .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
