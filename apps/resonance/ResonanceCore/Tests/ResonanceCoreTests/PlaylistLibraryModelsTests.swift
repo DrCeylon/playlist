@@ -56,6 +56,51 @@ final class PlaylistLibraryModelsTests: XCTestCase {
         XCTAssertEqual(playlists[0].playlistVersion, 2)
         XCTAssertEqual(playlists[0].linkedRemoteRefs.count, 1)
         XCTAssertEqual(playlists[0].linkedRemoteRefs[0].snapshotChecksum, "abc123")
+        XCTAssertEqual(playlists[0].linkedRemoteRefs[0].lastSeenSnapshotChecksum, "abc123")
+    }
+
+    func testLinkedRemoteRefLegacyChecksumMigration() {
+        let payload: BridgeJSONObject = [
+            "playlists": .array([
+                .object([
+                    "local_playlist_id": .string("mpl-legacy"),
+                    "name": .string("Legacy"),
+                    "provider_id": .string("apple_music"),
+                    "track_count": .number(1),
+                    "sync_status": .string("synced"),
+                    "linked_remote_refs": .array([
+                        .object([
+                            "provider_id": .string("apple_music"),
+                            "remote_playlist_id": .string("remote-1"),
+                            "snapshot_checksum": .string("legacy-checksum"),
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ]
+        let playlists = BridgePayloadBuilder.managedPlaylists(from: payload)
+        XCTAssertEqual(playlists[0].linkedRemoteRefs[0].lastSeenSnapshotChecksum, "legacy-checksum")
+        XCTAssertEqual(playlists[0].linkedRemoteRefs[0].lastAppliedSnapshotChecksum, "")
+    }
+
+    func testPlaylistSyncApplyResultDecoding() {
+        let payload: BridgeJSONObject = [
+            "sync_apply": .object([
+                "final_sync_status": .string("synced"),
+                "message": .string("ok"),
+                "requires_confirmation": .bool(false),
+                "operation": .object([
+                    "operation_id": .string("syncop-1"),
+                    "status": .string("completed"),
+                    "local_playlist_version_before": .number(1),
+                    "local_playlist_version_after": .number(1),
+                ]),
+                "actions_applied": .array([]),
+            ]),
+        ]
+        let result = BridgePayloadBuilder.playlistSyncApplyResult(from: payload)
+        XCTAssertEqual(result?.operation.status, .completed)
+        XCTAssertEqual(result?.message, "ok")
     }
 
     func testPlaylistSyncResultDecoding() {

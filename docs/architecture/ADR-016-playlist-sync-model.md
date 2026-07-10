@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — Phase 6.4; extended July 2026 for provider vs cloud metadata sync (docs only).
+Accepted — Phase 6.4; **apply layer** added Phase 6.5 (July 2026).
 
 ## Context
 
@@ -44,31 +44,39 @@ Provider sync never requires a Resonance account. Cloud metadata sync (future) r
 | `mirror` | Destination matches source (dangerous — confirm UI) |
 | `manual_resolve` | Stop on first conflict, surface to user |
 
-### Engine flow
+### Engine flow (Phase 6.4 — planning)
 
 ```text
 1. Load LocalManagedPlaylist + optional RemotePlaylistSnapshot
 2. PlaylistSyncEngine.build_plan(direction, mode)
 3. PlaylistConflictResolver.validate(plan) → conflicts[]
-4. If dry_run OR conflicts with manual_resolve → return plan
-5. ProviderPlaylistWritePort / ReadPort apply
-6. Persist PlaylistSyncOperation + update LocalManagedPlaylist.sync_status
+4. If dry_run OR conflicts with manual_resolve → return plan only (no side effects)
 ```
+
+### Apply flow (Phase 6.5)
+
+```text
+1. plan_sync (bridge) — pure; returns plan_checksum
+2. apply_sync (bridge) — explicit mutation:
+   a. SyncApplyValidator — stale plan/version, destructive confirm, write capability
+   b. ApplySyncPlaylist — orchestrator
+   c. ProviderPlaylistWritePort / local repository updates
+   d. PlaylistSyncStateUpdater — linked_remote_refs (last_seen vs last_applied)
+   e. JsonPlaylistSyncOperationRepository — audit trail
+```
+
+`plan_sync` must never create operations or mutate repository/snapshots.
+
+Idempotency key: `local_playlist_id + provider + remote + direction + mode + plan_checksum + versions`.
 
 ### Bridge mapping
 
-Existing `sync_managed_playlist` evolves to:
+| Command | Role |
+|---------|------|
+| `plan_sync` | Dry-run / preview only |
+| `apply_sync` | Validated apply (Phase 6.5+) |
 
-```json
-{
-  "local_playlist_id": "...",
-  "direction": "pull_from_provider",
-  "provider_id": "apple_music",
-  "sync_mode": "dry_run"
-}
-```
-
-Response includes `sync_plan` when dry-run; `sync_operation` when applied.
+Legacy `sync_managed_playlist` remains a stub; use `plan_sync` / `apply_sync`.
 
 ### Relation to import
 

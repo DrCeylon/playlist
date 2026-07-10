@@ -63,6 +63,7 @@ class RuntimeEngineBridgeBackend:
         self._repository_provider = RepositoryProvider(
             playlists_path=context.settings.managed_playlists_path,
             snapshots_dir=context.settings.playlist_snapshots_dir,
+            sync_operations_path=context.settings.sync_operations_path,
         )
         self._playlist_migration = HistoryToRepositoryMigration(
             self._repository_provider.managed_playlist_repository(),
@@ -368,6 +369,19 @@ class RuntimeEngineBridgeBackend:
         from playlist_builder.app.bridge_runtime.playlist_library import sync_managed_playlist_stub
 
         return sync_managed_playlist_stub(params)
+
+    def apply_sync(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.playlist_sync_apply import apply_sync
+
+        local_playlist_id = str(params.get("local_playlist_id", "")).strip()
+        if not local_playlist_id:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "local_playlist_id est requis.")
+        return apply_sync(
+            self._context.registry,
+            self._repository_provider,
+            params=params,
+            local_playlist_id=local_playlist_id,
+        )
 
     def plan_sync(self, params: dict[str, Any]) -> dict[str, Any]:
         from playlist_builder.app.bridge_runtime.playlist_library import get_managed_playlist

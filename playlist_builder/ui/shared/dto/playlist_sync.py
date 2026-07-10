@@ -90,3 +90,119 @@ class PlaylistSyncPlan:
             "conflicts": [conflict.to_dict() for conflict in self.conflicts],
             "summary": self.summary.to_dict(),
         }
+
+
+class SyncOperationStatus(StrEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    BLOCKED_CONFIRMATION = "blocked_confirmation"
+    BLOCKED_CONFLICT = "blocked_conflict"
+    NO_OP = "no_op"
+
+
+@dataclass(frozen=True, slots=True)
+class SyncActionOutcome:
+    action_id: str
+    kind: str
+    track_key: str
+    status: str
+    message: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return dto_to_dict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PlaylistSyncOperation:
+    operation_id: str
+    idempotency_key: str
+    local_playlist_id: str
+    provider_id: ProviderId
+    remote_playlist_id: str
+    direction: SyncDirection
+    sync_mode: SyncMode
+    plan_checksum: str
+    remote_snapshot_checksum: str
+    local_playlist_version_before: int
+    local_playlist_version_after: int
+    status: SyncOperationStatus
+    created_at_iso: str
+    started_at_iso: str = ""
+    finished_at_iso: str = ""
+    actions_total: int = 0
+    actions_completed: int = 0
+    actions_failed: int = 0
+    actions_skipped: int = 0
+    completed_actions: tuple[SyncActionOutcome, ...] = ()
+    failed_actions: tuple[SyncActionOutcome, ...] = ()
+    error_code: str = ""
+    error_message: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = {
+            "operation_id": self.operation_id,
+            "idempotency_key": self.idempotency_key,
+            "local_playlist_id": self.local_playlist_id,
+            "provider_id": self.provider_id.value,
+            "remote_playlist_id": self.remote_playlist_id,
+            "direction": self.direction.value,
+            "sync_mode": self.sync_mode.value,
+            "plan_checksum": self.plan_checksum,
+            "remote_snapshot_checksum": self.remote_snapshot_checksum,
+            "local_playlist_version_before": self.local_playlist_version_before,
+            "local_playlist_version_after": self.local_playlist_version_after,
+            "status": self.status.value,
+            "created_at_iso": self.created_at_iso,
+            "started_at_iso": self.started_at_iso,
+            "finished_at_iso": self.finished_at_iso,
+            "actions_total": self.actions_total,
+            "actions_completed": self.actions_completed,
+            "actions_failed": self.actions_failed,
+            "actions_skipped": self.actions_skipped,
+            "completed_actions": [item.to_dict() for item in self.completed_actions],
+            "failed_actions": [item.to_dict() for item in self.failed_actions],
+            "error_code": self.error_code,
+            "error_message": self.error_message,
+        }
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class ApplySyncResult:
+    operation: PlaylistSyncOperation
+    final_sync_status: str
+    message: str
+    actions_applied: tuple[SyncActionOutcome, ...] = ()
+    actions_failed: tuple[SyncActionOutcome, ...] = ()
+    actions_skipped: tuple[SyncActionOutcome, ...] = ()
+    updated_playlist: dict[str, Any] | None = None
+    requires_confirmation: bool = False
+    destructive_actions: tuple[PlaylistSyncAction, ...] = ()
+    conflicts: tuple[PlaylistSyncConflict, ...] = ()
+    remote_snapshot_checksum_after: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "operation": self.operation.to_dict(),
+            "final_sync_status": self.final_sync_status,
+            "message": self.message,
+            "actions_applied": [item.to_dict() for item in self.actions_applied],
+            "actions_failed": [item.to_dict() for item in self.actions_failed],
+            "actions_skipped": [item.to_dict() for item in self.actions_skipped],
+            "provider_id": self.operation.provider_id.value,
+            "remote_playlist_id": self.operation.remote_playlist_id,
+            "local_playlist_version_before": self.operation.local_playlist_version_before,
+            "local_playlist_version_after": self.operation.local_playlist_version_after,
+            "requires_confirmation": self.requires_confirmation,
+            "destructive_actions": [action.to_dict() for action in self.destructive_actions],
+            "conflicts": [conflict.to_dict() for conflict in self.conflicts],
+            "remote_snapshot_checksum_before": self.operation.remote_snapshot_checksum,
+            "remote_snapshot_checksum_after": self.remote_snapshot_checksum_after,
+        }
+        if self.updated_playlist is not None:
+            payload["updated_playlist"] = self.updated_playlist
+        return payload

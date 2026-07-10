@@ -696,12 +696,51 @@ public enum BridgePayloadBuilder {
 
     private static func linkedRemoteRef(_ object: BridgeJSONObject) -> LinkedRemoteRef {
         let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
+        let legacyChecksum = object["snapshot_checksum"]?.stringValue ?? ""
+        let lastSeen = object["last_seen_snapshot_checksum"]?.stringValue ?? legacyChecksum
         return LinkedRemoteRef(
             providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
             remotePlaylistID: object["remote_playlist_id"]?.stringValue ?? "",
-            snapshotChecksum: object["snapshot_checksum"]?.stringValue ?? "",
+            snapshotChecksum: legacyChecksum.isEmpty ? lastSeen : legacyChecksum,
+            lastSeenSnapshotChecksum: lastSeen,
+            lastAppliedSnapshotChecksum: object["last_applied_snapshot_checksum"]?.stringValue ?? "",
             syncState: object["sync_state"]?.stringValue ?? "",
             lastSyncAt: object["last_sync_at"]?.stringValue ?? ""
+        )
+    }
+
+    public static func playlistSyncApplyResult(from payload: BridgeJSONObject) -> PlaylistSyncApplyResult? {
+        guard let object = payload["sync_apply"]?.objectValue else { return nil }
+        let operationObject = object["operation"]?.objectValue ?? [:]
+        let operation = playlistSyncOperation(operationObject)
+        let appliedRaw = object["actions_applied"]?.arrayValue ?? []
+        let applied = appliedRaw.compactMap(\.objectValue).map(syncActionOutcome)
+        return PlaylistSyncApplyResult(
+            operation: operation,
+            finalSyncStatus: object["final_sync_status"]?.stringValue ?? PlaylistSyncStatus.pending.rawValue,
+            message: object["message"]?.stringValue ?? "",
+            requiresConfirmation: object["requires_confirmation"]?.boolValue ?? false,
+            actionsApplied: applied
+        )
+    }
+
+    private static func playlistSyncOperation(_ object: BridgeJSONObject) -> PlaylistSyncOperation {
+        let statusRaw = object["status"]?.stringValue ?? SyncOperationStatus.pending.rawValue
+        return PlaylistSyncOperation(
+            operationID: object["operation_id"]?.stringValue ?? "",
+            status: SyncOperationStatus(rawValue: statusRaw) ?? .pending,
+            localPlaylistVersionBefore: object["local_playlist_version_before"]?.intValue ?? 0,
+            localPlaylistVersionAfter: object["local_playlist_version_after"]?.intValue ?? 0
+        )
+    }
+
+    private static func syncActionOutcome(_ object: BridgeJSONObject) -> SyncActionOutcome {
+        SyncActionOutcome(
+            actionID: object["action_id"]?.stringValue ?? "",
+            kind: object["kind"]?.stringValue ?? "",
+            trackKey: object["track_key"]?.stringValue ?? "",
+            status: object["status"]?.stringValue ?? "",
+            message: object["message"]?.stringValue ?? ""
         )
     }
 

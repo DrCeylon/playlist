@@ -128,12 +128,13 @@ def test_provider_gateway_exposes_optional_playlist_ports() -> None:
     assert playlists[0].name == "Favorites"
 
 
-def test_apple_music_gateway_exposes_read_port_without_write(tmp_path) -> None:
+def test_apple_music_gateway_exposes_read_and_write_ports(tmp_path) -> None:
     registry = build_default_registry(identity_cache_path=tmp_path / "identity.json")
     gateway = registry.require(ProviderId.APPLE_MUSIC)
     assert ProviderCapability.PLAYLIST_LIBRARY_BROWSE in gateway.capabilities
+    assert ProviderCapability.PLAYLIST_SYNC in gateway.capabilities
     assert isinstance(gateway.playlist_read, ProviderPlaylistReadPort)
-    assert gateway.playlist_write is None
+    assert isinstance(gateway.playlist_write, ProviderPlaylistWritePort)
 
 
 def test_capability_gating_requires_port_when_browse_declared() -> None:

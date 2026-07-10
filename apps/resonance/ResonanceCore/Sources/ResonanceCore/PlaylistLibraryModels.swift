@@ -44,19 +44,25 @@ public struct LinkedRemoteRef: Hashable, Sendable {
     public let providerID: ProviderID
     public let remotePlaylistID: String
     public let snapshotChecksum: String
+    public let lastSeenSnapshotChecksum: String
+    public let lastAppliedSnapshotChecksum: String
     public let syncState: String
     public let lastSyncAt: String
 
     public init(
         providerID: ProviderID,
         remotePlaylistID: String,
-        snapshotChecksum: String,
+        snapshotChecksum: String = "",
+        lastSeenSnapshotChecksum: String = "",
+        lastAppliedSnapshotChecksum: String = "",
         syncState: String = "",
         lastSyncAt: String = ""
     ) {
         self.providerID = providerID
         self.remotePlaylistID = remotePlaylistID
         self.snapshotChecksum = snapshotChecksum
+        self.lastSeenSnapshotChecksum = lastSeenSnapshotChecksum
+        self.lastAppliedSnapshotChecksum = lastAppliedSnapshotChecksum
         self.syncState = syncState
         self.lastSyncAt = lastSyncAt
     }
@@ -210,6 +216,75 @@ public struct PlaylistSyncResult: Sendable {
         self.syncStatus = syncStatus
         self.message = message
         self.conflicts = conflicts
+    }
+}
+
+public enum SyncOperationStatus: String, Codable, CaseIterable, Sendable {
+    case pending = "pending"
+    case running = "running"
+    case completed = "completed"
+    case partial = "partial"
+    case failed = "failed"
+    case cancelled = "cancelled"
+    case blockedConfirmation = "blocked_confirmation"
+    case blockedConflict = "blocked_conflict"
+    case noOp = "no_op"
+}
+
+public struct PlaylistSyncOperation: Sendable {
+    public let operationID: String
+    public let status: SyncOperationStatus
+    public let localPlaylistVersionBefore: Int
+    public let localPlaylistVersionAfter: Int
+
+    public init(
+        operationID: String,
+        status: SyncOperationStatus,
+        localPlaylistVersionBefore: Int,
+        localPlaylistVersionAfter: Int
+    ) {
+        self.operationID = operationID
+        self.status = status
+        self.localPlaylistVersionBefore = localPlaylistVersionBefore
+        self.localPlaylistVersionAfter = localPlaylistVersionAfter
+    }
+}
+
+public struct SyncActionOutcome: Sendable {
+    public let actionID: String
+    public let kind: String
+    public let trackKey: String
+    public let status: String
+    public let message: String
+
+    public init(actionID: String, kind: String, trackKey: String, status: String, message: String) {
+        self.actionID = actionID
+        self.kind = kind
+        self.trackKey = trackKey
+        self.status = status
+        self.message = message
+    }
+}
+
+public struct PlaylistSyncApplyResult: Sendable {
+    public let operation: PlaylistSyncOperation
+    public let finalSyncStatus: String
+    public let message: String
+    public let requiresConfirmation: Bool
+    public let actionsApplied: [SyncActionOutcome]
+
+    public init(
+        operation: PlaylistSyncOperation,
+        finalSyncStatus: String,
+        message: String,
+        requiresConfirmation: Bool,
+        actionsApplied: [SyncActionOutcome]
+    ) {
+        self.operation = operation
+        self.finalSyncStatus = finalSyncStatus
+        self.message = message
+        self.requiresConfirmation = requiresConfirmation
+        self.actionsApplied = actionsApplied
     }
 }
 

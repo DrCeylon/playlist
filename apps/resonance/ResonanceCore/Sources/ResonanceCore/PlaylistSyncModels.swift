@@ -137,3 +137,37 @@ public struct PlaylistSyncPlanRequest: Sendable {
         self.remotePlaylistID = remotePlaylistID
     }
 }
+
+public struct PlaylistSyncApplyRequest: Sendable {
+    public let localPlaylistID: String
+    public let providerID: ProviderID
+    public let direction: PlaylistSyncDirection
+    public let syncMode: SyncMode
+    public let confirmDestructive: Bool
+    public let expectedLocalPlaylistVersion: Int
+    public let expectedRemoteSnapshotChecksum: String
+    public let planChecksum: String
+    public let remotePlaylistID: String
+
+    public init(
+        localPlaylistID: String,
+        providerID: ProviderID,
+        direction: PlaylistSyncDirection,
+        syncMode: SyncMode,
+        confirmDestructive: Bool = false,
+        expectedLocalPlaylistVersion: Int,
+        expectedRemoteSnapshotChecksum: String,
+        planChecksum: String,
+        remotePlaylistID: String = ""
+    ) {
+        self.localPlaylistID = localPlaylistID
+        self.providerID = providerID
+        self.direction = direction
+        self.syncMode = syncMode
+        self.confirmDestructive = confirmDestructive
+        self.expectedLocalPlaylistVersion = expectedLocalPlaylistVersion
+        self.expectedRemoteSnapshotChecksum = expectedRemoteSnapshotChecksum
+        self.planChecksum = planChecksum
+        self.remotePlaylistID = remotePlaylistID
+    }
+}
