@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from playlist_builder.canonical.enums import ProviderCapability, ProviderId
+from playlist_builder.canonical.provider_ids import provider_display_name
 from playlist_builder.integration.gateway.registry import ProviderGatewayRegistry
 from playlist_builder.integration.ports.provider_auth import ProviderAuthPort
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
@@ -20,55 +21,50 @@ def _bridge_safe_account_payload(account: RemoteProviderAccount) -> dict[str, An
 
 
 def provider_options_from_registry(registry: ProviderGatewayRegistry) -> tuple[ProviderOption, ...]:
+    templates = {template.provider_id: template for template in default_provider_options()}
     options: list[ProviderOption] = []
-    for template in default_provider_options():
-        gateway = registry.get(template.provider_id)
-        if gateway is None:
-            options.append(template)
-            continue
+    seen: set[ProviderId] = set()
+
+    for provider_id in registry.list_provider_ids():
+        gateway = registry.require(provider_id)
+        template = templates.get(
+            provider_id,
+            ProviderOption(
+                provider_id=provider_id,
+                display_name=provider_display_name(provider_id),
+                is_available=False,
+            ),
+        )
         options.append(_option_from_gateway(template, gateway))
+        seen.add(provider_id)
+
+    for template in default_provider_options():
+        if template.provider_id in seen:
+            continue
+        options.append(template)
+
     return tuple(options)
 
 
 def _option_from_gateway(template: ProviderOption, gateway: Any) -> ProviderOption:
     auth = getattr(gateway, "auth", None)
-    auth_state = auth.auth_state() if isinstance(auth, ProviderAuthPort) else ProviderAuthState.DISCONNECTED
     unavailable_reason = getattr(gateway, "unavailable_reason", lambda: "")()
-    is_connected = auth_state == ProviderAuthState.CONNECTED
     is_experimental = ProviderCapability.EXPERIMENTAL in gateway.capabilities
 
-    if template.provider_id == ProviderId.YOUTUBE_MUSIC:
-        from playlist_builder.integration.youtube_music.experimental_guard import is_ytmusicapi_installed
+    if isinstance(auth, ProviderAuthPort):
+        is_connected = auth.auth_state() == ProviderAuthState.CONNECTED
+    elif getattr(gateway, "implicit_auth_connected", False):
+        is_connected = True
+    else:
+        is_connected = False
 
-        is_available = is_ytmusicapi_installed()
-        if not is_available:
-            unavailable_reason = unavailable_reason or "Module expérimental non installé."
-        return ProviderOption(
-            provider_id=template.provider_id,
-            display_name=template.display_name,
-            is_available=is_available,
-            is_connected=is_connected,
-            capabilities=gateway.capabilities,
-            unavailable_reason=unavailable_reason if not is_available else "",
-            is_experimental=True,
-        )
-
-    if template.provider_id == ProviderId.APPLE_MUSIC:
-        return ProviderOption(
-            provider_id=template.provider_id,
-            display_name=template.display_name,
-            is_available=True,
-            is_connected=True,
-            capabilities=gateway.capabilities,
-            unavailable_reason="",
-            is_experimental=False,
-        )
+    is_available = not unavailable_reason
 
     return ProviderOption(
         provider_id=template.provider_id,
         display_name=template.display_name,
-        is_available=True,
-        is_connected=is_connected,
+        is_available=is_available,
+        is_connected=is_connected and is_available,
         capabilities=gateway.capabilities,
         unavailable_reason=unavailable_reason,
         is_experimental=is_experimental,
@@ -138,15 +134,15 @@ def provider_disconnect(registry: ProviderGatewayRegistry, *, provider_id: Provi
 
 def load_snapshot_from_file(params: dict[str, Any]) -> dict[str, Any]:
     from playlist_builder.app.playlist_library.file_snapshot import load_remote_playlist_snapshot_from_file
+    from playlist_builder.canonical.provider_ids import parse_provider_id
 
     file_path_raw = str(params.get("file_path", "")).strip()
     if not file_path_raw:
         raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "file_path est requis.")
-    provider_raw = params.get("provider_id", ProviderId.YOUTUBE_MUSIC.value)
     try:
-        provider_id = ProviderId(str(provider_raw))
+        provider_id = parse_provider_id(params.get("provider_id"), default=ProviderId.YOUTUBE_MUSIC)
     except ValueError as exc:
-        raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"provider_id invalide : {provider_raw!r}") from exc
+        raise BridgeError(BridgeErrorCode.INVALID_REQUEST, str(exc)) from exc
     snapshot = load_remote_playlist_snapshot_from_file(
         Path(file_path_raw),
         provider_id=provider_id,

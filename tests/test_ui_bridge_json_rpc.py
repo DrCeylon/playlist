@@ -108,7 +108,10 @@ def test_list_providers_command():
     bridge = JsonRpcEngineBridge()
     messages = bridge.handle({"id": "1", "command": BridgeCommand.LIST_PROVIDERS.value, "params": {}})
     assert messages[-1]["ok"] is True
-    assert any(provider["is_available"] for provider in messages[-1]["result"]["providers"])
+    providers = messages[-1]["result"]["providers"]
+    assert providers
+    provider_ids = {provider["provider_id"] for provider in providers}
+    assert "apple_music" in provider_ids
 
 
 def test_unknown_command_returns_error():

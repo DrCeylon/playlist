@@ -4,6 +4,8 @@
 **Base :** `main` @ `32be564` (post Phase 6.2 + 6.4)  
 **Statut :** 6.1 ✅, 6.2 lecture distante Apple Music ✅, 6.4 dry-run ✅ ; 6.3 planifié — voir ADR-013 à ADR-018 pour la vision identité Resonance (docs uniquement, hors scope runtime Phase 6)
 
+> **Audit multi-provider (juillet 2026) :** [MULTI_PROVIDER_READINESS_AUDIT.md](../MULTI_PROVIDER_READINESS_AUDIT.md)
+
 ## Objectif
 
 Faire évoluer Resonance d’un gestionnaire de playlists **local/stub** vers une plateforme **provider-neutral** capable de :

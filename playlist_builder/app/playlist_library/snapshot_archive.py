@@ -79,11 +79,9 @@ def _snapshot_from_dict(raw: dict[str, object]) -> RemotePlaylistSnapshot:
                     provider_metadata=dict(metadata) if isinstance(metadata, dict) else {},
                 )
             )
-    provider_raw = str(raw.get("provider_id", ProviderId.APPLE_MUSIC.value))
-    try:
-        provider_id = ProviderId(provider_raw)
-    except ValueError:
-        provider_id = ProviderId.APPLE_MUSIC
+    from playlist_builder.canonical.provider_ids import parse_provider_id
+
+    provider_id = parse_provider_id(raw.get("provider_id"), default=ProviderId.APPLE_MUSIC)
     checksum = str(raw.get("checksum", ""))
     if not checksum and tracks:
         checksum = remote_playlist_snapshot_checksum(tuple(tracks))
