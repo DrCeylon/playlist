@@ -25,3 +25,9 @@ include = ["playlist_builder*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "unit: fast isolated tests (default tier for legacy tests)",
+    "integration: multi-module tests with mocks or fakes",
+    "e2e: user journey through bridge/runtime with isolated tmp data",
+]

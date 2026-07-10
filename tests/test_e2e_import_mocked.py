@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from playlist_builder.canonical.compat import canonical_playlist_from_legacy
 from playlist_builder.canonical.enums import ImportStatus
 from playlist_builder.canonical.models import CanonicalImportReport, CanonicalImportResult
@@ -12,6 +14,7 @@ from playlist_builder.integration.compat import track_results_aligned_with_playl
 from playlist_builder.music.client import MusicClient
 
 
+@pytest.mark.integration
 def test_mocked_e2e_kygo_firestone_is_added(tmp_path: Path):
     playlist = PlaylistDefinition(
         name="E2E Test",
@@ -48,6 +51,7 @@ def test_mocked_e2e_kygo_firestone_is_added(tmp_path: Path):
     assert applescript.collect_candidates_batch.call_count == 1
 
 
+@pytest.mark.integration
 def test_music_client_batch_uses_resolver_and_delivery(tmp_path: Path):
     client = MusicClient(identity_cache_path=tmp_path / "identity.json")
     tracks = [TrackRef("Kygo", "Firestone")]

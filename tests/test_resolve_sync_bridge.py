@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from playlist_builder.app.bridge_runtime.backend import RuntimeEngineBridgeBackend
 from playlist_builder.app.factory import build_app_context
 from playlist_builder.app.playlist_library.provider import RepositoryProvider
@@ -11,6 +13,7 @@ from playlist_builder.ui.shared.dto.playlist_library import ManagedPlaylistDetai
 from playlist_builder.ui.shared.dto.remote_playlist import RemotePlaylistSnapshot, RemotePlaylistTrack, remote_playlist_snapshot_checksum
 
 
+@pytest.mark.integration
 def test_resolve_sync_conflicts_bridge_round_trip(tmp_path: Path) -> None:
     context = build_app_context()
     provider = RepositoryProvider(
