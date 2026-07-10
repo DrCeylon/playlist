@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — Phase 6.6; extended July 2026 (docs only).
+Accepted — Phase 6.6 implemented July 2026.
 
 ## Context
 
@@ -41,11 +41,23 @@ playlist_builder/integration/youtube_music/
 2. `ProviderAuthPort.connect` validates file readable — stores path in Keychain reference, not content in logs
 3. On failure → `auth_state=error`, UI suggests **Import fichier JSON/CSV**
 
-### Read scope v1
+### Read scope v1 (implemented)
 
-- List user playlists (if auth works)
-- Get playlist tracks
-- **No write port** in v1
+- List user playlists (authenticated)
+- Get playlist tracks (public or authenticated)
+- Catalog search (experimental)
+- **No write port** — `playlist_write = None`, no `PLAYLIST_SYNC`
+
+### Capabilities matrix
+
+| Capability | When |
+|------------|------|
+| `experimental` | Always |
+| `authentication` | Gateway registered |
+| `public_playlist_import` | `ytmusicapi` installed |
+| `playlist_library_browse` | Connected account |
+| `catalog_search` | `ytmusicapi` installed |
+| `playlist_sync` | **Not declared** in 6.6 |
 
 ### Legal / product
 

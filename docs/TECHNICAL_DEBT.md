@@ -1,11 +1,11 @@
-# Dette technique — état `main` (juillet 2026, post Phase 6.5)
+# Dette technique — état `main` (juillet 2026, post Phase 6.6)
 
 Document de référence pour la release engineering. Aucun marqueur `TODO` / `FIXME` / `HACK` / `XXX` / `TEMP` actif dans le code source applicatif (hors enums métier `PENDING`).
 
 | Sujet | Priorité | Impact | Estimation | Recommandation |
 |-------|----------|--------|------------|----------------|
 | Warnings Sendable Swift 6 | Moyenne | Bruit CI / migration future | Modérée | Traiter par cible (`ResonanceCore` d'abord) sans changer le comportement |
-| Gateway YouTube Music réel | Haute | Sync/compare providers bloqués | Élevée | Voir [ADR-018](../architecture/ADR-018-experimental-youtube-music-gateway.md) — phase 6.6 |
+| Gateway YouTube Music réel | Moyenne | Lecture exp. livrée ; write non fiable | Modérée | ADR-018 — write reporté ; comparateur UX 6.8 |
 | Sync mirror / reorder Apple Music | Moyenne | push mirror et reorder non garantis | Modérée | Phase ultérieure après validation Music.app |
 | Résolution conflits sync automatique | Basse | Modèle prêt, pas de moteur apply | Élevée | Phase 6.7 |
 | `PlaylistBuilderViewModel` hardcode `appleMusic` | Moyenne | Sélection provider UI non effective | Faible | Activer picker existant sans coupler l'UI à Apple |

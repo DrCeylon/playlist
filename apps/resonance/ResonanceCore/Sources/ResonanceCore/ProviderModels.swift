@@ -6,6 +6,8 @@ public enum ProviderCapability: String, Codable, CaseIterable, Sendable {
     case playlistDelivery = "playlist_delivery"
     case playlistLibraryBrowse = "playlist_library_browse"
     case playlistSync = "playlist_sync"
+    case publicPlaylistImport = "public_playlist_import"
+    case authentication = "authentication"
     case experimental = "experimental"
 }
 
@@ -59,7 +61,7 @@ public enum DefaultProviders {
             displayName: "YouTube Music",
             isAvailable: false,
             unavailableReason: "Expérimental — gateway en cours d'intégration.",
-            capabilities: [.catalogSearch, .experimental],
+            capabilities: [.catalogSearch, .experimental, .authentication, .publicPlaylistImport],
             isExperimental: true
         ),
         ProviderOption(

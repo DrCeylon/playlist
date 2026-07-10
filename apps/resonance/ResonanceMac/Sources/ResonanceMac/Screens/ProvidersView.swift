@@ -115,9 +115,12 @@ struct ProvidersView: View {
                 palette.statusSuccess
             )
         }
-        if provider.isExperimental {
-            return ("Expérimental", palette.statusWarning)
-        }
+            if provider.isExperimental {
+                if provider.isAvailable {
+                    return ("Expérimental — prêt", palette.statusWarning)
+                }
+                return ("Expérimental — indisponible", palette.statusWarning)
+            }
         return ("Indisponible", palette.textSecondary)
     }
 }

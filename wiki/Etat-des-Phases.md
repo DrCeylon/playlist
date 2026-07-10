@@ -26,6 +26,7 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **6.4** | Sync planning & dry-run (`PlaylistSyncEngine`, bridge `plan_sync`) | PR #64 |
 | **6.3** | Local Playlist Repository (SSOT, `import_remote_playlist`, migration history) | `main` @ `79bee3e` |
 | **6.5** | Provider Playlist Sync Apply (`apply_sync`, opérations journalisées) | `main` @ `5052aea` — PR #66 |
+| **6.6** | YouTube Music experimental gateway (lecture, auth, fallback fichier) | branche `cursor/phase-6-6-youtube-music-experimental-gateway-ef21` |
 
 Correctifs intégrés sur `main` :
 
@@ -46,9 +47,9 @@ PR ouvertes (non fonctionnelles) :
 | [#48](https://github.com/DrCeylon/playlist/pull/48) | Agent OS — `AGENTS.md` + handbook engineering |
 | [#53](https://github.com/DrCeylon/playlist/pull/53) | Setup environnement Cursor Cloud |
 
-## État courant (`main` @ `5052aea`)
+## État courant (`main` — post 6.5, 6.6 en PR)
 
-- **464** tests Python (`pytest -q`), **1** skipped (Swift build sur macOS uniquement)
+- **476** tests Python (`pytest -q`), **1** skipped
 - **~135** tests Swift (`swift test` sur macOS, CI `resonance-macos.yml`)
 - App macOS : génération, import robuste, historique, gestionnaire de playlists (repository SSOT), lecture distante Apple Music (6.2), sync planning dry-run (6.4), import distant pur (6.3), **sync apply** push/pull append_only (6.5)
 - Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
