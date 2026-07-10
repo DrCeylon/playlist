@@ -129,6 +129,38 @@ def test_history_migration_is_idempotent(repo_paths: tuple[Path, Path]) -> None:
     assert detail.tracks[1].mapping_status == "missing_on_provider"
 
 
+def test_history_migration_picks_up_new_sessions_on_later_call(repo_paths: tuple[Path, Path]) -> None:
+    repository = JsonManagedPlaylistRepository(repo_paths[0])
+    migration = HistoryToRepositoryMigration(repository)
+    first_batch = (
+        {
+            "session_id": "sess-1",
+            "playlist_name": "First",
+            "provider_id": "apple_music",
+            "status": "imported",
+            "track_count": 1,
+            "started_at_iso": "2026-07-01T10:00:00",
+        },
+    )
+    migration.ensure_migrated(first_batch)
+    second_batch = (
+        *first_batch,
+        {
+            "session_id": "sess-2",
+            "playlist_name": "Second",
+            "provider_id": "apple_music",
+            "status": "imported",
+            "track_count": 1,
+            "started_at_iso": "2026-07-02T10:00:00",
+        },
+    )
+    migration.ensure_migrated(second_batch)
+    playlists = repository.list_playlists()
+    assert len(playlists) == 2
+    ids = {item.summary.local_playlist_id for item in playlists}
+    assert ids == {"hist-sess-1", "hist-sess-2"}
+
+
 def test_repository_provider_returns_same_instance(repo_paths: tuple[Path, Path]) -> None:
     provider = RepositoryProvider(playlists_path=repo_paths[0], snapshots_dir=repo_paths[1])
     repo_a = provider.managed_playlist_repository()

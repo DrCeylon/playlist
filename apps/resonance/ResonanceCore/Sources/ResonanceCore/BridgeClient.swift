@@ -711,7 +711,7 @@ public enum BridgePayloadBuilder {
             "remote_playlist_id": .string(snapshot.remotePlaylistID),
             "name": .string(snapshot.name),
             "snapshot_at_iso": .string(snapshot.snapshotAtISO),
-            "track_count": .number(snapshot.trackCount),
+            "track_count": .number(Double(snapshot.trackCount)),
             "checksum": .string(snapshot.checksum),
             "source_kind": .string(snapshot.sourceKind.rawValue),
             "source_url": .string(snapshot.sourceURL),
@@ -725,8 +725,8 @@ public enum BridgePayloadBuilder {
             "artist": .string(track.artist),
             "title": .string(track.title),
             "album": .string(track.album),
-            "duration_ms": .number(track.durationMS),
-            "position": .number(track.position),
+            "duration_ms": .number(Double(track.durationMS)),
+            "position": .number(Double(track.position)),
             "provider_metadata": .object(track.providerMetadata.mapValues { .string($0) }),
         ])
     }

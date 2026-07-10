@@ -15,11 +15,8 @@ class HistoryToRepositoryMigration:
 
     def __init__(self, repository: ManagedPlaylistRepository) -> None:
         self._repository = repository
-        self._migrated = False
 
     def ensure_migrated(self, history_sessions: tuple[dict[str, Any], ...]) -> None:
-        if self._migrated:
-            return
         existing_ids = {item.summary.local_playlist_id for item in self._repository.list_playlists()}
         ordered = sorted(
             history_sessions,
@@ -35,7 +32,6 @@ class HistoryToRepositoryMigration:
             detail = ManagedPlaylistDetail(summary=summary, tracks=tracks)
             self._repository.upsert(detail)
             existing_ids.add(summary.local_playlist_id)
-        self._migrated = True
 
 
 def _tracks_from_history_session(
