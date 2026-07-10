@@ -500,6 +500,37 @@ class RuntimeEngineBridgeBackend:
 
         return load_snapshot_from_file(params)
 
+    def resolve_sync_conflicts(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.playlist_library import get_managed_playlist
+        from playlist_builder.app.bridge_runtime.playlist_sync_plan import remote_snapshot_from_dict
+        from playlist_builder.app.bridge_runtime.playlist_sync_resolve import resolve_sync_conflicts
+
+        local_playlist_id = str(params.get("local_playlist_id", "")).strip()
+        if not local_playlist_id:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "local_playlist_id est requis.")
+        local = get_managed_playlist(self._repository_provider, local_playlist_id)
+        if local is None:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Playlist locale introuvable.")
+
+        remote_snapshot = None
+        if isinstance(params.get("remote_playlist"), dict):
+            remote_snapshot = remote_snapshot_from_dict({"remote_playlist": params["remote_playlist"]})
+        if remote_snapshot is None:
+            remote_playlist_id = str(params.get("remote_playlist_id", "")).strip()
+            if not remote_playlist_id:
+                raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "remote_playlist_id ou remote_playlist est requis.")
+            from playlist_builder.app.bridge_runtime.remote_playlist import get_remote_playlist
+
+            provider_id = self._parse_provider_id(params.get("provider_id"))
+            snapshot_payload = get_remote_playlist(
+                self._context.registry,
+                provider_id=provider_id,
+                remote_playlist_id=remote_playlist_id,
+            )
+            remote_snapshot = remote_snapshot_from_dict(snapshot_payload)
+
+        return resolve_sync_conflicts(params=params, local_detail=local, remote_snapshot=remote_snapshot)
+
     @staticmethod
     def _parse_provider_id(value: object) -> ProviderId:
         try:

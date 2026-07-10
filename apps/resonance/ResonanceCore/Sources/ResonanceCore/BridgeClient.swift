@@ -783,12 +783,17 @@ public enum BridgePayloadBuilder {
     }
 
     private static func syncConflict(_ object: BridgeJSONObject) -> PlaylistSyncConflict {
-        let kindRaw = object["kind"]?.stringValue ?? PlaylistTrackMappingStatus.unresolved.rawValue
+        let resolutionsRaw = object["available_resolutions"]?.arrayValue ?? []
+        let resolutions = resolutionsRaw.compactMap { $0.stringValue }
         return PlaylistSyncConflict(
             id: object["id"]?.stringValue ?? "",
             trackKey: object["track_key"]?.stringValue ?? "",
-            kind: PlaylistTrackMappingStatus(rawValue: kindRaw) ?? .unresolved,
-            message: object["message"]?.stringValue ?? ""
+            conflictKind: object["kind"]?.stringValue ?? "unresolved",
+            message: object["message"]?.stringValue ?? "",
+            scope: object["scope"]?.stringValue ?? "track",
+            severity: object["severity"]?.stringValue ?? "blocking",
+            availableResolutions: resolutions,
+            recommendedResolution: object["recommended_resolution"]?.stringValue ?? ""
         )
     }
 

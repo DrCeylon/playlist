@@ -152,19 +152,31 @@ public struct ManagedPlaylistTrack: Identifiable, Hashable, Sendable {
 public struct PlaylistSyncConflict: Identifiable, Hashable, Sendable {
     public let id: String
     public let trackKey: String
-    public let kind: PlaylistTrackMappingStatus
+    public let conflictKind: String
     public let message: String
+    public let scope: String
+    public let severity: String
+    public let availableResolutions: [String]
+    public let recommendedResolution: String
 
     public init(
         id: String,
         trackKey: String,
-        kind: PlaylistTrackMappingStatus,
-        message: String
+        conflictKind: String,
+        message: String,
+        scope: String = "track",
+        severity: String = "blocking",
+        availableResolutions: [String] = [],
+        recommendedResolution: String = ""
     ) {
         self.id = id
         self.trackKey = trackKey
-        self.kind = kind
+        self.conflictKind = conflictKind
         self.message = message
+        self.scope = scope
+        self.severity = severity
+        self.availableResolutions = availableResolutions
+        self.recommendedResolution = recommendedResolution
     }
 }
 
