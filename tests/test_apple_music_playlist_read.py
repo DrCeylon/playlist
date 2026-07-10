@@ -10,7 +10,7 @@ from playlist_builder.integration.apple_music.constants import FIELD_DELIMITER, 
 from playlist_builder.integration.apple_music.gateway import build_default_registry
 from playlist_builder.integration.apple_music.playlist_read_port import AppleMusicPlaylistReadPort
 from playlist_builder.integration.ports.playlist_read import ProviderPlaylistReadPort
-from playlist_builder.ui.shared.dto.remote_playlist import remote_playlist_snapshot_checksum
+from playlist_builder.ui.shared.dto.remote_playlist import RemotePlaylistTrack, remote_playlist_snapshot_checksum
 
 
 def test_parse_user_playlist_rows() -> None:
@@ -63,3 +63,29 @@ def test_get_playlist_requires_remote_playlist_id() -> None:
     port = AppleMusicPlaylistReadPort(MagicMock())
     with pytest.raises(ValueError, match="remote_playlist_id"):
         port.get_playlist("  ")
+
+
+def test_parse_user_playlist_rows_preserves_special_characters() -> None:
+    row = f"pl-1{FIELD_DELIMITER}Soirée « Chill » & Co.{FIELD_DELIMITER}3"
+    rows = AppleScriptClient._parse_user_playlist_rows(row)
+    assert rows == [("pl-1", "Soirée « Chill » & Co.", 3)]
+
+
+def test_parse_playlist_track_rows_preserves_stable_positions() -> None:
+    row_a = f"t-2{FIELD_DELIMITER}Björk{FIELD_DELIMITER}Hyperballad{FIELD_DELIMITER}Post{FIELD_DELIMITER}300{FIELD_DELIMITER}2"
+    row_b = f"t-1{FIELD_DELIMITER}Björk{FIELD_DELIMITER}Army of Me{FIELD_DELIMITER}Post{FIELD_DELIMITER}240{FIELD_DELIMITER}1"
+    rows = AppleScriptClient._parse_playlist_track_rows(f"{row_b}{RESULT_DELIMITER}{row_a}")
+    assert [position for *_, position in rows] == [1, 2]
+    assert rows[0][1:] == ("Björk", "Army of Me", "Post", 240_000, 1)
+    assert rows[1][1:] == ("Björk", "Hyperballad", "Post", 300_000, 2)
+
+
+def test_remote_playlist_snapshot_checksum_is_deterministic() -> None:
+    tracks = (
+        RemotePlaylistTrack(remote_track_id="t-1", artist="Kygo", title="Firestone", position=1),
+        RemotePlaylistTrack(remote_track_id="t-2", artist="Avicii", title="Levels", position=2),
+    )
+    first = remote_playlist_snapshot_checksum(tracks)
+    second = remote_playlist_snapshot_checksum(tracks)
+    assert first == second
+    assert len(first) == 16
