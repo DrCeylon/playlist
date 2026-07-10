@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+from collections.abc import Callable
 from pathlib import Path
 
 from playlist_builder.app.playlist_library.serialization import (
@@ -8,6 +8,7 @@ from playlist_builder.app.playlist_library.serialization import (
     playlist_detail_from_dict,
     playlist_detail_to_dict,
 )
+from playlist_builder.infrastructure.atomic_json import locked_json_document
 from playlist_builder.ui.shared.dto.playlist_library import ManagedPlaylistDetail
 
 
@@ -21,13 +22,7 @@ class JsonManagedPlaylistRepository:
 
     def list_playlists(self) -> list[ManagedPlaylistDetail]:
         payload = self._read_payload()
-        playlists_raw = payload.get("playlists", [])
-        if not isinstance(playlists_raw, list):
-            return []
-        records: list[ManagedPlaylistDetail] = []
-        for item in playlists_raw:
-            if isinstance(item, dict):
-                records.append(playlist_detail_from_dict(item))
+        records = self._records_from_payload(payload)
         records.sort(key=lambda item: item.summary.updated_at_iso or item.summary.created_at_iso, reverse=True)
         return records
 
@@ -41,50 +36,72 @@ class JsonManagedPlaylistRepository:
         return None
 
     def upsert(self, detail: ManagedPlaylistDetail) -> ManagedPlaylistDetail:
-        playlists = self.list_playlists()
-        replaced = False
-        updated: list[ManagedPlaylistDetail] = []
-        for item in playlists:
-            if item.summary.local_playlist_id == detail.summary.local_playlist_id:
+        def mutate(playlists: list[ManagedPlaylistDetail]) -> list[ManagedPlaylistDetail]:
+            replaced = False
+            updated: list[ManagedPlaylistDetail] = []
+            for item in playlists:
+                if item.summary.local_playlist_id == detail.summary.local_playlist_id:
+                    updated.append(detail)
+                    replaced = True
+                else:
+                    updated.append(item)
+            if not replaced:
                 updated.append(detail)
-                replaced = True
-            else:
-                updated.append(item)
-        if not replaced:
-            updated.append(detail)
-        self._write_payload(updated)
+            return updated
+
+        self._mutate_playlists(mutate)
         return detail
 
     def delete(self, local_playlist_id: str) -> bool:
-        playlists = self.list_playlists()
-        kept = [item for item in playlists if item.summary.local_playlist_id != local_playlist_id]
-        if len(kept) == len(playlists):
-            return False
-        self._write_payload(kept)
-        return True
+        removed = False
+
+        def mutate(playlists: list[ManagedPlaylistDetail]) -> list[ManagedPlaylistDetail]:
+            nonlocal removed
+            kept = [item for item in playlists if item.summary.local_playlist_id != local_playlist_id]
+            removed = len(kept) != len(playlists)
+            return kept
+
+        self._mutate_playlists(mutate)
+        return removed
+
+    def _records_from_payload(self, payload: dict[str, object]) -> list[ManagedPlaylistDetail]:
+        playlists_raw = payload.get("playlists", [])
+        if not isinstance(playlists_raw, list):
+            return []
+        records: list[ManagedPlaylistDetail] = []
+        for item in playlists_raw:
+            if isinstance(item, dict):
+                records.append(playlist_detail_from_dict(item))
+        return records
+
+    def _mutate_playlists(
+        self,
+        mutator: Callable[[list[ManagedPlaylistDetail]], list[ManagedPlaylistDetail]],
+    ) -> None:
+        with locked_json_document(self._path) as locked:
+            payload = self._normalize_payload(locked)
+            updated = mutator(self._records_from_payload(payload))
+            locked.clear()
+            locked.update(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "playlists": [playlist_detail_to_dict(item) for item in updated],
+                }
+            )
 
     def _read_payload(self) -> dict[str, object]:
         if not self._path.exists():
             return {"schema_version": SCHEMA_VERSION, "playlists": []}
         try:
-            payload = json.loads(self._path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            with locked_json_document(self._path) as payload:
+                return dict(self._normalize_payload(payload))
+        except OSError:
             return {"schema_version": SCHEMA_VERSION, "playlists": []}
-        if not isinstance(payload, dict):
-            return {"schema_version": SCHEMA_VERSION, "playlists": []}
+
+    def _normalize_payload(self, payload: dict[str, object]) -> dict[str, object]:
         version = int(payload.get("schema_version", SCHEMA_VERSION) or SCHEMA_VERSION)
         if version > SCHEMA_VERSION:
             return {"schema_version": SCHEMA_VERSION, "playlists": []}
         payload.setdefault("schema_version", SCHEMA_VERSION)
         payload.setdefault("playlists", [])
         return payload
-
-    def _write_payload(self, playlists: list[ManagedPlaylistDetail]) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "schema_version": SCHEMA_VERSION,
-            "playlists": [playlist_detail_to_dict(item) for item in playlists],
-        }
-        temp = self._path.with_suffix(".tmp")
-        temp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-        temp.replace(self._path)

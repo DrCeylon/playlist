@@ -64,7 +64,7 @@ struct AppShellView: View {
         case .providers:
             ProvidersView(service: workflow.engineBridge)
         case .history:
-            HistoryView(selection: $selection, bridgeService: workflow.engineBridge)
+            HistoryView(selection: $selection)
         case .laboratory:
             DiagnosticsView()
         case .settings:

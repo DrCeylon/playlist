@@ -9,7 +9,14 @@ from playlist_builder.integration.ports.provider_auth import ProviderAuthPort
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.shared.dto import ProviderOption
 from playlist_builder.ui.shared.dto.provider import default_provider_options
+from playlist_builder.integration.youtube_music.secrets import assert_bridge_safe_mapping
 from playlist_builder.ui.shared.dto.remote_playlist import ProviderAuthState, RemoteProviderAccount
+
+
+def _bridge_safe_account_payload(account: RemoteProviderAccount) -> dict[str, Any]:
+    payload = account.to_dict()
+    assert_bridge_safe_mapping(payload)
+    return payload
 
 
 def provider_options_from_registry(registry: ProviderGatewayRegistry) -> tuple[ProviderOption, ...]:
@@ -83,7 +90,7 @@ def provider_auth_status(registry: ProviderGatewayRegistry, *, provider_id: Prov
         auth_state=state,
         capabilities=gateway.capabilities,
     )
-    payload = account.to_dict()
+    payload = _bridge_safe_account_payload(account)
     unavailable_reason = getattr(gateway, "unavailable_reason", lambda: "")()
     if unavailable_reason:
         payload["message"] = unavailable_reason
@@ -109,7 +116,7 @@ def provider_connect(registry: ProviderGatewayRegistry, *, provider_id: Provider
         auth_state=state,
         capabilities=gateway.capabilities,
     )
-    return {"provider_account": account.to_dict()}
+    return {"provider_account": _bridge_safe_account_payload(account)}
 
 
 def provider_disconnect(registry: ProviderGatewayRegistry, *, provider_id: ProviderId) -> dict[str, Any]:
@@ -126,7 +133,7 @@ def provider_disconnect(registry: ProviderGatewayRegistry, *, provider_id: Provi
         auth_state=state,
         capabilities=gateway.capabilities,
     )
-    return {"provider_account": account.to_dict()}
+    return {"provider_account": _bridge_safe_account_payload(account)}
 
 
 def load_snapshot_from_file(params: dict[str, Any]) -> dict[str, Any]:

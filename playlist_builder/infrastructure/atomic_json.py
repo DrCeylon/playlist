@@ -1,0 +1,53 @@
+from __future__ import annotations
+
+import fcntl
+import json
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Callable, Iterator
+
+
+@contextmanager
+def locked_json_document(path: Path) -> Iterator[dict[str, Any]]:
+    """Read-modify-write a JSON object file under an exclusive advisory lock."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        handle.seek(0)
+        raw = handle.read()
+        payload: dict[str, Any]
+        if raw.strip():
+            try:
+                loaded = json.loads(raw)
+            except json.JSONDecodeError:
+                loaded = {}
+        else:
+            loaded = {}
+        if not isinstance(loaded, dict):
+            loaded = {}
+        yield loaded
+        handle.seek(0)
+        handle.truncate()
+        handle.write(json.dumps(loaded, indent=2, ensure_ascii=False))
+        handle.flush()
+
+
+def update_json_document(
+    path: Path,
+    *,
+    default: Callable[[], dict[str, Any]],
+    mutator: Callable[[dict[str, Any]], None],
+) -> dict[str, Any]:
+    """Apply a mutation to a JSON document atomically under file lock."""
+    with locked_json_document(path) as payload:
+        if not payload:
+            payload.update(default())
+        mutator(payload)
+        return payload
+
+
+def write_json_document_atomic(path: Path, payload: dict[str, Any]) -> None:
+    """Write a JSON document atomically with an exclusive lock."""
+    with locked_json_document(path) as locked:
+        locked.clear()
+        locked.update(payload)

@@ -4,26 +4,38 @@ import XCTest
 
 final class BridgeClientTests: XCTestCase {
     func testBridgeCommandRawValuesMatchPythonContract() {
-        XCTAssertEqual(BridgeCommand.generatePlaylist.rawValue, "generate_playlist")
-        XCTAssertEqual(BridgeCommand.importPlaylist.rawValue, "import_playlist")
-        XCTAssertEqual(BridgeCommand.diagnostics.rawValue, "diagnostics")
-        XCTAssertEqual(BridgeCommand.continueManualAcquisition.rawValue, "continue_manual_acquisition")
-        XCTAssertEqual(BridgeCommand.listHistory.rawValue, "list_history")
-        XCTAssertEqual(BridgeCommand.getHistorySession.rawValue, "get_history_session")
-        XCTAssertEqual(BridgeCommand.autocompleteSearch.rawValue, "autocomplete_search")
-        XCTAssertEqual(BridgeCommand.listManagedPlaylists.rawValue, "list_managed_playlists")
-        XCTAssertEqual(BridgeCommand.getManagedPlaylist.rawValue, "get_managed_playlist")
-        XCTAssertEqual(BridgeCommand.syncManagedPlaylist.rawValue, "sync_managed_playlist")
-        XCTAssertEqual(BridgeCommand.planSync.rawValue, "plan_sync")
-        XCTAssertEqual(BridgeCommand.listRemotePlaylists.rawValue, "list_remote_playlists")
-        XCTAssertEqual(BridgeCommand.getRemotePlaylist.rawValue, "get_remote_playlist")
-        XCTAssertEqual(BridgeCommand.importRemotePlaylist.rawValue, "import_remote_playlist")
-        XCTAssertEqual(BridgeCommand.applySync.rawValue, "apply_sync")
-        XCTAssertEqual(BridgeCommand.providerAuthStatus.rawValue, "provider_auth_status")
-        XCTAssertEqual(BridgeCommand.providerConnect.rawValue, "provider_connect")
-        XCTAssertEqual(BridgeCommand.providerDisconnect.rawValue, "provider_disconnect")
-        XCTAssertEqual(BridgeCommand.loadRemotePlaylistFromFile.rawValue, "load_remote_playlist_from_file")
-        XCTAssertEqual(BridgeCommand.resolveSyncConflicts.rawValue, "resolve_sync_conflicts")
+        let expected: Set<String> = [
+            "list_providers",
+            "validate_generation_request",
+            "generate_playlist",
+            "import_playlist",
+            "diagnostics",
+            "continue_manual_acquisition",
+            "list_history",
+            "get_history_session",
+            "delete_history_session",
+            "clear_history",
+            "replay_generation",
+            "export_history_session",
+            "autocomplete_search",
+            "probe_manual_acquisition",
+            "retry_import_tracks",
+            "list_managed_playlists",
+            "get_managed_playlist",
+            "sync_managed_playlist",
+            "plan_sync",
+            "list_remote_playlists",
+            "get_remote_playlist",
+            "import_remote_playlist",
+            "apply_sync",
+            "provider_auth_status",
+            "provider_connect",
+            "provider_disconnect",
+            "load_remote_playlist_from_file",
+            "resolve_sync_conflicts",
+        ]
+        let actual = Set(BridgeCommand.allCases.map(\.rawValue))
+        XCTAssertEqual(actual, expected)
     }
 
     func testDiagnosticsSnapshotDecoding() throws {
