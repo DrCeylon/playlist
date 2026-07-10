@@ -1,5 +1,7 @@
 # Architecture vision
 
+> **Plugin platform:** [PLUGIN_PLATFORM_AUDIT.md](../PLUGIN_PLATFORM_AUDIT.md) · [ADR-020](ADR-020-plugin-platform-foundations.md)
+
 ## Goal
 
 Build a multi-provider playlist composition and delivery platform that can integrate

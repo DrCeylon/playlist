@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from playlist_builder.canonical.contracts import ProviderGateway
 from playlist_builder.canonical.enums import ProviderId
+from playlist_builder.platform.extension_points import ExtensionPointId
 
 
 class ProviderGatewayRegistry:
     """Registry for provider gateways used by the generic integration layer."""
+
+    extension_point_id: ExtensionPointId = ExtensionPointId.MUSIC_PROVIDER
 
     def __init__(self) -> None:
         self._gateways: dict[ProviderId, ProviderGateway] = {}
