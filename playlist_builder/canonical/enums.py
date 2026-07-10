@@ -22,7 +22,9 @@ class ProviderCapability(StrEnum):
     LIBRARY_RESOLVE = "library_resolve"
     PLAYLIST_DELIVERY = "playlist_delivery"
     PLAYLIST_LIBRARY_BROWSE = "playlist_library_browse"
+    PUBLIC_PLAYLIST_IMPORT = "public_playlist_import"
     PLAYLIST_SYNC = "playlist_sync"
+    AUTHENTICATION = "authentication"
     EXPERIMENTAL = "experimental"
 
 
