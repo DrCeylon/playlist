@@ -53,6 +53,17 @@ Import JSON/CSV produces `RemotePlaylistSnapshot` with:
 
 Recommendation v1: `source_kind=public_catalog`, `provider_id` = user-selected comparison target.
 
+### Linked remote refs (Phase 6.5)
+
+Each `LinkedRemoteRef` on `LocalManagedPlaylist` tracks provider linkage separately from snapshot immutability:
+
+| Field | Meaning |
+|-------|---------|
+| `last_seen_snapshot_checksum` | Latest remote snapshot observed (refresh/read) — not necessarily applied |
+| `last_applied_snapshot_checksum` | Remote snapshot basis of last **successful** sync apply |
+
+Legacy JSON used `snapshot_checksum` only; decode maps it to `last_seen_snapshot_checksum` with empty `last_applied_snapshot_checksum`.
+
 ## Consequences
 
 - Enables flow D (compare) without live dual API

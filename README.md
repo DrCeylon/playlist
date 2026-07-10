@@ -9,7 +9,7 @@ Génère des playlists Apple Music à partir de **mots-clés**, de **morceaux de
 Le moteur Python est aussi accessible via **Resonance**, une app macOS SwiftUI (`apps/resonance/`) :
 
 - génération de playlists, import streaming, historique ;
-- gestionnaire de playlists (preview), sync dry-run (Phase 6.4) ;
+- gestionnaire de playlists (preview), sync dry-run (Phase 6.4), **sync apply** push/pull append_only (Phase 6.5) ;
 - architecture provider-neutral (Phase 6.1+).
 
 État des phases : [wiki/Etat-des-Phases.md](wiki/Etat-des-Phases.md) · dette technique : [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md).

@@ -39,6 +39,10 @@ public struct MockPlaylistLibraryService: PlaylistLibraryServing {
         nil
     }
 
+    public func applySync(_ request: PlaylistSyncApplyRequest) async throws -> PlaylistSyncApplyResult? {
+        nil
+    }
+
     public func listRemotePlaylists(providerID: ProviderID) async throws -> [RemotePlaylist] {
         []
     }

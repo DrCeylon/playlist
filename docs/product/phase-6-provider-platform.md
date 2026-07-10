@@ -388,15 +388,27 @@ Un **publish** vers Apple Music réutilise la **delivery** existante pour l’aj
 | **Statut** | **Terminé** sur `main` — dry-run uniquement, pas de write provider |
 | **Prochaine étape** | 6.5 sync apply après 6.2 + 6.3 |
 
-### 6.5 Apple Music publish/read alignment
+### 6.5 Provider Playlist Sync Apply ✅
 
 | | |
 |--|--|
-| **Fichiers** | `AppleMusicPlaylistReadPort`, write via delivery existante |
-| **Tests** | Non-régression `test_provider_import_port`, manual acquisition, retry |
-| **Risques** | Régression import — suite CI obligatoire |
-| **Rollback** | Désactiver write port |
-| **Validation** | Push playlist test + import génération inchangé |
+| **Fichiers** | `ApplySyncPlaylist`, `SyncApplyValidator`, `PlaylistSyncStateUpdater`, `JsonPlaylistSyncOperationRepository`, `AppleMusicPlaylistWritePort` |
+| **Bridge** | `apply_sync` (nouveau) ; `plan_sync` enrichi avec `plan_checksum` |
+| **DTO** | `PlaylistSyncOperation`, `last_seen_snapshot_checksum` / `last_applied_snapshot_checksum` sur `LinkedRemoteRef` |
+| **Scope livré** | **push append_only** Apple Music ; pull append_only local ; mirror bloqué sans `confirm_destructive` |
+| **Tests** | `test_playlist_sync_apply.py`, `test_sync_architecture.py`, `test_apple_music_playlist_write.py`, `test_playlist_sync_bridge.py` (apply_sync) |
+| **Validation manuelle macOS** | Voir § 6.5.1 ci-dessous |
+| **Prochaine étape** | 6.6 gateways YouTube/Spotify ; 6.7 résolution conflits |
+
+#### 6.5.1 Validation manuelle macOS (push append_only)
+
+1. Ouvrir Music.app avec une playlist cible vide (ou noter son `remote_playlist_id`).
+2. Créer ou ouvrir une playlist gérée dans Resonance contenant au moins un morceau résolu localement.
+3. Via Diagnostics ou un appel bridge : `plan_sync` avec `direction=push_to_provider`, `sync_mode=append_only`, fournir `local_playlist_id` et snapshot distant (ou `remote_playlist_id`).
+4. Noter `plan_checksum`, `expected_local_playlist_version`, `expected_remote_snapshot_checksum`.
+5. Appeler `apply_sync` avec les mêmes paramètres + `plan_checksum` ; vérifier `operation.status=completed` et morceaux ajoutés dans Music.app.
+6. Rappeler `apply_sync` identique → résultat idempotent (`no_op` ou message idempotent).
+7. Vérifier `data/playlists/sync_operations.json` et `linked_remote_refs.last_applied_snapshot_checksum` sur la playlist locale.
 
 ### 6.6 YouTube Music experimental gateway
 

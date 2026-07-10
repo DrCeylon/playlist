@@ -6,6 +6,7 @@ public protocol PlaylistLibraryServing: Sendable {
     func importRemotePlaylist(remotePlaylist: RemotePlaylistSnapshot, origin: PlaylistOrigin) async throws -> ManagedPlaylistDetail?
     func syncManagedPlaylist(_ request: PlaylistSyncRequest) async throws -> PlaylistSyncResult
     func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlan?
+    func applySync(_ request: PlaylistSyncApplyRequest) async throws -> PlaylistSyncApplyResult?
     func listRemotePlaylists(providerID: ProviderID) async throws -> [RemotePlaylist]
     func getRemotePlaylist(providerID: ProviderID, remotePlaylistID: String) async throws -> RemotePlaylistSnapshot?
 }

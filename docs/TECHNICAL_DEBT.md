@@ -1,4 +1,4 @@
-# Dette technique — état `main` (juillet 2026, post Phase 6.3)
+# Dette technique — état `main` (juillet 2026, post Phase 6.5)
 
 Document de référence pour la release engineering. Aucun marqueur `TODO` / `FIXME` / `HACK` / `XXX` / `TEMP` actif dans le code source applicatif (hors enums métier `PENDING`).
 
@@ -6,7 +6,8 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 |-------|----------|--------|------------|----------------|
 | Warnings Sendable Swift 6 | Moyenne | Bruit CI / migration future | Modérée | Traiter par cible (`ResonanceCore` d'abord) sans changer le comportement |
 | Gateway YouTube Music réel | Haute | Sync/compare providers bloqués | Élevée | Voir [ADR-018](../architecture/ADR-018-experimental-youtube-music-gateway.md) — phase 6.6 |
-| Sync provider apply (write réel) | Haute | Dry-run + lecture distante OK ; pas de pull/push réel | Élevée | [ADR-016](../architecture/ADR-016-playlist-sync-model.md) — phase 6.5+ |
+| Sync mirror / reorder Apple Music | Moyenne | push mirror et reorder non garantis | Modérée | Phase ultérieure après validation Music.app |
+| Résolution conflits sync automatique | Basse | Modèle prêt, pas de moteur apply | Élevée | Phase 6.7 |
 | `PlaylistBuilderViewModel` hardcode `appleMusic` | Moyenne | Sélection provider UI non effective | Faible | Activer picker existant sans coupler l'UI à Apple |
 | Import `sync: true` toujours côté Swift | Basse | Pas d'import incrémental UI | Faible | Exposer toggle dans preview/import |
 | Résolution conflits sync automatique | Basse | Modèle prêt, pas de moteur apply | Élevée | Phase ultérieure après sync write |
@@ -38,7 +39,7 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests Python | 450 passed, 1 skipped |
+| Tests Python | 463 passed, 1 skipped |
 | Tests Swift (macOS CI) | ~135 |
 | Branches `origin` | `main` + 2 docs |
 | PR ouvertes (pertinentes) | #48, #53 |

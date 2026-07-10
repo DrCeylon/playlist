@@ -514,6 +514,27 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return BridgePayloadBuilder.playlistSyncPlan(from: response.result)
     }
 
+    public func applySync(_ request: PlaylistSyncApplyRequest) async throws -> PlaylistSyncApplyResult? {
+        guard let transport else {
+            return nil
+        }
+        var params: BridgeJSONObject = [
+            "local_playlist_id": .string(request.localPlaylistID),
+            "provider_id": .string(request.providerID.rawValue),
+            "direction": .string(request.direction.rawValue),
+            "sync_mode": .string(request.syncMode.rawValue),
+            "confirm_destructive": .bool(request.confirmDestructive),
+            "expected_local_playlist_version": .number(Double(request.expectedLocalPlaylistVersion)),
+            "expected_remote_snapshot_checksum": .string(request.expectedRemoteSnapshotChecksum),
+            "plan_checksum": .string(request.planChecksum),
+        ]
+        if !request.remotePlaylistID.isEmpty {
+            params["remote_playlist_id"] = .string(request.remotePlaylistID)
+        }
+        let (response, _) = try await transport.send(command: .applySync, params: params)
+        return BridgePayloadBuilder.playlistSyncApplyResult(from: response.result)
+    }
+
     public func listRemotePlaylists(providerID: ProviderID) async throws -> [RemotePlaylist] {
         guard let transport else {
             return []
