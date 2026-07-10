@@ -24,6 +24,7 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **6+ docs** | Vision Resonance Identity — Music Providers vs Resonance Services | PR #63 |
 | **6.2** | Remote Playlist Read Apple Music (`list_remote_playlists`, `get_remote_playlist`) | `main` @ `32be564` |
 | **6.4** | Sync planning & dry-run (`PlaylistSyncEngine`, bridge `plan_sync`) | PR #64 |
+| **6.3** | Local Playlist Repository (SSOT, `import_remote_playlist`, migration history) | branche `cursor/phase-6-3-local-playlist-repository-ef21` |
 
 Correctifs intégrés sur `main` :
 
@@ -35,8 +36,7 @@ Correctifs intégrés sur `main` :
 
 | Phase | Statut | Référence |
 |-------|--------|-----------|
-| **6.3** — Import local provider | Prochaine étape recommandée | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md) § 6.3 |
-| **6.5+** — Sync apply / publish | Après 6.3 | ADR-016 |
+| **6.5+** — Sync apply / publish | Prochaine étape recommandée | ADR-016 |
 
 PR ouvertes (non fonctionnelles) :
 
@@ -47,15 +47,14 @@ PR ouvertes (non fonctionnelles) :
 
 ## État courant (`main`)
 
-- **444** tests Python (`pytest -q`), **1** skipped (Swift build sur macOS uniquement)
+- **450** tests Python (`pytest -q`), **1** skipped (Swift build sur macOS uniquement)
 - **~135** tests Swift (`swift test` sur macOS, CI `resonance-macos.yml`)
-- App macOS : génération, import robuste, historique, gestionnaire de playlists (preview), lecture distante Apple Music (6.2), sync planning dry-run (6.4)
+- App macOS : génération, import robuste, historique, gestionnaire de playlists (repository SSOT), lecture distante Apple Music (6.2), sync planning dry-run (6.4), import distant pur (6.3)
 - Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
 
 ## Limitations connues
 
 - Pas de write provider (6.5+)
-- Pas de `LocalPlaylistRepository` complet (6.3)
 - Pas de sync apply (6.5+)
 - Pas de YouTube Music réel (6.6)
 - Resonance Identity : vision long terme (docs uniquement)
@@ -64,8 +63,7 @@ PR ouvertes (non fonctionnelles) :
 
 | Phase | Thème | Référence |
 |-------|-------|-----------|
-| **6.3** | Import local depuis provider | [phase-6-provider-platform.md](../docs/product/phase-6-provider-platform.md) § 6.3 |
-| **6.5** | Sync apply (après dry-run 6.4 + lecture 6.2) | ADR-016 |
+| **6.5** | Sync apply (après dry-run 6.4 + repository 6.3) | ADR-016 |
 | **Post-6** | Resonance Identity & Cloud Sync (métadonnées, optionnel) | [ADR-013](../docs/architecture/ADR-013-multi-provider-platform-vision.md) |
 
 ## Branches Git (`origin`, juillet 2026)

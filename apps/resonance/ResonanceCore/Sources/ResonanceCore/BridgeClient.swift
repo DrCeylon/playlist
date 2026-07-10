@@ -672,6 +672,9 @@ public enum BridgePayloadBuilder {
         let syncRaw = object["sync_status"]?.stringValue ?? PlaylistSyncStatus.unknown.rawValue
         let sourceRaw = object["source_kind"]?.stringValue ?? PlaylistSourceKind.localSnapshot.rawValue
         let importStatusRaw = object["import_status"]?.stringValue
+        let originRaw = object["origin"]?.stringValue ?? PlaylistOrigin.generated.rawValue
+        let refsRaw = object["linked_remote_refs"]?.arrayValue ?? []
+        let linkedRefs = refsRaw.compactMap(\.objectValue).map(linkedRemoteRef)
         return ManagedPlaylistSummary(
             localPlaylistID: object["local_playlist_id"]?.stringValue ?? "",
             name: object["name"]?.stringValue ?? "",
@@ -682,8 +685,50 @@ public enum BridgePayloadBuilder {
             providerPlaylistID: object["provider_playlist_id"]?.stringValue ?? "",
             sourceKind: PlaylistSourceKind(rawValue: sourceRaw) ?? .localSnapshot,
             importStatus: importStatusRaw.flatMap(SessionHistoryStatus.init(rawValue:)),
-            historySessionID: object["history_session_id"]?.stringValue ?? ""
+            historySessionID: object["history_session_id"]?.stringValue ?? "",
+            origin: PlaylistOrigin(rawValue: originRaw) ?? .generated,
+            playlistVersion: object["playlist_version"]?.intValue ?? 1,
+            linkedRemoteRefs: linkedRefs,
+            createdAtISO: object["created_at_iso"]?.stringValue ?? "",
+            updatedAtISO: object["updated_at_iso"]?.stringValue ?? ""
         )
+    }
+
+    private static func linkedRemoteRef(_ object: BridgeJSONObject) -> LinkedRemoteRef {
+        let providerRaw = object["provider_id"]?.stringValue ?? ProviderID.appleMusic.rawValue
+        return LinkedRemoteRef(
+            providerID: ProviderID(rawValue: providerRaw) ?? .appleMusic,
+            remotePlaylistID: object["remote_playlist_id"]?.stringValue ?? "",
+            snapshotChecksum: object["snapshot_checksum"]?.stringValue ?? "",
+            syncState: object["sync_state"]?.stringValue ?? "",
+            lastSyncAt: object["last_sync_at"]?.stringValue ?? ""
+        )
+    }
+
+    public static func remotePlaylistSnapshotJSONObject(_ snapshot: RemotePlaylistSnapshot) -> BridgeJSONObject {
+        [
+            "provider_id": .string(snapshot.providerID.rawValue),
+            "remote_playlist_id": .string(snapshot.remotePlaylistID),
+            "name": .string(snapshot.name),
+            "snapshot_at_iso": .string(snapshot.snapshotAtISO),
+            "track_count": .number(Double(snapshot.trackCount)),
+            "checksum": .string(snapshot.checksum),
+            "source_kind": .string(snapshot.sourceKind.rawValue),
+            "source_url": .string(snapshot.sourceURL),
+            "tracks": .array(snapshot.tracks.map(remotePlaylistTrackJSONObject)),
+        ]
+    }
+
+    private static func remotePlaylistTrackJSONObject(_ track: RemotePlaylistTrack) -> BridgeJSONValue {
+        .object([
+            "remote_track_id": .string(track.remoteTrackID),
+            "artist": .string(track.artist),
+            "title": .string(track.title),
+            "album": .string(track.album),
+            "duration_ms": .number(Double(track.durationMS)),
+            "position": .number(Double(track.position)),
+            "provider_metadata": .object(track.providerMetadata.mapValues { .string($0) }),
+        ])
     }
 
     private static func managedPlaylistTrack(_ object: BridgeJSONObject) -> ManagedPlaylistTrack {

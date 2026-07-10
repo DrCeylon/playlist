@@ -7,6 +7,14 @@ public enum PlaylistSourceKind: String, Codable, CaseIterable, Sendable {
     case publicCatalog = "public_catalog"
 }
 
+public enum PlaylistOrigin: String, Codable, CaseIterable, Sendable {
+    case providerLibrary = "provider_library"
+    case generated = "generated"
+    case importedFile = "imported_file"
+    case manual = "manual"
+    case shared = "shared"
+}
+
 public enum PlaylistSyncStatus: String, Codable, CaseIterable, Sendable {
     case unknown = "unknown"
     case synced = "synced"
@@ -32,6 +40,28 @@ public enum PlaylistSyncDirection: String, Codable, CaseIterable, Sendable {
     case bidirectionalPreview = "bidirectional_preview"
 }
 
+public struct LinkedRemoteRef: Hashable, Sendable {
+    public let providerID: ProviderID
+    public let remotePlaylistID: String
+    public let snapshotChecksum: String
+    public let syncState: String
+    public let lastSyncAt: String
+
+    public init(
+        providerID: ProviderID,
+        remotePlaylistID: String,
+        snapshotChecksum: String,
+        syncState: String = "",
+        lastSyncAt: String = ""
+    ) {
+        self.providerID = providerID
+        self.remotePlaylistID = remotePlaylistID
+        self.snapshotChecksum = snapshotChecksum
+        self.syncState = syncState
+        self.lastSyncAt = lastSyncAt
+    }
+}
+
 public struct ManagedPlaylistSummary: Identifiable, Hashable, Sendable {
     public let localPlaylistID: String
     public let name: String
@@ -43,6 +73,11 @@ public struct ManagedPlaylistSummary: Identifiable, Hashable, Sendable {
     public let sourceKind: PlaylistSourceKind
     public let importStatus: SessionHistoryStatus?
     public let historySessionID: String
+    public let origin: PlaylistOrigin
+    public let playlistVersion: Int
+    public let linkedRemoteRefs: [LinkedRemoteRef]
+    public let createdAtISO: String
+    public let updatedAtISO: String
 
     public var id: String { localPlaylistID }
 
@@ -56,7 +91,12 @@ public struct ManagedPlaylistSummary: Identifiable, Hashable, Sendable {
         providerPlaylistID: String = "",
         sourceKind: PlaylistSourceKind = .localSnapshot,
         importStatus: SessionHistoryStatus? = nil,
-        historySessionID: String = ""
+        historySessionID: String = "",
+        origin: PlaylistOrigin = .generated,
+        playlistVersion: Int = 1,
+        linkedRemoteRefs: [LinkedRemoteRef] = [],
+        createdAtISO: String = "",
+        updatedAtISO: String = ""
     ) {
         self.localPlaylistID = localPlaylistID
         self.name = name
@@ -68,6 +108,11 @@ public struct ManagedPlaylistSummary: Identifiable, Hashable, Sendable {
         self.sourceKind = sourceKind
         self.importStatus = importStatus
         self.historySessionID = historySessionID
+        self.origin = origin
+        self.playlistVersion = playlistVersion
+        self.linkedRemoteRefs = linkedRemoteRefs
+        self.createdAtISO = createdAtISO
+        self.updatedAtISO = updatedAtISO
     }
 }
 

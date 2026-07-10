@@ -22,6 +22,7 @@ public enum BridgeCommand: String, Codable, Sendable {
     case planSync = "plan_sync"
     case listRemotePlaylists = "list_remote_playlists"
     case getRemotePlaylist = "get_remote_playlist"
+    case importRemotePlaylist = "import_remote_playlist"
 }
 
 public enum BridgeEventType: String, Codable, Sendable {

@@ -1,10 +1,33 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.ui.shared.validation import dto_to_dict
+
+
+class PlaylistOrigin(StrEnum):
+    PROVIDER_LIBRARY = "provider_library"
+    GENERATED = "generated"
+    IMPORTED_FILE = "imported_file"
+    MANUAL = "manual"
+    SHARED = "shared"
+
+
+@dataclass(frozen=True, slots=True)
+class LinkedRemoteRef:
+    provider_id: ProviderId
+    remote_playlist_id: str
+    snapshot_checksum: str
+    sync_state: str = ""
+    last_sync_at: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = dto_to_dict(self)
+        payload["provider_id"] = self.provider_id.value
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,10 +42,16 @@ class ManagedPlaylistSummary:
     source_kind: str = "generated_import"
     import_status: str | None = None
     history_session_id: str = ""
+    origin: str = PlaylistOrigin.GENERATED.value
+    playlist_version: int = 1
+    linked_remote_refs: tuple[LinkedRemoteRef, ...] = ()
+    created_at_iso: str = ""
+    updated_at_iso: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = dto_to_dict(self)
         payload["provider_id"] = self.provider_id.value
+        payload["linked_remote_refs"] = [ref.to_dict() for ref in self.linked_remote_refs]
         return payload
 
 
@@ -81,6 +110,7 @@ class PlaylistSyncResult:
 
 
 def managed_playlist_from_history_session(session: dict[str, Any]) -> ManagedPlaylistSummary | None:
+    """Build a summary from a history session — used only for lazy migration."""
     session_id = str(session.get("session_id", "")).strip()
     playlist_name = str(session.get("playlist_name", "")).strip()
     if not session_id or not playlist_name:
@@ -92,15 +122,20 @@ def managed_playlist_from_history_session(session: dict[str, Any]) -> ManagedPla
         provider_id = ProviderId.APPLE_MUSIC
     status = str(session.get("status", ""))
     sync_status = "synced" if status == "imported" else "partial" if status == "partial_success" else "pending"
+    finished_at = str(session.get("finished_at_iso", "") or "")
     return ManagedPlaylistSummary(
         local_playlist_id=f"hist-{session_id}",
         name=playlist_name,
         provider_id=provider_id,
         track_count=int(session.get("track_count", 0) or 0),
         sync_status=sync_status,
-        last_synced_at_iso=str(session.get("finished_at_iso", "") or ""),
+        last_synced_at_iso=finished_at,
         provider_playlist_id="",
         source_kind="generated_import",
         import_status=status or None,
         history_session_id=session_id,
+        origin=PlaylistOrigin.GENERATED.value,
+        playlist_version=1,
+        created_at_iso=str(session.get("started_at_iso", "") or ""),
+        updated_at_iso=finished_at,
     )

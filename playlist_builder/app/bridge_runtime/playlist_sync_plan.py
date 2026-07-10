@@ -7,9 +7,11 @@ from playlist_builder.canonical.enums import ProviderCapability, ProviderId
 from playlist_builder.integration.gateway.registry import ProviderGatewayRegistry
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.shared.dto.playlist_library import (
+    LinkedRemoteRef,
     ManagedPlaylistDetail,
     ManagedPlaylistSummary,
     ManagedPlaylistTrack,
+    PlaylistOrigin,
 )
 from playlist_builder.ui.shared.dto.playlist_sync import SyncDirection, SyncMode
 from playlist_builder.ui.shared.dto.remote_playlist import RemotePlaylistSnapshot, RemotePlaylistTrack
@@ -91,6 +93,26 @@ def managed_playlist_detail_from_dict(payload: dict[str, Any]) -> ManagedPlaylis
     summary_raw = payload.get("playlist") or payload
     if not isinstance(summary_raw, dict):
         raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "playlist invalide.")
+    refs_raw = summary_raw.get("linked_remote_refs", [])
+    linked_refs: list[LinkedRemoteRef] = []
+    if isinstance(refs_raw, list):
+        for item in refs_raw:
+            if isinstance(item, dict):
+                provider_raw = str(item.get("provider_id", ProviderId.APPLE_MUSIC.value))
+                try:
+                    ref_provider = ProviderId(provider_raw)
+                except ValueError:
+                    ref_provider = ProviderId.APPLE_MUSIC
+                linked_refs.append(
+                    LinkedRemoteRef(
+                        provider_id=ref_provider,
+                        remote_playlist_id=str(item.get("remote_playlist_id", "")),
+                        snapshot_checksum=str(item.get("snapshot_checksum", "")),
+                        sync_state=str(item.get("sync_state", "")),
+                        last_sync_at=str(item.get("last_sync_at", "")),
+                    )
+                )
+
     summary = ManagedPlaylistSummary(
         local_playlist_id=str(summary_raw.get("local_playlist_id", "")),
         name=str(summary_raw.get("name", "")),
@@ -102,6 +124,11 @@ def managed_playlist_detail_from_dict(payload: dict[str, Any]) -> ManagedPlaylis
         source_kind=str(summary_raw.get("source_kind", "generated_import")),
         import_status=summary_raw.get("import_status"),
         history_session_id=str(summary_raw.get("history_session_id", "")),
+        origin=str(summary_raw.get("origin", PlaylistOrigin.GENERATED.value)),
+        playlist_version=int(summary_raw.get("playlist_version", 1) or 1),
+        linked_remote_refs=tuple(linked_refs),
+        created_at_iso=str(summary_raw.get("created_at_iso", "")),
+        updated_at_iso=str(summary_raw.get("updated_at_iso", "")),
     )
     tracks_raw = summary_raw.get("tracks", [])
     tracks: list[ManagedPlaylistTrack] = []

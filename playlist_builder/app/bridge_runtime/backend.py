@@ -27,6 +27,8 @@ from playlist_builder.ui.bridge.commands import (
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.bridge.events import BridgeEvent
 from playlist_builder.app.bridge_runtime.diagnostics_snapshot import build_diagnostics_snapshot
+from playlist_builder.app.playlist_library.migration import HistoryToRepositoryMigration
+from playlist_builder.app.playlist_library.provider import RepositoryProvider
 from playlist_builder.app.bridge_runtime.import_session import ImportSessionStore
 from playlist_builder.app.bridge_runtime.import_stream import stream_import_playlist
 from playlist_builder.app.bridge_runtime.manual_acquisition_workflow import ManualAcquisitionWorkflowCoordinator
@@ -58,6 +60,13 @@ class RuntimeEngineBridgeBackend:
         )
         self._generation_engine = self._build_generation_engine(context)
         self._history = SessionHistoryService(SessionHistoryRepository(Path("data/history/sessions.json")))
+        self._repository_provider = RepositoryProvider(
+            playlists_path=context.settings.managed_playlists_path,
+            snapshots_dir=context.settings.playlist_snapshots_dir,
+        )
+        self._playlist_migration = HistoryToRepositoryMigration(
+            self._repository_provider.managed_playlist_repository(),
+        )
         self._autocomplete = AutocompleteSearchUseCase(context.gateway)
 
     def autocomplete_search(self, params: dict) -> AutocompleteSearchResult:
@@ -328,14 +337,32 @@ class RuntimeEngineBridgeBackend:
         return ImportPlaylistResult(import_result=item.import_result, history_session_id=updated.session_id)
 
     def list_managed_playlists(self) -> tuple[dict[str, Any], ...]:
-        from playlist_builder.app.bridge_runtime.playlist_library import list_managed_playlists_from_history
+        from playlist_builder.app.bridge_runtime.playlist_library import list_managed_playlists
 
-        return list_managed_playlists_from_history(self.list_history())
+        return list_managed_playlists(
+            self._repository_provider,
+            self._playlist_migration,
+            self.list_history(),
+        )
 
     def get_managed_playlist(self, local_playlist_id: str) -> dict[str, Any] | None:
-        from playlist_builder.app.bridge_runtime.playlist_library import managed_playlist_detail
+        from playlist_builder.app.bridge_runtime.playlist_library import get_managed_playlist
 
-        return managed_playlist_detail(self, local_playlist_id)
+        return get_managed_playlist(
+            self._repository_provider,
+            self._playlist_migration,
+            self.list_history(),
+            local_playlist_id,
+        )
+
+    def import_remote_playlist(self, params: dict[str, Any]) -> dict[str, Any]:
+        from playlist_builder.app.bridge_runtime.playlist_library import import_remote_playlist
+        from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
+
+        try:
+            return import_remote_playlist(self._repository_provider, params)
+        except ValueError as exc:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, str(exc)) from exc
 
     def sync_managed_playlist(self, params: dict[str, Any]) -> dict[str, Any]:
         from playlist_builder.app.bridge_runtime.playlist_library import sync_managed_playlist_stub
@@ -343,7 +370,7 @@ class RuntimeEngineBridgeBackend:
         return sync_managed_playlist_stub(params)
 
     def plan_sync(self, params: dict[str, Any]) -> dict[str, Any]:
-        from playlist_builder.app.bridge_runtime.playlist_library import managed_playlist_detail
+        from playlist_builder.app.bridge_runtime.playlist_library import get_managed_playlist
         from playlist_builder.app.bridge_runtime.playlist_sync_plan import (
             managed_playlist_detail_from_dict,
             plan_sync,
@@ -380,7 +407,12 @@ class RuntimeEngineBridgeBackend:
             local_playlist_id = str(params.get("local_playlist_id", "")).strip()
             if not local_playlist_id:
                 raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "local_playlist_id est requis.")
-            playlist_payload = managed_playlist_detail(self, local_playlist_id)
+            playlist_payload = get_managed_playlist(
+                self._repository_provider,
+                self._playlist_migration,
+                self.list_history(),
+                local_playlist_id,
+            )
             if playlist_payload is None:
                 raise BridgeError(BridgeErrorCode.INVALID_REQUEST, "Playlist locale introuvable.")
             local_detail = managed_playlist_detail_from_dict(playlist_payload)
