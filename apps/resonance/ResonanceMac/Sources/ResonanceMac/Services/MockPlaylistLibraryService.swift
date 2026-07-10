@@ -46,4 +46,12 @@ public struct MockPlaylistLibraryService: PlaylistLibraryServing {
     public func getRemotePlaylist(providerID: ProviderID, remotePlaylistID: String) async throws -> RemotePlaylistSnapshot? {
         nil
     }
+
+    public func importRemotePlaylist(
+        remotePlaylist: RemotePlaylistSnapshot,
+        origin: PlaylistOrigin
+    ) async throws -> ManagedPlaylistDetail? {
+        guard let summary = playlists.first else { return nil }
+        return ManagedPlaylistDetail(summary: summary, tracks: [])
+    }
 }

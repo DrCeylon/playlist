@@ -368,15 +368,16 @@ Un **publish** vers Apple Music réutilise la **delivery** existante pour l’aj
 | **Statut** | **Terminé** — lecture seule Music.app via AppleScript ; pas de write |
 | **Prochaine étape** | 6.3 import local provider |
 
-### 6.3 Local Import from Provider
+### 6.3 Local Playlist Repository ✅
 
 | | |
 |--|--|
-| **Fichiers** | `LocalPlaylistRepository` ; `ImportRemotePlaylist` use case ; hydrate tracks |
-| **Tests** | Repository CRUD ; import crée `LocalManagedPlaylist` |
-| **Risques** | Duplication avec session history — lier via `historySessionID` optionnel |
-| **Rollback** | Repository derrière interface |
-| **Validation** | Import visible dans Playlists UI |
+| **Fichiers** | `app/playlist_library/` (`ManagedPlaylistRepository`, `JsonManagedPlaylistRepository`, `SnapshotArchive`, `RepositoryProvider`, `ImportRemotePlaylist`, migration history) |
+| **Bridge** | `list_managed_playlists`, `get_managed_playlist` (repository SSOT) ; `import_remote_playlist` (nouveau) |
+| **DTO** | Réutilise `ManagedPlaylistSummary` / `Detail` / `Track` + `origin`, `playlist_version`, `linked_remote_refs` |
+| **Tests** | `test_playlist_repository.py`, `test_playlist_library_bridge.py` ; Swift decode nouveaux champs |
+| **Statut** | **Terminé** — repository JSON local-first ; historique = audit uniquement ; migration lazy idempotente |
+| **Prochaine étape** | 6.5 sync apply |
 
 ### 6.4 Sync Plan / Dry Run ✅ (mergé PR #64)
 

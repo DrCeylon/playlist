@@ -2,34 +2,58 @@ from __future__ import annotations
 
 from typing import Any
 
+from playlist_builder.app.playlist_library.import_remote import ImportRemotePlaylist
+from playlist_builder.app.playlist_library.migration import HistoryToRepositoryMigration
+from playlist_builder.app.playlist_library.provider import RepositoryProvider
+from playlist_builder.app.bridge_runtime.playlist_sync_plan import remote_snapshot_from_dict
 from playlist_builder.ui.shared.dto.playlist_library import (
-    ManagedPlaylistDetail,
-    ManagedPlaylistSummary,
+    PlaylistOrigin,
     PlaylistSyncResult,
-    managed_playlist_from_history_session,
 )
 
 
-def list_managed_playlists_from_history(sessions: tuple[dict[str, Any], ...]) -> tuple[dict[str, Any], ...]:
-    playlists: list[dict[str, Any]] = []
-    for session in sessions:
-        summary = managed_playlist_from_history_session(session)
-        if summary is not None:
-            playlists.append(summary.to_dict())
-    return tuple(playlists)
+def list_managed_playlists(
+    provider: RepositoryProvider,
+    migration: HistoryToRepositoryMigration,
+    history_sessions: tuple[dict[str, Any], ...],
+) -> tuple[dict[str, Any], ...]:
+    migration.ensure_migrated(history_sessions)
+    repository = provider.managed_playlist_repository()
+    return tuple(item.summary.to_dict() for item in repository.list_playlists())
 
 
-def managed_playlist_detail(backend: Any, local_playlist_id: str) -> dict[str, Any] | None:
+def get_managed_playlist(
+    provider: RepositoryProvider,
+    migration: HistoryToRepositoryMigration,
+    history_sessions: tuple[dict[str, Any], ...],
+    local_playlist_id: str,
+) -> dict[str, Any] | None:
+    migration.ensure_migrated(history_sessions)
     playlist_id = str(local_playlist_id).strip()
     if not playlist_id:
         return None
-    for session in backend.list_history():
-        summary = managed_playlist_from_history_session(session)
-        if summary is None or summary.local_playlist_id != playlist_id:
-            continue
-        detail = ManagedPlaylistDetail(summary=summary, tracks=())
-        return {"playlist": detail.to_dict()}
-    return None
+    detail = provider.managed_playlist_repository().get_playlist(playlist_id)
+    if detail is None:
+        return None
+    return {"playlist": detail.to_dict()}
+
+
+def import_remote_playlist(
+    provider: RepositoryProvider,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    remote_raw = params.get("remote_playlist")
+    if not isinstance(remote_raw, dict):
+        raise ValueError("remote_playlist est requis.")
+    snapshot = remote_snapshot_from_dict({"remote_playlist": remote_raw})
+    origin_raw = str(params.get("origin", PlaylistOrigin.PROVIDER_LIBRARY.value)).strip()
+    local_playlist_id = str(params.get("local_playlist_id", "")).strip() or None
+    use_case = ImportRemotePlaylist(
+        provider.managed_playlist_repository(),
+        provider.snapshot_archive(),
+    )
+    detail = use_case.execute(snapshot, origin=origin_raw, local_playlist_id=local_playlist_id)
+    return {"playlist": detail.to_dict()}
 
 
 def sync_managed_playlist_stub(params: dict[str, Any]) -> dict[str, Any]:

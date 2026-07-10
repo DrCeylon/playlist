@@ -17,6 +17,7 @@ final class BridgeClientTests: XCTestCase {
         XCTAssertEqual(BridgeCommand.planSync.rawValue, "plan_sync")
         XCTAssertEqual(BridgeCommand.listRemotePlaylists.rawValue, "list_remote_playlists")
         XCTAssertEqual(BridgeCommand.getRemotePlaylist.rawValue, "get_remote_playlist")
+        XCTAssertEqual(BridgeCommand.importRemotePlaylist.rawValue, "import_remote_playlist")
     }
 
     func testDiagnosticsSnapshotDecoding() throws {

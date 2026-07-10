@@ -459,6 +459,26 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return BridgePayloadBuilder.managedPlaylistDetail(from: response.result)
     }
 
+    public func importRemotePlaylist(
+        remotePlaylist: RemotePlaylistSnapshot,
+        origin: PlaylistOrigin = .providerLibrary
+    ) async throws -> ManagedPlaylistDetail? {
+        guard let transport else {
+            return try await MockPlaylistLibraryService().importRemotePlaylist(
+                remotePlaylist: remotePlaylist,
+                origin: origin
+            )
+        }
+        let (response, _) = try await transport.send(
+            command: .importRemotePlaylist,
+            params: [
+                "remote_playlist": .object(BridgePayloadBuilder.remotePlaylistSnapshotJSONObject(remotePlaylist)),
+                "origin": .string(origin.rawValue),
+            ]
+        )
+        return BridgePayloadBuilder.managedPlaylistDetail(from: response.result)
+    }
+
     public func syncManagedPlaylist(_ request: PlaylistSyncRequest) async throws -> PlaylistSyncResult {
         guard let transport else {
             return try await MockPlaylistLibraryService().syncManagedPlaylist(request)

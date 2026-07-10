@@ -15,3 +15,5 @@ class AppSettings:
     wait_for_manual_catalog_add: bool = False
     catalog_acquisition_min_confidence: float = 70.0
     use_catalog_cache: bool = True
+    managed_playlists_path: Path = Path("data/playlists/managed_playlists.json")
+    playlist_snapshots_dir: Path = Path("data/playlists/snapshots")
