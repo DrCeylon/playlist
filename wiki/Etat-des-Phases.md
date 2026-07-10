@@ -28,6 +28,7 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **6.5** | Provider Playlist Sync Apply (`apply_sync`, opérations journalisées) | `main` @ `5052aea` — PR #66 |
 | **6.6** | YouTube Music experimental gateway (lecture, auth, fallback fichier) | `main` @ `7383b78` — PR #67 |
 | **6.7** | Intelligent conflict resolution (`resolve_sync_conflicts`) | `main` @ `a5874c7` — PR #68 |
+| **OSS prep** | Documentation contributeur, gouvernance, audit OSS | Branche `cursor/oss-readiness-ef21` |
 
 Correctifs intégrés sur `main` :
 
@@ -39,19 +40,23 @@ Correctifs intégrés sur `main` :
 
 | Phase | Statut | Référence |
 |-------|--------|-----------|
-| **6.6+** — Gateways YouTube/Spotify | Prochaine étape | ADR-018 |
+| **6.8** | Product Experience (SwiftUI wizard sync, providers) | [phase-6-provider-platform.md §6.8](../docs/product/phase-6-provider-platform.md) |
+| **OSS** | Préparation Open Source (docs EN, gouvernance) | [OSS_READINESS_AUDIT](../docs/OSS_READINESS_AUDIT.md) |
+| **6.6+** — Gateways YouTube/Spotify | Prochaine étape technique | ADR-018 |
 
 PR ouvertes (non fonctionnelles) :
 
 | PR | Sujet |
 |----|-------|
+| [#70](https://github.com/DrCeylon/playlist/pull/70) | Quality audit — P0 fixes, CI baseline |
 | [#48](https://github.com/DrCeylon/playlist/pull/48) | Agent OS — `AGENTS.md` + handbook engineering |
 | [#53](https://github.com/DrCeylon/playlist/pull/53) | Setup environnement Cursor Cloud |
 
 ## État courant (`main` @ `a5874c7`)
 
-- **486** tests Python (`pytest -q`), **1** skipped
-- App macOS : … sync apply (6.5), **YouTube Music expérimental** lecture/import (6.6)
+- **490+** tests Python (`pytest -q`), **1** skipped
+- App macOS : … sync apply (6.5), **YouTube Music expérimental** lecture/import (6.6), résolution conflits (6.7)
+- Documentation contributeur : [README](../README.md), [CONTRIBUTING](../CONTRIBUTING.md), [docs/](../docs/README.md)
 - Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
 
 ## Limitations connues
@@ -64,8 +69,9 @@ PR ouvertes (non fonctionnelles) :
 
 | Phase | Thème | Référence |
 |-------|-------|-----------|
-| **6.8** | UX wizard sync + comparateur providers | Phase 6 product doc |
+| **6.8** | UX produit (wizard sync, providers, polish SwiftUI) | [phase-6 §6.8](../docs/product/phase-6-provider-platform.md) |
 | **Post-6** | Resonance Identity & Cloud Sync (métadonnées, optionnel) | [ADR-013](../docs/architecture/ADR-013-multi-provider-platform-vision.md) |
+| **OSS** | Publication publique GitHub (MIT, gouvernance) | [OSS_READINESS_AUDIT](../docs/OSS_READINESS_AUDIT.md) |
 
 ## Branches Git (`origin`, juillet 2026)
 
@@ -81,7 +87,7 @@ Les branches feature mergées sont supprimées après fast-forward.
 
 ```bash
 python3.12 -m pytest -q
-cd apps/resonance && swift build && swift test && ./scripts/build.sh
+make check-all   # macOS : pytest + Swift build
 ```
 
-444 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+490+ tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).

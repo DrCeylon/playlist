@@ -1,52 +1,41 @@
 # Publication du wiki GitHub
 
-Ce dossier contient la documentation wiki complète en français.
+Ce dossier contient la **documentation utilisateur en français**. La documentation contributeur est dans le dépôt principal (`docs/`, `CONTRIBUTING.md`).
 
 ## Publier sur le wiki GitHub
 
-Le wiki GitHub est un dépôt Git séparé. Pour publier :
+Le wiki GitHub est un dépôt Git séparé :
 
 ```bash
-cd /chemin/vers/playlist
-git pull origin main
-cp wiki/*.md playlist.wiki/
-cd playlist.wiki
+git clone https://github.com/DrCeylon/playlist.git
+cd playlist && git pull origin main
+cp wiki/*.md /chemin/vers/playlist.wiki/
+cd /chemin/vers/playlist.wiki
 git add .
-git commit -m "Mise à jour wiki — Phase 4.8A clôture Resonance"
+git commit -m "Mise à jour wiki Resonance"
 git push origin master
 ```
 
-## Dernière mise à jour (juillet 2026 — post intégration 5.1.1)
+## Dernière mise à jour (juillet 2026 — préparation Open Source)
 
-- Phases **5.1** et **5.1.1** clôturées sur `main`
-- PR #34–#37 mergées ; aucune PR ouverte
-- [État des phases](Etat-des-Phases) · [Phase 5.1.1 Import UX](Phase-5-1-1-Import-UX)
-- 323 tests Python ; `swift test` sur macOS
+- Phases fonctionnelles 1–6.8 terminées sur `main`
+- **490+** tests Python
+- Documentation contributeur : `docs/README.md`, `CONTRIBUTING.md`, `AGENTS.md`
+- [État des phases](Etat-des-Phases) · [Maintenance Git](Maintenance-et-Workflow)
 
-## Structure des pages
+## Structure
 
-| Fichier | Page wiki |
-|---------|-----------|
-| `Home.md` | Page d'accueil |
-| `_Sidebar.md` | Navigation latérale |
-| `Etat-des-Phases.md` | **Avancement phases & PR** |
-| `Maintenance-et-Workflow.md` | **Workflow Git & nettoyage** |
-| `Architecture-Technique.md` | Architecture |
-| `Phase-5-1-Smart-Input.md` | Clôture Phase 5.1 |
-| `Smart-Input-Framework.md` | Architecture Smart Input |
-| `Phase-5-Vision.md` | Roadmap Phase 5+ |
-| `Depannage-et-FAQ.md` | Dépannage |
-
-## Ancienne section structure
-
-| Fichier | Page wiki |
-|---------|-----------|
-| `Vision-et-Objectif.md` | Vision et objectif |
-| `Phase-4-Interface-Resonance.md` | Phase 4 — app macOS |
-| `Phase-4-8A-Cloture.md` | Clôture Phase 4.8A |
+| Fichier | Audience |
+|---------|----------|
+| `Home.md` | Accueil utilisateur |
+| `Guide-de-demarrage.md` | Premiers pas |
+| `Etat-des-Phases.md` | Avancement technique |
+| `Vision-et-Objectif.md` | Pourquoi Resonance existe |
+| `Depannage-et-FAQ.md` | Support utilisateur |
 
 ## Lien depuis le README
 
 ```markdown
-📖 [Documentation complète (Wiki)](https://github.com/DrCeylon/playlist/wiki)
+📖 [Documentation utilisateur (Wiki)](https://github.com/DrCeylon/playlist/wiki)
+🛠 [Contributing](https://github.com/DrCeylon/playlist/blob/main/CONTRIBUTING.md)
 ```

@@ -61,10 +61,10 @@ Le créateur du repo a ses **préférences personnelles** (voir Orlando), mais l
 
 | Question | Réponse |
 |----------|---------|
-| Commercial ? | Non — projet perso |
-| Open source ? | Oui — fork, adapte, améliore |
-| Produit Guidewire ? | Non — side project sans lien employeur |
-| App iOS ? | Objectif long terme |
+| Commercial ? | Non — projet open source (MIT) |
+| Open source ? | Oui — [Contributing](../CONTRIBUTING.md) |
+| Compte Resonance requis ? | Non — local-first |
+| App iOS ? | Roadmap — voir [ROADMAP](../docs/ROADMAP.md) |
 | MusicKit payant requis ? | Non — workflow gratuit disponible |
 
 ---

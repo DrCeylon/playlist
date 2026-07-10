@@ -2,37 +2,29 @@
 
 ---
 
-**Vision**
-- [**Vision et objectif**](Vision-et-Objectif)
-- [À propos](A-propos)
-- [Principes produit](Principes-Produit)
-
-**Démarrer**
+**Utilisateur**
 - [Guide de démarrage](Guide-de-demarrage)
 - [Workflow complet](Workflow-complet)
+- [Dépannage & FAQ](Depannage-et-FAQ)
+
+**Produit**
+- [Vision et objectif](Vision-et-Objectif)
+- [Principes produit](Principes-Produit)
+- [État des phases](Etat-des-Phases)
+
+**Contributeur** *(dépôt principal)*
+- [README](https://github.com/DrCeylon/playlist#readme)
+- [Contributing](https://github.com/DrCeylon/playlist/blob/main/CONTRIBUTING.md)
+- [Architecture](https://github.com/DrCeylon/playlist/blob/main/docs/ARCHITECTURE.md)
+- [Roadmap](https://github.com/DrCeylon/playlist/blob/main/docs/ROADMAP.md)
 
 **Référence**
 - [Format JSON](Format-JSON-Playlist)
 - [Commandes CLI](Commandes-et-Options)
-- [Architecture](Architecture-Technique)
-
-**Contenu**
 - [Playlist Orlando](Playlist-Orlando-Pool-Party)
 
-**Évolution**
-- [Phase 2 — Génération](Phase-2-Generation)
-- [**Phase 4 — Resonance**](Phase-4-Interface-Resonance)
-- [**Phase 4.8A — Clôture**](Phase-4-8A-Cloture)
-- [**Phase 5.1 — Smart Input**](Phase-5-1-Smart-Input)
-- [**Phase 5.1.1 — Import UX**](Phase-5-1-1-Import-UX)
-- [**Phase 5.2 — Clôture**](Phase-5-2-Cloture)
-- [**Phase 5.3 — Performance**](Phase-5-3-Performance)
-- [Smart Input Framework](Smart-Input-Framework)
-- [État des phases](Etat-des-Phases)
-- [Phase 5 — Vision produit](Phase-5-Vision)
-- [Maintenance & workflow Git](Maintenance-et-Workflow)
-- [MusicKit expérimental](MusicKit-Experimental)
-- [Feuille de route iOS](Feuille-de-route-iOS)
-
-**Support**
-- [Dépannage & FAQ](Depannage-et-FAQ)
+**Historique**
+- [Phase 4 — Resonance](Phase-4-Interface-Resonance)
+- [Phase 5 — Smart Input](Phase-5-1-Smart-Input)
+- [Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
+- [Maintenance & Git](Maintenance-et-Workflow)
