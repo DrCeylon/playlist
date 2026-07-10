@@ -52,6 +52,10 @@ class BridgeCommand(StrEnum):
     GET_REMOTE_PLAYLIST = "get_remote_playlist"
     IMPORT_REMOTE_PLAYLIST = "import_remote_playlist"
     APPLY_SYNC = "apply_sync"
+    PROVIDER_AUTH_STATUS = "provider_auth_status"
+    PROVIDER_CONNECT = "provider_connect"
+    PROVIDER_DISCONNECT = "provider_disconnect"
+    LOAD_REMOTE_PLAYLIST_FROM_FILE = "load_remote_playlist_from_file"
 
 
 @dataclass(frozen=True, slots=True)

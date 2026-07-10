@@ -12,6 +12,10 @@ htmlcov/
 .venv/
 venv/
 data/
+data/provider_auth/
+**/oauth*.json
+**/headers*.json
+**/ytmusic*.json
 apps/resonance/.build/
 .build/
 apps/resonance/dist/

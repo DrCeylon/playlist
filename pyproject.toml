@@ -12,6 +12,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+youtube = ["ytmusicapi>=1.7.0,<2"]
 
 [project.scripts]
 playlist-check-catalog = "playlist_builder.cli.check_catalog:main"

@@ -75,6 +75,9 @@ def build_app_context(settings: AppSettings | None = None) -> AppContext:
         catalog_acquisition_min_confidence=config.catalog_acquisition_min_confidence,
     )
     registry.register(apple_gateway)
+    from playlist_builder.integration.youtube_music.gateway import build_youtube_music_gateway
+
+    registry.register(build_youtube_music_gateway(auth_config_path=config.provider_auth_dir / "youtube_music.json"))
     return AppContext(
         settings=config,
         registry=registry,

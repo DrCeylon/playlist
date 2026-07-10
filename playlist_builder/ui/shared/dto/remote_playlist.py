@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -87,6 +88,10 @@ class RemoteProviderAccount:
         payload["auth_state"] = self.auth_state.value
         payload["capabilities"] = sorted(capability.value for capability in self.capabilities)
         return payload
+
+
+def utc_now_iso() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def remote_playlist_snapshot_checksum(tracks: tuple[RemotePlaylistTrack, ...]) -> str:

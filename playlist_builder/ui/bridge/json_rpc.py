@@ -290,6 +290,34 @@ class JsonRpcEngineBridge(EngineBridge):
             yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
             return
 
+        if request.command == BridgeCommand.PROVIDER_AUTH_STATUS:
+            if self.backend is None or not hasattr(self.backend, "provider_auth_status"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'authentification provider non configuré.")
+            result = self.backend.provider_auth_status(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
+        if request.command == BridgeCommand.PROVIDER_CONNECT:
+            if self.backend is None or not hasattr(self.backend, "provider_connect"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'authentification provider non configuré.")
+            result = self.backend.provider_connect(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
+        if request.command == BridgeCommand.PROVIDER_DISCONNECT:
+            if self.backend is None or not hasattr(self.backend, "provider_disconnect"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'authentification provider non configuré.")
+            result = self.backend.provider_disconnect(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
+        if request.command == BridgeCommand.LOAD_REMOTE_PLAYLIST_FROM_FILE:
+            if self.backend is None or not hasattr(self.backend, "load_remote_playlist_from_file"):
+                raise BridgeError(BridgeErrorCode.NOT_CONFIGURED, "Backend d'import fichier playlist non configuré.")
+            result = self.backend.load_remote_playlist_from_file(request.params)
+            yield BridgeResponse(id=request.id, ok=True, result=result).to_dict()
+            return
+
         raise BridgeError(
             BridgeErrorCode.UNKNOWN_COMMAND,
             f"Commande inconnue : {request.command.value}",

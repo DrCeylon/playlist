@@ -410,15 +410,15 @@ Un **publish** vers Apple Music réutilise la **delivery** existante pour l’aj
 6. Rappeler `apply_sync` identique → résultat idempotent (`no_op` ou message idempotent).
 7. Vérifier `data/playlists/sync_operations.json` et `linked_remote_refs.last_applied_snapshot_checksum` sur la playlist locale.
 
-### 6.6 YouTube Music experimental gateway
+### 6.6 YouTube Music experimental gateway ✅
 
 | | |
 |--|--|
-| **Fichiers** | `integration/youtube_music/` ; ADR-018 ; optional deps |
-| **Tests** | Mock + skip intégration sans credentials |
-| **Risques** | API breakage, légal |
-| **Rollback** | Désinstaller extra ; gateway non enregistré |
-| **Validation** | Import fichier JSON + liste vide gracieuse sans auth |
+| **Fichiers** | `integration/youtube_music/` ; extra `[youtube]` ; `file_snapshot.py` fallback |
+| **Bridge** | `provider_auth_*`, `load_remote_playlist_from_file` |
+| **Scope livré** | Lecture publique/personnelle (mock + ytmusicapi optionnel) ; import repository ; plan_sync ; **pas de write** |
+| **Guide** | `docs/guides/youtube-music-experimental.md` |
+| **Prochaine étape** | 6.7 résolution conflits ; comparaison Apple/YouTube UX (6.8) |
 
 ### 6.7 Conflict resolution
 
