@@ -1,6 +1,18 @@
 # Product documentation
 
-Phase 4 — Product discovery & UI contracts.
+## Strategy (Resonance 2.0 / 2030)
+
+| Document | Purpose |
+|----------|---------|
+| **[RESONANCE_VISION_2030.md](RESONANCE_VISION_2030.md)** | **Foundational product vision** — why, differentiation, tiers |
+| [BACKLOG.md](BACKLOG.md) | Epics by MVP / 1.0 / 2.0 / 2030 |
+| [ARCHITECTURAL_PREP.md](ARCHITECTURAL_PREP.md) | Immediate guardrails (no speculative code) |
+| [../ROADMAP.md](../ROADMAP.md) | Milestones |
+| [../PRODUCT_VISION.md](../PRODUCT_VISION.md) | Vision hub |
+| [../architecture/TARGET_ARCHITECTURE.md](../architecture/TARGET_ARCHITECTURE.md) | Target technical architecture |
+| [../architecture/ADR-019-resonance-product-tiers.md](../architecture/ADR-019-resonance-product-tiers.md) | Product tier ADR |
+
+## Phase 4 — historical
 
 | Document | Purpose |
 |----------|---------|

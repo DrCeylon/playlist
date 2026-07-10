@@ -2,6 +2,8 @@
 
 Document de référence pour la release engineering. Aucun marqueur `TODO` / `FIXME` / `HACK` / `XXX` / `TEMP` actif dans le code source applicatif (hors enums métier `PENDING`).
 
+> **Vision produit :** [RESONANCE_VISION_2030.md](product/RESONANCE_VISION_2030.md) · **Paliers :** [ADR-019](architecture/ADR-019-resonance-product-tiers.md) · **Préparation 2.0 :** [ARCHITECTURAL_PREP.md](product/ARCHITECTURAL_PREP.md)
+
 | Sujet | Priorité | Impact | Estimation | Recommandation |
 |-------|----------|--------|------------|----------------|
 | Warnings Sendable Swift 6 | Moyenne | Bruit CI / migration future | Modérée | Traiter par cible (`ResonanceCore` d'abord) |
