@@ -64,8 +64,7 @@ PR ouvertes (non fonctionnelles) :
 
 | Phase | Thème | Référence |
 |-------|-------|-----------|
-| **6.6** | Gateways YouTube/Spotify write/read | ADR-018 |
-| **6.7** | Intelligent conflict resolution (`resolve_sync_conflicts`, conflits enrichis) | `main` @ merge #68 |
+| **6.8** | UX wizard sync + comparateur providers | Phase 6 product doc |
 | **Post-6** | Resonance Identity & Cloud Sync (métadonnées, optionnel) | [ADR-013](../docs/architecture/ADR-013-multi-provider-platform-vision.md) |
 
 ## Branches Git (`origin`, juillet 2026)
