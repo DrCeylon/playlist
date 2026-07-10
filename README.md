@@ -4,6 +4,8 @@ Génère des playlists Apple Music à partir de **mots-clés**, de **morceaux de
 
 📖 **[Documentation complète (Wiki)](https://github.com/DrCeylon/playlist/wiki)** — vision, guides, architecture, FAQ.
 
+**Release v1.0** — voir [docs/RELEASE_PLAN.md](docs/RELEASE_PLAN.md), [limitations connues](docs/KNOWN_LIMITATIONS.md), [matrice de compatibilité](docs/COMPATIBILITY_MATRIX.md).
+
 ## Resonance (app macOS)
 
 Le moteur Python est aussi accessible via **Resonance**, une app macOS SwiftUI (`apps/resonance/`) :
@@ -12,12 +14,12 @@ Le moteur Python est aussi accessible via **Resonance**, une app macOS SwiftUI (
 - gestionnaire de playlists (preview), sync dry-run (Phase 6.4), **sync apply** push/pull append_only (Phase 6.5), **YouTube Music expérimental** lecture/import (Phase 6.6) ;
 - architecture provider-neutral (Phase 6.1+).
 
-État des phases : [wiki/Etat-des-Phases.md](wiki/Etat-des-Phases.md) · dette technique : [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md).
+État des phases : [wiki/Etat-des-Phases.md](wiki/Etat-des-Phases.md) · dette technique : [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) · **limitations v1.0** : [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
 
 **Validation locale :**
 
 ```bash
-python3.12 -m pytest -q          # 490+ tests
+python3.12 -m pytest -q          # 528+ tests
 cd apps/resonance && ./scripts/build.sh   # macOS uniquement
 ```
 
@@ -176,3 +178,9 @@ Une fois la playlist créée dans Apple Music :
 ## Notes importantes
 
 Un rapport est généré dans le dossier `reports/` après chaque exécution.
+
+## Licence & contribution
+
+- [MIT](LICENSE)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)

@@ -1,8 +1,8 @@
-# Dette technique — état `main` (juillet 2026, post phases fonctionnelles)
+# Dette technique — état intégré (juillet 2026, pré-v1.0.0)
 
 Document de référence pour la release engineering. Aucun marqueur `TODO` / `FIXME` / `HACK` / `XXX` / `TEMP` actif dans le code source applicatif (hors enums métier `PENDING`).
 
-> **Vision produit :** [RESONANCE_VISION_2030.md](product/RESONANCE_VISION_2030.md) · **Paliers :** [ADR-019](architecture/ADR-019-resonance-product-tiers.md) · **Préparation 2.0 :** [ARCHITECTURAL_PREP.md](product/ARCHITECTURAL_PREP.md)
+> **Vision produit :** [RESONANCE_VISION_2030.md](product/RESONANCE_VISION_2030.md) · **Paliers :** [ADR-019](architecture/ADR-019-resonance-product-tiers.md) · **Qualité :** [QUALITY_AUDIT.md](QUALITY_AUDIT.md)
 
 | Sujet | Priorité | Impact | Estimation | Recommandation |
 |-------|----------|--------|------------|----------------|
@@ -14,28 +14,28 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 | `backend.py` god object | Moyenne | Maintenabilité bridge | Modérée | Facades par domaine |
 | Triple stack import (CLI / bridge / gateway) | Moyenne | Duplication Apple wiring | Élevée | Orchestrateur unique |
 | YouTube write port | Basse | Expérimental lecture seule | Modérée | ADR-018 |
+| Résolution conflits sync automatique en apply | Basse | Modèle prêt, moteur apply partiel | Élevée | Phase ultérieure |
 | SQLite / scale repository | Basse | JSON SSOT limite concurrence | Élevée | Backend alternatif derrière protocol |
 | i18n (FR uniquement) | Basse | Adoption OSS internationale | Élevée | Clés de messages |
-| `AGENTS.md` absent de `main` | Moyenne | Onboarding agent | Faible | Merger PR #48 ou #53 |
 | Resonance Identity / Cloud Sync | Future | Vision long terme | Élevée | Docs only — ADR-013 |
 
-## Corrigé récemment (audit qualité)
+## Corrigé récemment (intégration)
 
 | Sujet | Correctif |
 |-------|-----------|
-| `resolve_sync_conflicts` bridge cassé | `backend.py` — chargement `ManagedPlaylistDetail` comme `plan_sync` |
+| `resolve_sync_conflicts` bridge cassé | `backend.py` — chargement `ManagedPlaylistDetail` |
 | `sync` ignoré à l'import bridge | Paramètre transmis à `stream_import_playlist` |
 | JSON repos sans verrou | `infrastructure/atomic_json.py` + RMW atomique |
 | `assert_bridge_safe_mapping` inutilisé | Vérification sorties `provider_account` |
 | CI Python absente | `.github/workflows/python-ci.yml` |
-| Historique / labo : bridge isolé | `replaceServices` + `workflow.engineBridge` |
-| Contrat bridge incomplet | Tests parité Python/Swift (`CaseIterable`) |
+| Multi-provider hardcoding | `provider_platform.py`, `parse_provider_id()` |
+| Observability + plugin diagnostics | Union `diagnostics_snapshot.py` |
 
 ## Principes architecture (Phase 6+)
 
 - **Local-first** : toutes les fonctionnalités actuelles fonctionnent sans compte Resonance.
 - **Music Providers** (`ProviderGatewayRegistry`) ≠ **Resonance Services** (Identity, Cloud Sync — futur).
-- Détail : [phase-6-provider-platform.md](../product/phase-6-provider-platform.md), [QUALITY_AUDIT.md](QUALITY_AUDIT.md).
+- Détail : [phase-6-provider-platform.md](product/phase-6-provider-platform.md), [ADR-013](architecture/ADR-013-multi-provider-platform-vision.md).
 
 ## Métriques qualité
 
@@ -43,8 +43,10 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 |----------|--------|
 | Tests Python | voir `pytest -q` sur CI |
 | Tests Swift | ~135 (macOS CI) |
-| LICENSE | MIT (`LICENSE`) |
-| Contributing | `CONTRIBUTING.md` |
+| Version cible release | 1.0.0 |
+| LICENSE | MIT |
+| CI Python | `python-ci.yml` |
+| CI macOS | `resonance-macos.yml` |
 
 ## Dépendances
 
@@ -54,3 +56,7 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 | Python dev | `pytest>=8.0` |
 | Swift SPM | `ResonanceCore`, `ResonanceDesign`, `ResonanceMac` — pas de deps externes |
 | Scripts | `make check-all` → `scripts/check_all.sh` |
+
+## Release engineering
+
+Voir [RELEASE_PLAN.md](RELEASE_PLAN.md), [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), [RELEASE_AUDIT.md](RELEASE_AUDIT.md).

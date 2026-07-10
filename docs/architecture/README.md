@@ -60,6 +60,15 @@ See [../product/README.md](../product/README.md).
 | PR 5.4 | Architecture consolidation (ADR-013, no runtime change) | Done |
 | PR 5.5+ | ProviderImportPort, bridge decoupling | Planned |
 
+## Release engineering (v1.0)
+
+| Document | Purpose |
+|----------|---------|
+| [RELEASE_PLAN.md](../RELEASE_PLAN.md) | Release milestones and go/no-go |
+| [RELEASE_CHECKLIST.md](../RELEASE_CHECKLIST.md) | Pre-tag checklist |
+| [KNOWN_LIMITATIONS.md](../KNOWN_LIMITATIONS.md) | User-facing limitations |
+| [GOVERNANCE.md](../GOVERNANCE.md) | Project governance |
+
 ## Rules
 
 1. Application code must depend on `canonical/` contracts, not provider SDKs.

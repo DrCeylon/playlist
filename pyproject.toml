@@ -4,14 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "playlist-builder"
-version = "0.8.2"
+version = "1.0.0"
 description = "Multi-provider playlist composition and delivery platform"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "MIT" }
 dependencies = []
-
-[project.license]
-text = "MIT"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

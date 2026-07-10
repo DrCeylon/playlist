@@ -48,10 +48,11 @@ PR ouvertes (non fonctionnelles) :
 | [#48](https://github.com/DrCeylon/playlist/pull/48) | Agent OS — `AGENTS.md` + handbook engineering |
 | [#53](https://github.com/DrCeylon/playlist/pull/53) | Setup environnement Cursor Cloud |
 
-## État courant (`main` @ `a5874c7`)
+## État courant (`main`, juillet 2026 — pré-v1.0.0)
 
 - **486** tests Python (`pytest -q`), **1** skipped
-- App macOS : … sync apply (6.5), **YouTube Music expérimental** lecture/import (6.6)
+- App macOS : sync apply (6.5), **YouTube Music expérimental** lecture/import (6.6)
+- Release engineering : [docs/RELEASE_PLAN.md](../docs/RELEASE_PLAN.md)
 - Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
 
 ## Limitations connues
@@ -84,4 +85,4 @@ python3.12 -m pytest -q
 cd apps/resonance && swift build && swift test && ./scripts/build.sh
 ```
 
-444 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+486 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml` + `python-ci.yml`).
