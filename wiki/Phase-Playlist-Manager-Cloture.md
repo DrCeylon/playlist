@@ -13,7 +13,7 @@ Navigation sidebar actuelle :
 | Accueil | `home` | Dashboard — playlists récentes, actions rapides, reprise workflow |
 | Nouvelle Playlist | `new_playlist` | Génération + import |
 | Playlists | `playlists` | Gestionnaire playlists locales (provider, sync, statut) |
-| Synchronisation | `sync` | Sync provider (stub pending) |
+| Synchronisation | `sync` | Plan dry-run + apply push append_only (Phase 6.5) |
 | Providers | `providers` | Catalogue providers — Apple principal, YouTube expérimental |
 | Historique | `history` | Sessions locales |
 | Laboratoire | `diagnostics` | Diagnostics bridge |
@@ -31,7 +31,7 @@ Navigation sidebar actuelle :
 
 ```bash
 source .venv/bin/activate
-python3.12 -m pytest -q          # 401 passed, 1 skipped
+python3.12 -m pytest -q          # 486 passed, 1 skipped
 
 cd apps/resonance
 swift build
@@ -43,8 +43,9 @@ CI : `.github/workflows/resonance-macos.yml` sur `main` et `cursor/**`.
 
 ## Limites connues
 
-- Sync et gateway YouTube : stubs contractuels (`pending`)
-- Pas d'édition morceaux / duplication / comparaison provider (structure UI prête)
+- Sync mirror/reorder Apple Music non garantis — voir [docs/KNOWN_LIMITATIONS.md](../docs/KNOWN_LIMITATIONS.md)
+- YouTube Music : expérimental (lecture/import)
+- Pas d'édition morceaux / duplication / comparateur provider complet (Phase 6.8)
 - Dette détaillée : [docs/TECHNICAL_DEBT.md](../docs/TECHNICAL_DEBT.md)
 
 ## Prochaine phase suggérée

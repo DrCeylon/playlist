@@ -8,6 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from playlist_builder.app.factory import AppContext
+from playlist_builder.observability import build_health_report, get_default_bus
+from playlist_builder.observability.events import EventCategory, ResonanceEvent, ResonanceEventKind
+from playlist_builder.platform.api_version import BRIDGE_API_VERSION, EXTENSION_API_VERSION
+from playlist_builder.platform.extension_points import ACTIVE_EXTENSION_POINTS, ExtensionPointId
 from playlist_builder.ui.shared.dto import DiagnosticEvent, ProviderOption
 from playlist_builder.ui.shared.dto.enums import DiagnosticLevel
 
@@ -29,10 +33,24 @@ def build_diagnostics_snapshot(
     recent_reports = _load_recent_reports(reports_dir, limit=recent_report_limit)
     elapsed_ms = int((time.perf_counter() - started) * 1000)
 
+    bus = get_default_bus()
+    health = build_health_report(context, providers=providers, bus=bus)
+    bus.emit(
+        ResonanceEvent.now(
+            kind=ResonanceEventKind.HEALTH_CHECK,
+            category=EventCategory.SYSTEM,
+            message=f"Diagnostics health: {health['status']}",
+            success=health["status"] == "ok",
+        )
+    )
+
     summary: dict[str, Any] = {
         "bridge_status": "connected",
         "platform": sys.platform,
         "execution_ms": elapsed_ms,
+        "extension_api_version": EXTENSION_API_VERSION,
+        "bridge_api_version": BRIDGE_API_VERSION,
+        "extension_points": _extension_point_snapshot(context),
         "catalog_cache_entries": catalog_entries,
         "identity_cache_entries": identity_entries,
         "catalog_cache_enabled": settings.use_catalog_cache,
@@ -40,10 +58,38 @@ def build_diagnostics_snapshot(
         "active_providers": provider_summaries,
         "recent_reports": recent_reports,
         "reports_directory": str(reports_dir),
+        "observability": {
+            "api_version": health["api_version"],
+            "health": health,
+            "metrics": bus.metrics.summary(),
+            "sync_timeline": list(bus.sync_timeline(limit=20)),
+            "event_count": bus.event_count(),
+        },
     }
 
     events = _events_from_snapshot(summary)
     return summary, events
+
+
+def _extension_point_snapshot(context: AppContext) -> list[dict[str, Any]]:
+    registry = context.registry
+    return [
+        {
+            "id": ExtensionPointId.MUSIC_PROVIDER.value,
+            "active": True,
+            "registered_count": len(registry.list_provider_ids()),
+        },
+        {
+            "id": ExtensionPointId.THEME.value,
+            "active": ExtensionPointId.THEME in ACTIVE_EXTENSION_POINTS,
+            "registered_count": None,
+        },
+        {
+            "id": ExtensionPointId.DISCOVERY_CANDIDATE.value,
+            "active": ExtensionPointId.DISCOVERY_CANDIDATE in ACTIVE_EXTENSION_POINTS,
+            "registered_count": None,
+        },
+    ]
 
 
 def _provider_summaries(providers: tuple[ProviderOption, ...]) -> list[dict[str, Any]]:

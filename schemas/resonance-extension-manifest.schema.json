@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://resonance.local/schemas/extension-manifest.schema.json",
+  "title": "Resonance Extension Manifest",
+  "description": "Describes an in-process Resonance extension. Plugins never import core modules directly — they register through extension points.",
+  "type": "object",
+  "required": ["id", "extension_point", "api_version", "entry"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9._-]*$",
+      "description": "Stable extension identifier (e.g. resonance.provider.spotify)"
+    },
+    "extension_point": {
+      "type": "string",
+      "enum": [
+        "music_provider",
+        "theme",
+        "discovery_candidate",
+        "sync_strategy",
+        "conflict_resolver",
+        "automation_rule",
+        "ai_engine",
+        "export_format",
+        "import_format",
+        "dashboard_widget",
+        "analysis_tool"
+      ]
+    },
+    "api_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Must match host extension API major version"
+    },
+    "entry": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Python entry (module:callable) or theme JSON path relative to package"
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "network",
+          "filesystem.read",
+          "filesystem.write",
+          "provider.auth",
+          "provider.library",
+          "bridge.events",
+          "library.read",
+          "library.write"
+        ]
+      },
+      "uniqueItems": true
+    }
+  }
+}

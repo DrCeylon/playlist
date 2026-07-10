@@ -6,7 +6,6 @@ struct HomeView: View {
     @Binding var selection: SidebarItem?
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var workflow: AppWorkflowCoordinator
-    @StateObject private var playlistsModel = PlaylistsViewModel(service: MockPlaylistLibraryService())
 
     var body: some View {
         ThemedScreen {
@@ -14,102 +13,141 @@ struct HomeView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Bonjour")
-                            .font(.largeTitle.weight(.semibold))
-                            .foregroundStyle(palette.textPrimary)
-                        Text("Gère, synchronise et retrouve tes playlists depuis un tableau de bord macOS.")
-                            .font(.body)
-                            .foregroundStyle(palette.textSecondary)
+                    header(palette: palette)
+
+                    if !workflow.libraryStore.playlistsNeedingAttention.isEmpty {
+                        attentionCard(palette: palette)
                     }
 
-                    card(title: "Playlists récentes", palette: palette) {
-                        if playlistsModel.recentPlaylists.isEmpty {
-                            Text("Aucune playlist locale pour le moment — génère ou importe une première playlist.")
-                                .font(.callout)
-                                .foregroundStyle(palette.textSecondary)
-                        } else {
+                    ProductSectionCard(title: "Playlists récentes", palette: palette) {
+                        recentPlaylistsSection(palette: palette)
+                    }
+
+                    ProductSectionCard(title: "Actions rapides", palette: palette) {
+                        quickActionsSection(palette: palette)
+                    }
+
+                    if workflow.banner != nil || workflow.isProcessRunning {
+                        ProductSectionCard(title: "En cours", palette: palette) {
                             VStack(alignment: .leading, spacing: 8) {
-                                ForEach(playlistsModel.recentPlaylists) { playlist in
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(playlist.name)
-                                                .font(.callout.weight(.semibold))
-                                            Text("\(PlaylistLibraryDisplay.providerLabel(playlist.providerID)) · \(playlist.trackCount) morceaux")
-                                                .font(.caption)
-                                                .foregroundStyle(palette.textSecondary)
-                                        }
-                                        Spacer()
-                                        Text(PlaylistLibraryDisplay.syncStatusLabel(playlist.syncStatus))
-                                            .font(.caption2)
-                                            .foregroundStyle(palette.accentPrimary)
-                                    }
+                                Button("Reprendre le travail en cours") {
+                                    selection = workflow.activeRoute
                                 }
-                                Button("Voir toutes les playlists") { selection = .playlists }
-                                    .buttonStyle(.bordered)
+                                .buttonStyle(.borderedProminent)
+                                Text("Génération, import ou synchronisation — reprends là où tu t'étais arrêté.")
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                         }
-                    }
-
-                    card(title: "Actions rapides", palette: palette) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(spacing: 16) {
-                                ForEach(HomeShortcut.allCases) { shortcut in
-                                    shortcutButton(shortcut, palette: palette)
-                                }
-                            }
-                            if let blockingLabel = workflow.processBlockingLabel {
-                                Label(blockingLabel, systemImage: "hourglass")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(palette.statusWarning)
-                            }
-                        }
-                    }
-
-                    card(title: "Reprise de workflow", palette: palette) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Button("Historique des sessions") { selection = .history }
-                                .buttonStyle(.bordered)
-                            Button("Synchronisation provider") { selection = .sync }
-                                .buttonStyle(.bordered)
-                            Text("Reprends un import partiel, une acquisition manuelle ou une synchronisation en attente.")
-                                .font(.caption)
-                                .foregroundStyle(palette.textSecondary)
-                        }
-                    }
-
-                    card(title: "État", palette: palette) {
-                        Text("Resonance — Gestionnaire de playlists (preview)")
-                            .font(.callout.weight(.medium))
-                            .foregroundStyle(palette.textPrimary)
-                        Text("Architecture provider-neutral, Apple Music principal, YouTube Music expérimental.")
-                            .font(.callout)
-                            .foregroundStyle(palette.textSecondary)
                     }
                 }
                 .padding(24)
             }
         }
         .navigationTitle("Accueil")
-        .task {
-            playlistsModel.replaceService(workflow.engineBridge)
-            await playlistsModel.refresh()
+        .refreshable {
+            await workflow.libraryStore.refresh()
         }
     }
 
     @ViewBuilder
-    private func card<Content: View>(
-        title: String,
-        palette: ThemePalette,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
+    private func header(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Bonjour")
+                .font(.largeTitle.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)
-            content()
+            Text("Crée, organise et synchronise tes playlists en quelques clics.")
+                .font(.body)
+                .foregroundStyle(palette.textSecondary)
         }
-        .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
+    }
+
+    @ViewBuilder
+    private func attentionCard(palette: ThemePalette) -> some View {
+        ProductSectionCard(title: "À traiter", palette: palette) {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(workflow.libraryStore.playlistsNeedingAttention) { playlist in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(playlist.name)
+                                .font(.callout.weight(.semibold))
+                            Text(PlaylistLibraryDisplay.syncStatusLabel(playlist.syncStatus))
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                        Spacer()
+                        Button("Ouvrir") {
+                            Task {
+                                await workflow.libraryStore.select(localPlaylistID: playlist.localPlaylistID)
+                                selection = .playlists
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                Button("Synchroniser maintenant") { selection = .sync }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func recentPlaylistsSection(palette: ThemePalette) -> some View {
+        if workflow.libraryStore.recentPlaylists.isEmpty {
+            ProductEmptyState(
+                title: "Aucune playlist",
+                message: "Crée ta première playlist ou importe-en une depuis un service musical.",
+                systemImage: "music.note.list",
+                palette: palette
+            )
+            Button("Créer une playlist") { selection = .newPlaylist }
+                .buttonStyle(.borderedProminent)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(workflow.libraryStore.recentPlaylists) { playlist in
+                    Button {
+                        Task {
+                            await workflow.libraryStore.select(localPlaylistID: playlist.localPlaylistID)
+                            selection = .playlists
+                        }
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(playlist.name)
+                                    .font(.callout.weight(.semibold))
+                                Text("\(PlaylistLibraryDisplay.providerLabel(playlist.providerID)) · \(playlist.trackCount) morceaux")
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                            }
+                            Spacer()
+                            StatusChip(
+                                label: PlaylistLibraryDisplay.syncStatusLabel(playlist.syncStatus),
+                                color: syncStatusColor(playlist.syncStatus, palette: palette)
+                            )
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button("Voir toutes les playlists") { selection = .playlists }
+                    .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func quickActionsSection(palette: ThemePalette) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 12) {
+                ForEach(HomeShortcut.allCases) { shortcut in
+                    shortcutButton(shortcut, palette: palette)
+                }
+            }
+            if let blockingLabel = workflow.processBlockingLabel {
+                Label(blockingLabel, systemImage: "hourglass")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.statusWarning)
+            }
+        }
     }
 
     @ViewBuilder
@@ -135,5 +173,14 @@ struct HomeView: View {
         .disabled(blocked)
         .opacity(blocked ? 0.55 : 1)
         .accessibilityLabel(shortcut.title)
+    }
+
+    private func syncStatusColor(_ status: PlaylistSyncStatus, palette: ThemePalette) -> Color {
+        switch status {
+        case .synced: return palette.statusSuccess
+        case .conflict, .error: return palette.statusWarning
+        case .pending, .partial: return palette.accentPrimary
+        default: return palette.textSecondary
+        }
     }
 }

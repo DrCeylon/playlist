@@ -61,6 +61,13 @@ class AppleMusicImportService:
     def identity_cache(self) -> IdentityCache:
         return self._identity_cache
 
+    def prepare_incremental_import(self, playlist_name: str, *, allow_duplicates: bool = False) -> set[str] | None:
+        self._applescript.ensure_running()
+        self._applescript.ensure_playlist(playlist_name)
+        if allow_duplicates:
+            return None
+        return self._applescript.load_playlist_keys(playlist_name)
+
     def import_playlist(
         self,
         playlist: CanonicalPlaylist,

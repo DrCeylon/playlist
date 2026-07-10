@@ -4,8 +4,10 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var workflow: AppWorkflowCoordinator
     @State private var selectedThemeID: String = ThemeManager.defaultThemeID
     @State private var errorMessage: String?
+    @State private var showLaboratory = false
 
     var body: some View {
         ThemedScreen {
@@ -13,11 +15,7 @@ struct SettingsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Apparence")
-                            .font(.headline)
-                            .foregroundStyle(palette.textPrimary)
-
+                    ProductSectionCard(title: "Apparence", palette: palette) {
                         ThemedThemePicker(
                             selection: $selectedThemeID,
                             options: themeManager.themeOptions,
@@ -33,35 +31,46 @@ struct SettingsView: View {
                                 .foregroundStyle(palette.statusError)
                         }
                     }
-                    .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("À propos")
-                            .font(.headline)
-                            .foregroundStyle(palette.textPrimary)
-                        infoRow(title: "Version shell", value: "Playlist Manager (preview)", palette: palette)
-                        infoRow(title: "Thème actif", value: themeManager.activeDisplayName, palette: palette)
+                    ProductSectionCard(title: "Bibliothèque", palette: palette) {
+                        ProductMetricRow(
+                            title: "Playlists enregistrées",
+                            value: "\(workflow.libraryStore.playlists.count)",
+                            palette: palette
+                        )
+                        ProductMetricRow(
+                            title: "À synchroniser",
+                            value: "\(workflow.libraryStore.playlistsNeedingAttention.count)",
+                            palette: palette
+                        )
                     }
-                    .themedSurfaceCard(fill: palette.surface, border: palette.borderSubtle)
+
+                    ProductSectionCard(title: "Avancé", palette: palette) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Outils de diagnostic pour le développement et le support.")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                            Button("Ouvrir le laboratoire") { showLaboratory = true }
+                                .buttonStyle(.bordered)
+                        }
+                    }
+
+                    ProductSectionCard(title: "À propos", palette: palette) {
+                        ProductMetricRow(title: "Version", value: "Resonance 1.0.0", palette: palette)
+                        ProductMetricRow(title: "Thème actif", value: themeManager.activeDisplayName, palette: palette)
+                    }
                 }
                 .padding(24)
             }
             .onAppear {
                 selectedThemeID = themeManager.selectedThemeID
             }
+            .navigationDestination(isPresented: $showLaboratory) {
+                DiagnosticsView()
+                    .navigationTitle("Laboratoire")
+            }
         }
         .navigationTitle("Paramètres")
-    }
-
-    private func infoRow(title: String, value: String, palette: ThemePalette) -> some View {
-        HStack {
-            Text(title)
-                .foregroundStyle(palette.textSecondary)
-            Spacer()
-            Text(value)
-                .foregroundStyle(palette.textPrimary)
-        }
-        .font(.callout)
     }
 
     private func applyTheme(_ themeID: String) {

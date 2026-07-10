@@ -85,6 +85,25 @@ class AppleMusicProviderGateway(ProviderGateway):
     def import_service(self) -> AppleMusicImportService:
         return self._import_service
 
+    @property
+    def import_port(self):
+        from playlist_builder.integration.apple_music.provider_import_port import AppleMusicProviderImportPort
+
+        return AppleMusicProviderImportPort(self._import_service)
+
+    def unavailable_reason(self) -> str:
+        import sys
+
+        if sys.platform != "darwin":
+            return "Import disponible uniquement sur macOS."
+        return ""
+
+    @property
+    def implicit_auth_connected(self) -> bool:
+        import sys
+
+        return sys.platform == "darwin"
+
 
 def build_apple_music_gateway(
     *,

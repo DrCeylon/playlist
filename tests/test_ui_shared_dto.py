@@ -71,12 +71,24 @@ def test_playlist_generation_result_track_count():
     assert result.track_count == 3
 
 
-def test_provider_options_apple_music_only_active():
+def test_provider_options_catalog_lists_planned_providers():
     options = default_provider_options()
-    active = [option for option in options if option.is_available]
-    assert len(active) == 1
-    assert active[0].provider_id == ProviderId.APPLE_MUSIC
-    assert active[0].is_connected is True
+    provider_ids = {option.provider_id for option in options}
+    assert ProviderId.APPLE_MUSIC in provider_ids
+    assert ProviderId.SPOTIFY in provider_ids
+    assert ProviderId.LOCAL_FILES in provider_ids
+    assert all(option.is_available is False for option in options)
+
+
+def test_provider_options_registry_overrides_availability():
+    from playlist_builder.app.factory import build_app_context
+    from playlist_builder.app.bridge_runtime.provider_platform import provider_options_from_registry
+
+    context = build_app_context()
+    options = provider_options_from_registry(context.registry)
+    apple = next(option for option in options if option.provider_id == ProviderId.APPLE_MUSIC)
+    assert apple.is_available or apple.unavailable_reason
+    assert apple.capabilities
 
 
 def test_theme_option_construction():
@@ -152,6 +164,12 @@ def test_dto_serialization_round_trip_json_friendly():
 
 
 def test_provider_option_serialization():
-    option = default_provider_options()[0]
+    from playlist_builder.app.factory import build_app_context
+    from playlist_builder.app.bridge_runtime.provider_platform import provider_options_from_registry
+
+    context = build_app_context()
+    option = next(
+        item for item in provider_options_from_registry(context.registry) if item.provider_id == ProviderId.APPLE_MUSIC
+    )
     payload = dto_to_dict(option)
     assert "catalog_search" in payload["capabilities"]

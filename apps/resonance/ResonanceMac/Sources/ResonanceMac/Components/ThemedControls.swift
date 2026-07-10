@@ -6,18 +6,18 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
     case newPlaylist
     case playlists
     case sync
+    case providers
     case history
-    case laboratory
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .newPlaylist: return "Nouvelle Playlist"
-        case .playlists: return "Playlists"
-        case .sync: return "Synchronisation"
+        case .newPlaylist: return "Créer une playlist"
+        case .playlists: return "Mes playlists"
+        case .sync: return "Synchroniser"
+        case .providers: return "Services musicaux"
         case .history: return "Historique"
-        case .laboratory: return "Laboratoire"
         }
     }
 
@@ -26,8 +26,8 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
         case .newPlaylist: return "plus.rectangle.on.rectangle"
         case .playlists: return "music.note.list"
         case .sync: return "arrow.triangle.2.circlepath"
+        case .providers: return "music.note.house"
         case .history: return "clock"
-        case .laboratory: return "flask"
         }
     }
 
@@ -36,8 +36,8 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
         case .newPlaylist: return .newPlaylist
         case .playlists: return .playlists
         case .sync: return .sync
+        case .providers: return .providers
         case .history: return .history
-        case .laboratory: return .laboratory
         }
     }
 
@@ -46,7 +46,7 @@ enum HomeShortcut: String, CaseIterable, Identifiable {
         switch self {
         case .newPlaylist, .history:
             return true
-        case .playlists, .sync, .laboratory:
+        case .playlists, .sync, .providers:
             return false
         }
     }

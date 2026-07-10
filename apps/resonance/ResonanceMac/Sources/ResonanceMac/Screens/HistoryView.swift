@@ -9,15 +9,12 @@ struct HistoryView: View {
     @EnvironmentObject private var workflow: AppWorkflowCoordinator
     @State private var showClearConfirmation = false
 
-    init(
-        selection: Binding<SidebarItem?>,
-        bridgeService: PythonEngineBridgeService = PythonEngineBridgeService()
-    ) {
+    init(selection: Binding<SidebarItem?>) {
         _selection = selection
         _viewModel = StateObject(
             wrappedValue: HistoryViewModel(
-                service: bridgeService,
-                importService: bridgeService
+                service: MockDiagnosticsService(),
+                importService: MockPlaylistImportService()
             )
         )
     }
@@ -34,6 +31,12 @@ struct HistoryView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationTitle("Historique")
+        .onAppear {
+            viewModel.replaceServices(
+                historyService: workflow.engineBridge,
+                importService: workflow.engineBridge
+            )
+        }
         .task {
             await viewModel.refresh()
         }
@@ -226,7 +229,7 @@ struct HistoryView: View {
             Text(session.playlistName)
                 .font(.headline)
                 .foregroundStyle(palette.textPrimary)
-            Text("\(session.startedAtISO) · \(session.providerID.rawValue)")
+            Text("\(session.startedAtISO) · \(PlaylistLibraryDisplay.providerLabel(session.providerID))")
                 .font(.caption)
                 .foregroundStyle(palette.textTertiary)
             Text(SessionHistoryDisplay.statusLabel(for: session.status))

@@ -1,4 +1,4 @@
-.PHONY: venv install-dev test check catalog create generate
+.PHONY: venv install-dev test check catalog create generate check-all
 
 venv:
 	python3 -m venv .venv
@@ -8,6 +8,9 @@ install-dev:
 
 test:
 	python3 -m pytest -q
+
+check-all:
+	./scripts/check_all.sh
 
 check:
 	python3 check_catalog.py --country us

@@ -7,10 +7,16 @@ on:
       - "cursor/**"
     paths:
       - "apps/resonance/**"
+      - "playlist_builder/ui/bridge/**"
+      - "playlist_builder/app/bridge_runtime/**"
+      - "playlist_builder/ui/shared/dto/**"
       - ".github/workflows/resonance-macos.yml"
   pull_request:
     paths:
       - "apps/resonance/**"
+      - "playlist_builder/ui/bridge/**"
+      - "playlist_builder/app/bridge_runtime/**"
+      - "playlist_builder/ui/shared/dto/**"
       - ".github/workflows/resonance-macos.yml"
   workflow_dispatch:
 

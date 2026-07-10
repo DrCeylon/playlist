@@ -103,7 +103,7 @@ public struct PythonEngineBridgeConfiguration: Sendable {
 }
 
 /// Immutable service wrapper around bridge transport and stateless fallback services.
-public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, PlaylistLibraryServing, DiagnosticsServing, SessionHistoryServing, AutocompleteServing, @unchecked Sendable {
+public final class PythonEngineBridgeService: PlaylistGenerationServing, PlaylistImportServing, PlaylistLibraryServing, ProviderPlatformServing, DiagnosticsServing, SessionHistoryServing, AutocompleteServing, @unchecked Sendable {
     private let transport: BridgeTransport?
     private let configuration: PythonEngineBridgeConfiguration?
     private let fallbackGeneration: MockPlaylistGenerationService
@@ -497,7 +497,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return result
     }
 
-    public func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlan? {
+    public func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlanResult? {
         guard let transport else {
             return nil
         }
@@ -511,7 +511,31 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             params["remote_playlist_id"] = .string(request.remotePlaylistID)
         }
         let (response, _) = try await transport.send(command: .planSync, params: params)
-        return BridgePayloadBuilder.playlistSyncPlan(from: response.result)
+        return BridgePayloadBuilder.playlistSyncPlanResult(from: response.result)
+    }
+
+    public func resolveSyncConflicts(_ request: PlaylistSyncResolveRequest) async throws -> PlaylistSyncPlanResult? {
+        guard let transport else {
+            return nil
+        }
+        let resolutions: [BridgeJSONValue] = request.resolutions.map { choice in
+            .object([
+                "conflict_id": .string(choice.conflictID),
+                "strategy": .string(choice.strategy),
+            ])
+        }
+        var params: BridgeJSONObject = [
+            "local_playlist_id": .string(request.localPlaylistID),
+            "provider_id": .string(request.providerID.rawValue),
+            "direction": .string(request.direction.rawValue),
+            "sync_mode": .string(request.syncMode.rawValue),
+            "resolutions": .array(resolutions),
+        ]
+        if !request.remotePlaylistID.isEmpty {
+            params["remote_playlist_id"] = .string(request.remotePlaylistID)
+        }
+        let (response, _) = try await transport.send(command: .resolveSyncConflicts, params: params)
+        return BridgePayloadBuilder.playlistSyncPlanResult(from: response.result)
     }
 
     public func applySync(_ request: PlaylistSyncApplyRequest) async throws -> PlaylistSyncApplyResult? {
@@ -558,6 +582,34 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             ]
         )
         return BridgePayloadBuilder.remotePlaylistSnapshot(from: response.result)
+    }
+
+    public func providerAuthStatus(providerID: ProviderID) async throws -> RemoteProviderAccount? {
+        guard let transport else { return nil }
+        let (response, _) = try await transport.send(
+            command: .providerAuthStatus,
+            params: ["provider_id": .string(providerID.rawValue)]
+        )
+        return BridgePayloadBuilder.remoteProviderAccount(from: response.result)
+    }
+
+    public func providerConnect(providerID: ProviderID, params connectParams: [String: String]) async throws -> RemoteProviderAccount? {
+        guard let transport else { return nil }
+        var params: BridgeJSONObject = ["provider_id": .string(providerID.rawValue)]
+        for (key, value) in connectParams {
+            params[key] = .string(value)
+        }
+        let (response, _) = try await transport.send(command: .providerConnect, params: params)
+        return BridgePayloadBuilder.remoteProviderAccount(from: response.result)
+    }
+
+    public func providerDisconnect(providerID: ProviderID) async throws -> RemoteProviderAccount? {
+        guard let transport else { return nil }
+        let (response, _) = try await transport.send(
+            command: .providerDisconnect,
+            params: ["provider_id": .string(providerID.rawValue)]
+        )
+        return BridgePayloadBuilder.remoteProviderAccount(from: response.result)
     }
 
     public func search(request: AutocompleteRequest) async throws -> AutocompleteResponse {

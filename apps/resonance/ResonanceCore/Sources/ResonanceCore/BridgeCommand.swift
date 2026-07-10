@@ -1,6 +1,6 @@
 import Foundation
 
-public enum BridgeCommand: String, Codable, Sendable {
+public enum BridgeCommand: String, Codable, CaseIterable, Sendable {
     case listProviders = "list_providers"
     case validateGenerationRequest = "validate_generation_request"
     case generatePlaylist = "generate_playlist"

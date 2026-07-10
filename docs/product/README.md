@@ -1,6 +1,18 @@
 # Product documentation
 
-Phase 4 — Product discovery & UI contracts.
+## Strategy (Resonance 2.0 / 2030)
+
+| Document | Purpose |
+|----------|---------|
+| **[RESONANCE_VISION_2030.md](RESONANCE_VISION_2030.md)** | **Foundational product vision** — why, differentiation, tiers |
+| [BACKLOG.md](BACKLOG.md) | Epics by MVP / 1.0 / 2.0 / 2030 |
+| [ARCHITECTURAL_PREP.md](ARCHITECTURAL_PREP.md) | Immediate guardrails (no speculative code) |
+| [../ROADMAP.md](../ROADMAP.md) | Milestones |
+| [../PRODUCT_VISION.md](../PRODUCT_VISION.md) | Vision hub |
+| [../architecture/TARGET_ARCHITECTURE.md](../architecture/TARGET_ARCHITECTURE.md) | Target technical architecture |
+| [../architecture/ADR-019-resonance-product-tiers.md](../architecture/ADR-019-resonance-product-tiers.md) | Product tier ADR |
+
+## Phase 4 — historical
 
 | Document | Purpose |
 |----------|---------|
@@ -21,6 +33,14 @@ Phase 4 — Product discovery & UI contracts.
 **État courant (post Playlist Manager)** : voir [wiki Phase Playlist Manager — clôture](../../wiki/Phase-Playlist-Manager-Cloture.md) et [dette technique](../TECHNICAL_DEBT.md).
 
 **Phase 6 (conception)** : [phase-6-provider-platform.md](phase-6-provider-platform.md)
+
+## Plugin platform
+
+| Document | Purpose |
+|----------|---------|
+| [PLUGIN_PLATFORM_AUDIT.md](../PLUGIN_PLATFORM_AUDIT.md) | Extensibility audit |
+| [guides/plugin-development.md](../guides/plugin-development.md) | How to add in-repo extensions |
+| [ADR-020](../architecture/ADR-020-plugin-platform-foundations.md) | Plugin foundations ADR |
 
 ## Phase 4.1 — Shared contracts (code)
 

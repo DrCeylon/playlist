@@ -29,17 +29,11 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **6.6** | YouTube Music experimental gateway (lecture, auth, fallback fichier) | `main` @ `7383b78` — PR #67 |
 | **6.7** | Intelligent conflict resolution (`resolve_sync_conflicts`) | `main` @ `a5874c7` — PR #68 |
 
-Correctifs intégrés sur `main` :
-
-| Commit | Sujet |
-|--------|-------|
-| `809df0b` | Isolation IdentityCache dans tests acquisition manuelle (ex-PR #57) |
-
 ## Phase en cours
 
 | Phase | Statut | Référence |
 |-------|--------|-----------|
-| **6.6+** — Gateways YouTube/Spotify | Prochaine étape | ADR-018 |
+| **6.8** — Product Experience (UX macOS) | En cours | `docs/product/phase-6-8-product-experience.md` |
 
 PR ouvertes (non fonctionnelles) :
 
@@ -48,10 +42,11 @@ PR ouvertes (non fonctionnelles) :
 | [#48](https://github.com/DrCeylon/playlist/pull/48) | Agent OS — `AGENTS.md` + handbook engineering |
 | [#53](https://github.com/DrCeylon/playlist/pull/53) | Setup environnement Cursor Cloud |
 
-## État courant (`main` @ `a5874c7`)
+## État courant (`main`, juillet 2026 — pré-v1.0.0)
 
 - **486** tests Python (`pytest -q`), **1** skipped
-- App macOS : … sync apply (6.5), **YouTube Music expérimental** lecture/import (6.6)
+- App macOS : sync apply (6.5), **YouTube Music expérimental** lecture/import (6.6)
+- Release engineering : [docs/RELEASE_PLAN.md](../docs/RELEASE_PLAN.md)
 - Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
 
 ## Limitations connues
@@ -84,4 +79,4 @@ python3.12 -m pytest -q
 cd apps/resonance && swift build && swift test && ./scripts/build.sh
 ```
 
-444 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml`).
+486 tests Python ; `swift build` + `swift test` sur macOS (CI `resonance-macos.yml` + `python-ci.yml`).

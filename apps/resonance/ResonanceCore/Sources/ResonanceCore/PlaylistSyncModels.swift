@@ -138,6 +138,51 @@ public struct PlaylistSyncPlanRequest: Sendable {
     }
 }
 
+public struct PlaylistSyncPlanResult: Sendable {
+    public let plan: PlaylistSyncPlan
+    public let planChecksum: String
+
+    public init(plan: PlaylistSyncPlan, planChecksum: String) {
+        self.plan = plan
+        self.planChecksum = planChecksum
+    }
+}
+
+public struct ConflictResolutionChoice: Sendable {
+    public let conflictID: String
+    public let strategy: String
+
+    public init(conflictID: String, strategy: String) {
+        self.conflictID = conflictID
+        self.strategy = strategy
+    }
+}
+
+public struct PlaylistSyncResolveRequest: Sendable {
+    public let localPlaylistID: String
+    public let providerID: ProviderID
+    public let direction: PlaylistSyncDirection
+    public let syncMode: SyncMode
+    public let remotePlaylistID: String
+    public let resolutions: [ConflictResolutionChoice]
+
+    public init(
+        localPlaylistID: String,
+        providerID: ProviderID,
+        direction: PlaylistSyncDirection,
+        syncMode: SyncMode,
+        remotePlaylistID: String,
+        resolutions: [ConflictResolutionChoice]
+    ) {
+        self.localPlaylistID = localPlaylistID
+        self.providerID = providerID
+        self.direction = direction
+        self.syncMode = syncMode
+        self.remotePlaylistID = remotePlaylistID
+        self.resolutions = resolutions
+    }
+}
+
 public struct PlaylistSyncApplyRequest: Sendable {
     public let localPlaylistID: String
     public let providerID: ProviderID

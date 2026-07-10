@@ -1,54 +1,62 @@
-# Dette technique — état `main` (juillet 2026, post Phase 6.6)
+# Dette technique — état intégré (juillet 2026, pré-v1.0.0)
 
 Document de référence pour la release engineering. Aucun marqueur `TODO` / `FIXME` / `HACK` / `XXX` / `TEMP` actif dans le code source applicatif (hors enums métier `PENDING`).
 
+> **Vision produit :** [RESONANCE_VISION_2030.md](product/RESONANCE_VISION_2030.md) · **Paliers :** [ADR-019](architecture/ADR-019-resonance-product-tiers.md) · **Qualité :** [QUALITY_AUDIT.md](QUALITY_AUDIT.md)
+
 | Sujet | Priorité | Impact | Estimation | Recommandation |
 |-------|----------|--------|------------|----------------|
-| Warnings Sendable Swift 6 | Moyenne | Bruit CI / migration future | Modérée | Traiter par cible (`ResonanceCore` d'abord) sans changer le comportement |
-| Gateway YouTube Music réel | Moyenne | Lecture exp. livrée ; write non fiable | Modérée | ADR-018 — write reporté ; comparateur UX 6.8 |
-| Sync mirror / reorder Apple Music | Moyenne | push mirror et reorder non garantis | Modérée | Phase ultérieure après validation Music.app |
-| Résolution conflits sync automatique | Basse | Modèle prêt, pas de moteur apply | Élevée | Phase 6.7 |
-| `PlaylistBuilderViewModel` hardcode `appleMusic` | Moyenne | Sélection provider UI non effective | Faible | Activer picker existant sans coupler l'UI à Apple |
-| Import `sync: true` toujours côté Swift | Basse | Pas d'import incrémental UI | Faible | Exposer toggle dans preview/import |
-| Résolution conflits sync automatique | Basse | Modèle prêt, pas de moteur apply | Élevée | Phase ultérieure après sync write |
-| Bridge Python one-shot par commande | Moyenne | Latence import longue | Élevée | ADR dédiée si persistance process |
-| Wiki / docs Phase 4.x « placeholder » | Basse | Onboarding développeur | Faible | Conserver archives ; lire `wiki/Phase-Playlist-Manager-Cloture.md` pour l'état courant |
-| `AGENTS.md` absent de `main` | Moyenne | Onboarding agent / cloud | Faible | Merger PR #48 ou #53 après rebase |
-| Resonance Identity / Cloud Sync | Future | Sync multi-Mac, préférences partagées | Élevée | **Docs only** — voir ADR-013 § Resonance Services ; ne pas modéliser comme `ProviderId` ; métadonnées uniquement, pas de musique |
-| Import `sync: true` toujours côté Swift | Basse | Pas d'import incrémental UI | Faible | Exposer toggle dans preview/import |
-| Résolution conflits sync automatique | Basse | Modèle prêt, pas de moteur apply | Élevée | Phase ultérieure après sync write |
-| Bridge Python one-shot par commande | Moyenne | Latence import longue | Élevée | ADR dédiée si persistance process |
-| Wiki / docs Phase 4.x « placeholder » | Basse | Onboarding développeur | Faible | Conserver archives ; lire `wiki/Phase-Playlist-Manager-Cloture.md` pour l'état courant |
-| `AGENTS.md` absent de `main` | Moyenne | Onboarding agent / cloud | Faible | Merger PR #48 ou #53 après rebase |
-| Resonance Identity / Cloud Sync | Future | Sync multi-Mac, préférences partagées | Élevée | **Docs only** — voir ADR-013 § Resonance Services ; ne pas modéliser comme `ProviderId` ; métadonnées uniquement, pas de musique |
+| Warnings Sendable Swift 6 | Moyenne | Bruit CI / migration future | Modérée | Traiter par cible (`ResonanceCore` d'abord) |
+| Bridge Python one-shot par commande | Moyenne | Latence import longue | Élevée | Transport persistant Swift ↔ `engine_bridge.py` |
+| `PlaylistBuilderViewModel` hardcode `appleMusic` | Moyenne | Sélection provider UI non effective | Faible | Activer picker existant |
+| Sync mirror / reorder Apple Music | Moyenne | push mirror et reorder non garantis | Modérée | Après validation Music.app |
+| DTOs domaine sous `ui/shared/dto` | Moyenne | Couplage couches | Élevée | Extraire `domain/` provider-neutral |
+| `backend.py` god object | Moyenne | Maintenabilité bridge | Modérée | Facades par domaine |
+| Triple stack import (CLI / bridge / gateway) | Moyenne | Duplication Apple wiring | Élevée | Orchestrateur unique |
+| YouTube write port | Basse | Expérimental lecture seule | Modérée | ADR-018 |
+| Résolution conflits sync automatique en apply | Basse | Modèle prêt, moteur apply partiel | Élevée | Phase ultérieure |
+| SQLite / scale repository | Basse | JSON SSOT limite concurrence | Élevée | Backend alternatif derrière protocol |
+| i18n (FR uniquement) | Basse | Adoption OSS internationale | Élevée | Clés de messages |
+| Resonance Identity / Cloud Sync | Future | Vision long terme | Élevée | Docs only — ADR-013 |
+
+## Corrigé récemment (intégration)
+
+| Sujet | Correctif |
+|-------|-----------|
+| `resolve_sync_conflicts` bridge cassé | `backend.py` — chargement `ManagedPlaylistDetail` |
+| `sync` ignoré à l'import bridge | Paramètre transmis à `stream_import_playlist` |
+| JSON repos sans verrou | `infrastructure/atomic_json.py` + RMW atomique |
+| `assert_bridge_safe_mapping` inutilisé | Vérification sorties `provider_account` |
+| CI Python absente | `.github/workflows/python-ci.yml` |
+| Multi-provider hardcoding | `provider_platform.py`, `parse_provider_id()` |
+| Observability + plugin diagnostics | Union `diagnostics_snapshot.py` |
 
 ## Principes architecture (Phase 6+)
 
 - **Local-first** : toutes les fonctionnalités actuelles fonctionnent sans compte Resonance.
-- **Music Providers** (`ProviderGatewayRegistry`) ≠ **Resonance Services** (Identity, Cloud Sync, AI Profile — futur).
-- **OAuth provider** : Keychain local ; **cloud Resonance** (futur) : métadonnées utilisateur uniquement.
-- Détail : [phase-6-provider-platform.md](../product/phase-6-provider-platform.md) § 2.0, [ADR-013](../architecture/ADR-013-multi-provider-platform-vision.md).
+- **Music Providers** (`ProviderGatewayRegistry`) ≠ **Resonance Services** (Identity, Cloud Sync — futur).
+- Détail : [phase-6-provider-platform.md](product/phase-6-provider-platform.md), [ADR-013](architecture/ADR-013-multi-provider-platform-vision.md).
 
-## Marqueurs techniques audités
-
-- **Swift / Python sources** : aucun `TODO`, `FIXME`, `HACK`, `XXX`, `TEMP` commentaire trouvé.
-- **`PENDING`** : enum métier (`ImportTrackStatus`, `PlaylistSyncStatus`) — conservé.
-- **ADR-009** : mention historique `PENDING_ACQUISITION` — document d'architecture, pas dette code.
-
-## Métriques qualité (`main`)
+## Métriques qualité
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests Python | 463 passed, 1 skipped |
-| Tests Swift (macOS CI) | ~135 |
-| Branches `origin` | `main` + 2 docs |
-| PR ouvertes (pertinentes) | #48, #53 |
+| Tests Python | voir `pytest -q` sur CI |
+| Tests Swift | ~135 (macOS CI) |
+| Version cible release | 1.0.0 |
+| LICENSE | MIT |
+| CI Python | `python-ci.yml` |
+| CI macOS | `resonance-macos.yml` |
 
 ## Dépendances
 
 | Écosystème | État |
 |------------|------|
-| Python runtime | Stdlib uniquement (`requirements.txt` vide volontairement) |
-| Python dev | `pytest>=8.0` (`requirements-dev.txt`, `pyproject.toml`) |
-| Swift SPM | `ResonanceCore`, `ResonanceDesign`, `ResonanceMac` — pas de dépendances externes |
-| Scripts | `check_all.sh`, `setup_dev.sh`, `apps/resonance/scripts/build.sh` — tous référencés |
+| Python runtime | Stdlib uniquement |
+| Python dev | `pytest>=8.0` |
+| Swift SPM | `ResonanceCore`, `ResonanceDesign`, `ResonanceMac` — pas de deps externes |
+| Scripts | `make check-all` → `scripts/check_all.sh` |
+
+## Release engineering
+
+Voir [RELEASE_PLAN.md](RELEASE_PLAN.md), [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md), [RELEASE_AUDIT.md](RELEASE_AUDIT.md).
