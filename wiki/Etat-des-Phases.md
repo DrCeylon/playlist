@@ -27,6 +27,7 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **6.3** | Local Playlist Repository (SSOT, `import_remote_playlist`, migration history) | `main` @ `79bee3e` |
 | **6.5** | Provider Playlist Sync Apply (`apply_sync`, opérations journalisées) | `main` @ `5052aea` — PR #66 |
 | **6.6** | YouTube Music experimental gateway (lecture, auth, fallback fichier) | `main` @ `7383b78` — PR #67 |
+| **6.7** | Intelligent conflict resolution (`resolve_sync_conflicts`) | `main` @ `a5874c7` — PR #68 |
 
 Correctifs intégrés sur `main` :
 
@@ -47,9 +48,9 @@ PR ouvertes (non fonctionnelles) :
 | [#48](https://github.com/DrCeylon/playlist/pull/48) | Agent OS — `AGENTS.md` + handbook engineering |
 | [#53](https://github.com/DrCeylon/playlist/pull/53) | Setup environnement Cursor Cloud |
 
-## État courant (`main` @ `7383b78`)
+## État courant (`main` @ `a5874c7`)
 
-- **476** tests Python (`pytest -q`), **1** skipped
+- **486** tests Python (`pytest -q`), **1** skipped
 - App macOS : … sync apply (6.5), **YouTube Music expérimental** lecture/import (6.6)
 - Détail : [Phase Playlist Manager — clôture](Phase-Playlist-Manager-Cloture)
 
@@ -64,7 +65,7 @@ PR ouvertes (non fonctionnelles) :
 | Phase | Thème | Référence |
 |-------|-------|-----------|
 | **6.6** | Gateways YouTube/Spotify write/read | ADR-018 |
-| **6.7** | Résolution conflits manual_resolve | ADR-016 |
+| **6.7** | Intelligent conflict resolution (`resolve_sync_conflicts`, conflits enrichis) | `main` @ merge #68 |
 | **Post-6** | Resonance Identity & Cloud Sync (métadonnées, optionnel) | [ADR-013](../docs/architecture/ADR-013-multi-provider-platform-vision.md) |
 
 ## Branches Git (`origin`, juillet 2026)
