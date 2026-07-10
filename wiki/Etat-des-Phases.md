@@ -24,7 +24,7 @@ Tableau de référence pour l'avancement du projet Resonance / playlist-builder.
 | **6+ docs** | Vision Resonance Identity — Music Providers vs Resonance Services | PR #63 |
 | **6.2** | Remote Playlist Read Apple Music (`list_remote_playlists`, `get_remote_playlist`) | `main` @ `32be564` |
 | **6.4** | Sync planning & dry-run (`PlaylistSyncEngine`, bridge `plan_sync`) | PR #64 |
-| **6.3** | Local Playlist Repository (SSOT, `import_remote_playlist`, migration history) | branche `cursor/phase-6-3-local-playlist-repository-ef21` |
+| **6.3** | Local Playlist Repository (SSOT, `import_remote_playlist`, migration history) | `main` @ `26222a7` |
 
 Correctifs intégrés sur `main` :
 
