@@ -169,3 +169,21 @@ def test_repository_provider_returns_same_instance(repo_paths: tuple[Path, Path]
     archive_b = provider.snapshot_archive()
     assert repo_a is repo_b
     assert archive_a is archive_b
+
+
+def test_json_repository_rejects_newer_schema_version(repo_paths: tuple[Path, Path]) -> None:
+    import json
+
+    from playlist_builder.app.playlist_library.errors import UnsupportedSchemaVersionError
+    from playlist_builder.app.playlist_library.serialization import SCHEMA_VERSION
+
+    playlists_path, _ = repo_paths
+    playlists_path.parent.mkdir(parents=True, exist_ok=True)
+    playlists_path.write_text(
+        json.dumps({"schema_version": SCHEMA_VERSION + 1, "playlists": []}),
+        encoding="utf-8",
+    )
+    repository = JsonManagedPlaylistRepository(playlists_path)
+    with pytest.raises(UnsupportedSchemaVersionError):
+        repository.list_playlists()
+

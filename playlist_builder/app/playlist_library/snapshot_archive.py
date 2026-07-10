@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from playlist_builder.infrastructure.atomic_json import locked_json_document
 from playlist_builder.ui.shared.dto.remote_playlist import (
     RemotePlaylistSnapshot,
     RemotePlaylistTrack,
@@ -27,15 +28,15 @@ class SnapshotArchive:
     def store(self, snapshot: RemotePlaylistSnapshot) -> str:
         checksum = snapshot.checksum or remote_playlist_snapshot_checksum(snapshot.tracks)
         path = self._path_for_checksum(checksum)
-        if path.exists():
-            return checksum
         self._directory.mkdir(parents=True, exist_ok=True)
         payload = snapshot.to_dict()
         payload["checksum"] = checksum
         payload["snapshot_id"] = snapshot_id_from_checksum(checksum)
-        temp = path.with_suffix(".tmp")
-        temp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-        temp.replace(path)
+        with locked_json_document(path) as locked:
+            if locked.get("checksum") == checksum:
+                return checksum
+            locked.clear()
+            locked.update(payload)
         return checksum
 
     def get(self, checksum: str) -> RemotePlaylistSnapshot | None:

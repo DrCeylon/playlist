@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from playlist_builder.app.playlist_library.errors import UnsupportedSchemaVersionError
 from playlist_builder.app.playlist_library.serialization import (
     SCHEMA_VERSION,
     playlist_detail_from_dict,
@@ -30,7 +31,7 @@ class JsonManagedPlaylistRepository:
         playlist_id = str(local_playlist_id).strip()
         if not playlist_id:
             return None
-        for item in self.list_playlists():
+        for item in self._records_from_payload(self._read_payload()):
             if item.summary.local_playlist_id == playlist_id:
                 return item
         return None
@@ -101,7 +102,7 @@ class JsonManagedPlaylistRepository:
     def _normalize_payload(self, payload: dict[str, object]) -> dict[str, object]:
         version = int(payload.get("schema_version", SCHEMA_VERSION) or SCHEMA_VERSION)
         if version > SCHEMA_VERSION:
-            return {"schema_version": SCHEMA_VERSION, "playlists": []}
+            raise UnsupportedSchemaVersionError(version, SCHEMA_VERSION, str(self._path))
         payload.setdefault("schema_version", SCHEMA_VERSION)
         payload.setdefault("playlists", [])
         return payload

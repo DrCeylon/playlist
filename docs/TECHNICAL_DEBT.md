@@ -6,6 +6,7 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 
 | Sujet | Priorité | Impact | Estimation | Recommandation |
 |-------|----------|--------|------------|----------------|
+| Audit architecture v1.0 | — | Référence 5 ans | — | [ARCHITECTURE_AUDIT.md](ARCHITECTURE_AUDIT.md) · [ADR-022](architecture/ADR-022-layering-and-future-readiness.md) |
 | Warnings Sendable Swift 6 | Moyenne | Bruit CI / migration future | Modérée | Traiter par cible (`ResonanceCore` d'abord) |
 | Bridge Python one-shot par commande | Moyenne | Latence import longue | Élevée | Transport persistant Swift ↔ `engine_bridge.py` |
 | `PlaylistBuilderViewModel` hardcode `appleMusic` | Moyenne | Sélection provider UI non effective | Faible | Activer picker existant |
@@ -26,6 +27,8 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 | `resolve_sync_conflicts` bridge cassé | `backend.py` — chargement `ManagedPlaylistDetail` |
 | `sync` ignoré à l'import bridge | Paramètre transmis à `stream_import_playlist` |
 | JSON repos sans verrou | `infrastructure/atomic_json.py` + RMW atomique |
+| Schema version silencieux | `UnsupportedSchemaVersionError` — rejet explicite (ADR-022) |
+| Snapshots sans verrou | `SnapshotArchive` via `locked_json_document` (ADR-022) |
 | `assert_bridge_safe_mapping` inutilisé | Vérification sorties `provider_account` |
 | CI Python absente | `.github/workflows/python-ci.yml` |
 | Multi-provider hardcoding | `provider_platform.py`, `parse_provider_id()` |
