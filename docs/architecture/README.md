@@ -20,6 +20,7 @@ This directory contains the long-lived architectural documentation for Playlist 
 | [ADR-011-cross-platform-product-ui.md](ADR-011-cross-platform-product-ui.md) | Cross-platform product UI architecture (Phase 4.0) |
 | [ADR-012-apple-catalog-acquisition-production-policy.md](ADR-012-apple-catalog-acquisition-production-policy.md) | Apple catalog acquisition production policy (Phase 5.3.3) |
 | [ADR-013-multi-provider-platform-vision.md](ADR-013-multi-provider-platform-vision.md) | Multi-provider platform vision (Phase 5.4) |
+| [ADR-020-plugin-platform-foundations.md](ADR-020-plugin-platform-foundations.md) | Plugin platform foundations |
 | [phase-4-ui-architecture.md](phase-4-ui-architecture.md) | Phase 4 UI implementation notes |
 
 ## Product (Phase 4)

@@ -22,6 +22,14 @@ Phase 4 — Product discovery & UI contracts.
 
 **Phase 6 (conception)** : [phase-6-provider-platform.md](phase-6-provider-platform.md)
 
+## Plugin platform
+
+| Document | Purpose |
+|----------|---------|
+| [PLUGIN_PLATFORM_AUDIT.md](../PLUGIN_PLATFORM_AUDIT.md) | Extensibility audit |
+| [guides/plugin-development.md](../guides/plugin-development.md) | How to add in-repo extensions |
+| [ADR-020](../architecture/ADR-020-plugin-platform-foundations.md) | Plugin foundations ADR |
+
 ## Phase 4.1 — Shared contracts (code)
 
 Python package `playlist_builder/ui/shared/` :
