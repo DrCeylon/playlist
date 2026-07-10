@@ -2,7 +2,7 @@ import Foundation
 import ResonanceCore
 
 @MainActor
-final class PlaylistsViewModel: ObservableObject {
+final class PlaylistLibraryStore: ObservableObject {
     @Published private(set) var playlists: [ManagedPlaylistSummary] = []
     @Published private(set) var selectedDetail: ManagedPlaylistDetail?
     @Published private(set) var isBusy = false
@@ -22,6 +22,10 @@ final class PlaylistsViewModel: ObservableObject {
         Array(playlists.prefix(5))
     }
 
+    var playlistsNeedingAttention: [ManagedPlaylistSummary] {
+        playlists.filter { $0.syncStatus == .conflict || $0.syncStatus == .error || $0.syncStatus == .pending }
+    }
+
     func refresh() async {
         isBusy = true
         defer { isBusy = false }
@@ -29,7 +33,7 @@ final class PlaylistsViewModel: ObservableObject {
             playlists = try await service.listManagedPlaylists()
             actionFeedback = nil
         } catch {
-            actionFeedback = "Impossible de charger les playlists."
+            actionFeedback = "Impossible de charger vos playlists."
         }
     }
 
@@ -39,7 +43,7 @@ final class PlaylistsViewModel: ObservableObject {
         do {
             selectedDetail = try await service.getManagedPlaylist(localPlaylistID: localPlaylistID)
         } catch {
-            actionFeedback = "Détail de playlist indisponible."
+            actionFeedback = "Impossible d'afficher cette playlist."
         }
     }
 
@@ -63,7 +67,7 @@ final class PlaylistsViewModel: ObservableObject {
             await select(localPlaylistID: summary.localPlaylistID)
             actionFeedback = result.message
         } catch {
-            actionFeedback = "Synchronisation impossible."
+            actionFeedback = "La synchronisation a échoué."
         }
     }
 }

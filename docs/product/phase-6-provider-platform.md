@@ -429,15 +429,15 @@ Un **publish** vers Apple Music réutilise la **delivery** existante pour l’aj
 | **Scope livré** | Détection provider-neutral ; résolution → nouveau plan ; stratégies keep_local/remote/merge/ignore/defer |
 | **Prochaine étape** | 6.8 UX wizard sync + comparateur |
 
-### 6.8 UX polish
+### 6.8 Product Experience 🚧
 
 | | |
 |--|--|
-| **Fichiers** | Providers connect flow ; Sync wizard ; Compare view |
-| **Tests** | VM tests ; navigation guards |
-| **Risques** | Scope creep |
-| **Rollback** | Feature flags par écran |
-| **Validation** | Parcours manuel macOS |
+| **Fichiers** | `ProductDisplay`, `PlaylistLibraryStore`, `SyncViewModel`, `ProductComponents`, wizard `SyncView`, `ProvidersView` connect |
+| **Tests** | `ProductDisplayTests`, `PlaylistLibraryStoreTests`, `SyncViewModelTests` |
+| **Scope livré** | Dashboard actionnable ; état partagé ; wizard plan → conflits → apply ; libellés humains ; laboratoire dans Paramètres |
+| **Prochaine étape** | Comparateur visuel side-by-side ; import remote playlists UI ; opérations journalisées |
+| **Doc** | `docs/product/phase-6-8-product-experience.md` |
 
 ---
 

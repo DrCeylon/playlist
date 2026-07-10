@@ -35,7 +35,11 @@ public struct MockPlaylistLibraryService: PlaylistLibraryServing {
         )
     }
 
-    public func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlan? {
+    public func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlanResult? {
+        nil
+    }
+
+    public func resolveSyncConflicts(_ request: PlaylistSyncResolveRequest) async throws -> PlaylistSyncPlanResult? {
         nil
     }
 

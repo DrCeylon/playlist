@@ -812,6 +812,11 @@ public enum BridgePayloadBuilder {
         return accountsRaw.compactMap(\.objectValue).map(remoteProviderAccount)
     }
 
+    public static func remoteProviderAccount(from payload: BridgeJSONObject) -> RemoteProviderAccount? {
+        guard let object = payload["provider_account"]?.objectValue else { return nil }
+        return remoteProviderAccount(object)
+    }
+
     public static func providerAuthState(from payload: BridgeJSONObject) -> ProviderAuthState? {
         guard let raw = payload["auth_state"]?.stringValue else { return nil }
         return ProviderAuthState(rawValue: raw)
@@ -820,6 +825,12 @@ public enum BridgePayloadBuilder {
     public static func playlistSyncPlan(from payload: BridgeJSONObject) -> PlaylistSyncPlan? {
         guard let object = payload["sync_plan"]?.objectValue else { return nil }
         return playlistSyncPlanObject(object)
+    }
+
+    public static func playlistSyncPlanResult(from payload: BridgeJSONObject) -> PlaylistSyncPlanResult? {
+        guard let plan = playlistSyncPlan(from: payload) else { return nil }
+        let checksum = payload["plan_checksum"]?.stringValue ?? ""
+        return PlaylistSyncPlanResult(plan: plan, planChecksum: checksum)
     }
 
     private static func remotePlaylist(_ object: BridgeJSONObject) -> RemotePlaylist {

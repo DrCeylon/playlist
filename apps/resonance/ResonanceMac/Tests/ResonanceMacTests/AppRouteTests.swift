@@ -9,18 +9,20 @@ final class AppRouteTests: XCTestCase {
         XCTAssertEqual(SidebarItem.sync.route.rawValue, "sync")
         XCTAssertEqual(SidebarItem.providers.route.rawValue, "providers")
         XCTAssertEqual(SidebarItem.history.route.rawValue, "history")
-        XCTAssertEqual(SidebarItem.laboratory.route.rawValue, "diagnostics")
         XCTAssertEqual(SidebarItem.settings.route.rawValue, "settings")
     }
 
-    func testFrenchSidebarTitles() {
+    func testFrenchSidebarTitlesAreProductFriendly() {
         XCTAssertEqual(SidebarItem.home.title, "Accueil")
-        XCTAssertEqual(SidebarItem.newPlaylist.title, "Nouvelle Playlist")
+        XCTAssertEqual(SidebarItem.newPlaylist.title, "Créer")
         XCTAssertEqual(SidebarItem.playlists.title, "Playlists")
         XCTAssertEqual(SidebarItem.sync.title, "Synchronisation")
-        XCTAssertEqual(SidebarItem.providers.title, "Providers")
+        XCTAssertEqual(SidebarItem.providers.title, "Services musicaux")
         XCTAssertEqual(SidebarItem.history.title, "Historique")
-        XCTAssertEqual(SidebarItem.laboratory.title, "Laboratoire")
         XCTAssertEqual(SidebarItem.settings.title, "Paramètres")
+    }
+
+    func testDiagnosticsRouteRemainsInAppRoute() {
+        XCTAssertEqual(AppRoute.diagnostics.rawValue, "diagnostics")
     }
 }
