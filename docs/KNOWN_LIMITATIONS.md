@@ -64,6 +64,7 @@ Ce document complète le wiki et les ADRs — il ne remplace pas le dépannage d
 | Limitation | Détail |
 |------------|--------|
 | Bridge Python | Process one-shot par commande — latence sur imports longs |
+| Schema repository | Version plus récente que l'app → erreur explicite (données préservées) |
 | Pas de cloud Resonance | Données locales uniquement ; pas de sync multi-Mac |
 | Observabilité | Fondations en cours d'intégration (PR #75) — logs stderr restent primaires |
 

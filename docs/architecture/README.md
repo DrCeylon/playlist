@@ -31,6 +31,7 @@ This directory contains the long-lived architectural documentation for **Resonan
 | [ADR-013-multi-provider-platform-vision.md](ADR-013-multi-provider-platform-vision.md) | Multi-provider platform vision (Phase 5.4) |
 | [ADR-019-resonance-product-tiers.md](ADR-019-resonance-product-tiers.md) | Product tiers and architectural boundaries |
 | [ADR-020-plugin-platform-foundations.md](ADR-020-plugin-platform-foundations.md) | Plugin platform foundations |
+| [ADR-022-layering-and-future-readiness.md](ADR-022-layering-and-future-readiness.md) | Layering audit fixes and deferred extractions (v1.0) |
 | [TARGET_ARCHITECTURE.md](TARGET_ARCHITECTURE.md) | Target architecture for Resonance 2.0 |
 | [phase-4-ui-architecture.md](phase-4-ui-architecture.md) | Phase 4 UI implementation notes |
 
