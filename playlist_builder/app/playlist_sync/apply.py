@@ -14,6 +14,7 @@ from playlist_builder.app.playlist_sync.validator import SyncApplyValidator
 from playlist_builder.app.playlist_sync_operations.repository import PlaylistSyncOperationRepository
 from playlist_builder.canonical.enums import ProviderCapability, ProviderId
 from playlist_builder.integration.ports.playlist_write import ProviderPlaylistWritePort
+from playlist_builder.observability import NoOpObservabilityRecorder, ObservabilityRecorder
 from playlist_builder.ui.shared.dto.playlist_library import ManagedPlaylistDetail
 from playlist_builder.ui.shared.dto.playlist_sync import (
     ApplySyncResult,
@@ -51,6 +52,7 @@ class ApplySyncPlaylist:
         engine: PlaylistSyncEngine | None = None,
         executor: SyncActionExecutor | None = None,
         state_updater: PlaylistSyncStateUpdater | None = None,
+        observability: ObservabilityRecorder | NoOpObservabilityRecorder | None = None,
     ) -> None:
         self._playlists = playlist_repository
         self._operations = operation_repository
@@ -58,6 +60,9 @@ class ApplySyncPlaylist:
         self._engine = engine or PlaylistSyncEngine()
         self._executor = executor or SyncActionExecutor()
         self._state_updater = state_updater or PlaylistSyncStateUpdater()
+        self._observability = (
+            observability if observability is not None else ObservabilityRecorder()
+        )
 
     def execute(
         self,
@@ -94,6 +99,12 @@ class ApplySyncPlaylist:
         if not validation.ok:
             operation = _blocked_operation(request, local, remote, checksum_actual, validation.error_code)
             self._operations.upsert(operation)
+            self._observability.record_sync_apply_blocked(
+                local_playlist_id=request.local_playlist_id,
+                provider_id=request.provider_id.value,
+                operation_id=operation.operation_id,
+                reason=validation.message,
+            )
             return ApplySyncResult(
                 operation=operation,
                 final_sync_status=_blocked_status(validation.error_code),
@@ -133,6 +144,16 @@ class ApplySyncPlaylist:
                 skipped=(),
             )
             self._operations.upsert(operation)
+            self._observability.record_sync_apply_completed(
+                local_playlist_id=request.local_playlist_id,
+                provider_id=request.provider_id.value,
+                operation_id=operation.operation_id,
+                duration_ms=0,
+                status=SyncOperationStatus.NO_OP.value,
+                actions_completed=0,
+                actions_failed=0,
+                correlation_id="",
+            )
             updated = self._state_updater.apply_no_op(
                 local,
                 provider_id=request.provider_id,
@@ -154,6 +175,11 @@ class ApplySyncPlaylist:
             actions_total=len(validation.executable_actions),
         )
         self._operations.upsert(operation)
+        correlation_id = self._observability.record_sync_apply_started(
+            local_playlist_id=request.local_playlist_id,
+            provider_id=request.provider_id.value,
+            operation_id=operation.operation_id,
+        )
 
         completed: list[SyncActionOutcome] = []
         failed: list[SyncActionOutcome] = []
@@ -255,6 +281,28 @@ class ApplySyncPlaylist:
             message = "Synchronisation partiellement appliquée."
         elif status == SyncOperationStatus.FAILED:
             message = failed[0].message if failed else "Échec de la synchronisation."
+
+        duration_ms = _duration_ms_iso(operation.started_at_iso, operation.finished_at_iso)
+        if status == SyncOperationStatus.FAILED and not completed:
+            self._observability.record_sync_apply_failed(
+                local_playlist_id=request.local_playlist_id,
+                provider_id=request.provider_id.value,
+                operation_id=operation.operation_id,
+                duration_ms=duration_ms,
+                error_message=message,
+                correlation_id=correlation_id,
+            )
+        else:
+            self._observability.record_sync_apply_completed(
+                local_playlist_id=request.local_playlist_id,
+                provider_id=request.provider_id.value,
+                operation_id=operation.operation_id,
+                duration_ms=duration_ms,
+                status=status.value,
+                actions_completed=len(completed),
+                actions_failed=len(failed),
+                correlation_id=correlation_id,
+            )
 
         return ApplySyncResult(
             operation=operation,
@@ -358,3 +406,14 @@ def _blocked_status(error_code: str) -> str:
     if error_code == "blocked_conflict":
         return "conflict"
     return "error"
+
+
+def _duration_ms_iso(started_at_iso: str, finished_at_iso: str) -> int:
+    if not started_at_iso or not finished_at_iso:
+        return 0
+    try:
+        start = datetime.fromisoformat(started_at_iso)
+        end = datetime.fromisoformat(finished_at_iso)
+        return max(0, int((end - start).total_seconds() * 1000))
+    except ValueError:
+        return 0

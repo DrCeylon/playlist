@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from playlist_builder.app.playlist_sync.engine import PlaylistSyncEngine
 from playlist_builder.app.playlist_sync.plan_checksum import plan_checksum
 from playlist_builder.canonical.enums import ProviderCapability, ProviderId
 from playlist_builder.integration.gateway.registry import ProviderGatewayRegistry
+from playlist_builder.observability import ObservabilityRecorder
 from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode
 from playlist_builder.ui.shared.dto.playlist_library import (
     ManagedPlaylistDetail,
@@ -29,6 +31,7 @@ def plan_sync(
     remote_playlist_id: str | None = None,
 ) -> dict[str, Any]:
     """Build a sync plan without mutating any provider."""
+    started = time.perf_counter()
     snapshot = remote_snapshot
     if snapshot is None:
         _ensure_provider_can_plan(registry, provider_id)
@@ -53,6 +56,14 @@ def plan_sync(
         remote=snapshot,
         direction=direction,
         sync_mode=sync_mode,
+    )
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    ObservabilityRecorder().record_sync_plan_completed(
+        local_playlist_id=local_detail.summary.local_playlist_id,
+        provider_id=provider_id.value,
+        duration_ms=duration_ms,
+        actions_total=len(plan.actions),
+        conflicts_total=len(plan.conflicts),
     )
     return {"sync_plan": plan.to_dict(), "plan_checksum": plan_checksum(plan)}
 
