@@ -327,9 +327,45 @@ class RuntimeEngineBridgeBackend:
             result=item.import_result,
             diagnostics=diagnostics,
         )
+        self._register_managed_playlist_after_import(
+            history_session_id=updated.session_id,
+            provider_id=provider_id,
+            playlist_name=item.import_result.playlist_name,
+            import_result=item.import_result,
+        )
         if item.import_result.phase.value != "waiting_for_manual_acquisition":
             self._session_store.delete(item.import_result.import_session_id)
         return ImportPlaylistResult(import_result=item.import_result, history_session_id=updated.session_id)
+
+    def _register_managed_playlist_after_import(
+        self,
+        *,
+        history_session_id: str,
+        provider_id: ProviderId,
+        playlist_name: str,
+        import_result,
+    ) -> None:
+        from playlist_builder.app.playlist_library.register_generated_import import RegisterGeneratedImport
+        from playlist_builder.ui.shared.dto.enums import ImportPhase
+
+        if import_result.phase not in {ImportPhase.COMPLETED, ImportPhase.PARTIAL_SUCCESS}:
+            return
+        session_id = str(history_session_id or "").strip()
+        if not session_id:
+            return
+
+        gateway = self._context.registry.get(provider_id)
+        read_port = getattr(gateway, "playlist_read", None) if gateway is not None else None
+        RegisterGeneratedImport(
+            self._repository_provider.managed_playlist_repository(),
+            self._repository_provider.snapshot_archive(),
+        ).execute(
+            history_session_id=session_id,
+            provider_id=provider_id,
+            playlist_name=playlist_name,
+            import_result=import_result,
+            read_port=read_port,
+        )
 
     def list_managed_playlists(self) -> tuple[dict[str, Any], ...]:
         from playlist_builder.app.bridge_runtime.playlist_library import list_managed_playlists

@@ -114,6 +114,20 @@ playlist_builder/ui/bridge/            ← contrat provider-neutral
 
 `ManualAcquisitionWorkflowCoordinator.reset()` (Swift) et `ManualAcquisitionWorkflowCoordinator.reset()` (Python) remettent le workflow à `waiting_for_user` **sans** passer par la matrice de transitions métier. C’est une réinitialisation de session (ex. `ImportViewModel.beginImport()` avant un retry depuis le rapport), pas une transition `completed → waiting_for_user`. Les transitions illégales restent rejetées par `assertTransition` / `transition()`.
 
+### Enregistrement post-import (managed playlist)
+
+À la fin d’un import terminal (`completed` ou `partial_success`), le backend exécute `RegisterGeneratedImport` :
+
+- upsert immédiat dans `ManagedPlaylistRepository` (`local_playlist_id = hist-{session_id}`) ;
+- tracks et statuts issus des outcomes ;
+- résolution du lien distant via `ProviderPlaylistReadPort` (aucune association arbitraire si noms dupliqués) ;
+- `linked_remote_refs` + `provider_playlist_id` alimentés pour `plan_sync` ;
+- retry = upsert de la même playlist (version incrémentée, pas de doublon).
+
+L’historique reste un journal d’audit ; la migration lazy ne sert plus que de rattrapage pour les anciennes sessions.
+
+Côté Swift, `AppWorkflowCoordinator` rafraîchit `PlaylistLibraryStore` dès que l’import atteint l’écran rapport.
+
 ## Configuration
 
 | Variable | Usage |
