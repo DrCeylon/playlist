@@ -110,6 +110,10 @@ playlist_builder/ui/bridge/            ← contrat provider-neutral
 5. Swift envoie `continue_manual_acquisition` avec `import_session_id`.
 6. Moteur reprend la résolution ; `IdentityCache` rempli si succès.
 
+### Session reset (retry / nouvel import)
+
+`ManualAcquisitionWorkflowCoordinator.reset()` (Swift) et `ManualAcquisitionWorkflowCoordinator.reset()` (Python) remettent le workflow à `waiting_for_user` **sans** passer par la matrice de transitions métier. C’est une réinitialisation de session (ex. `ImportViewModel.beginImport()` avant un retry depuis le rapport), pas une transition `completed → waiting_for_user`. Les transitions illégales restent rejetées par `assertTransition` / `transition()`.
+
 ## Configuration
 
 | Variable | Usage |

@@ -159,8 +159,12 @@ public final class ManualAcquisitionWorkflowCoordinator {
         return snapshot
     }
 
+    /// Reinitializes the coordinator for a new import session.
+    /// This is **not** a business transition — it bypasses `transition(to:)` so a
+    /// terminal phase (e.g. `.completed`) can be torn down before `beginImport` starts fresh.
     public func reset() {
-        transition(to: .waitingForUser)
+        phase = .waitingForUser
+        phaseEnteredAt = Date()
         snapshot = ManualAcquisitionWorkflowSnapshot()
     }
 
