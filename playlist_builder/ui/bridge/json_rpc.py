@@ -25,7 +25,7 @@ from playlist_builder.ui.bridge.errors import BridgeError, BridgeErrorCode, Inva
 from playlist_builder.ui.bridge.events import BridgeEvent, completed_event, started_event
 from playlist_builder.ui.bridge.protocol import EngineBridge, EngineBridgeBackend
 from playlist_builder.infrastructure.manual_continue_trace import begin_session, log as manual_continue_trace
-from playlist_builder.ui.shared.dto import ImportResultState, ProviderOption, default_provider_options
+from playlist_builder.ui.shared.dto import PlaylistGenerationRequest, default_provider_options
 from playlist_builder.ui.shared.validation.generation import validate_playlist_generation_request
 
 

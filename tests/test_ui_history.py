@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from playlist_builder.app.bridge_runtime import RuntimeEngineBridgeBackend
 from playlist_builder.app.factory import build_app_context
 from playlist_builder.canonical.enums import ProviderId
@@ -117,7 +119,10 @@ def test_history_schema_version_compatibility(tmp_path: Path):
         json.dumps({"schema_version": SCHEMA_VERSION + 99, "sessions": [{"session_id": "old"}]}),
         encoding="utf-8",
     )
-    assert repository.list_sessions() == []
+    from playlist_builder.ui.shared.history.errors import UnsupportedSchemaVersionError
+
+    with pytest.raises(UnsupportedSchemaVersionError):
+        repository.list_sessions()
 
 
 def test_history_never_exposes_persistent_id():

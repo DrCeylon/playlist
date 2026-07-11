@@ -26,8 +26,10 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 |-------|-----------|
 | `resolve_sync_conflicts` bridge cassé | `backend.py` — chargement `ManagedPlaylistDetail` |
 | `sync` ignoré à l'import bridge | Paramètre transmis à `stream_import_playlist` |
-| JSON repos sans verrou | `infrastructure/atomic_json.py` + RMW atomique |
-| Schema version silencieux | `UnsupportedSchemaVersionError` — rejet explicite (ADR-022) |
+| JSON repos sans verrou (managed playlists, sync ops) | `infrastructure/atomic_json.py` + RMW atomique |
+| Schema version silencieux (managed playlists) | `UnsupportedSchemaVersionError` — rejet explicite (ADR-022) |
+| Session history / sync ops schema silencieux | `UnsupportedSchemaVersionError` — aligné managed playlists (audit consolidation) |
+| Session history sans verrou concurrent | `locked_json_document` RMW — aligné autres repos JSON (audit consolidation) |
 | Snapshots sans verrou | `SnapshotArchive` : lock advisory + `os.replace` immuable (ADR-022) |
 | `assert_bridge_safe_mapping` inutilisé | Vérification sorties `provider_account` |
 | CI Python absente | `.github/workflows/python-ci.yml` |
@@ -44,7 +46,7 @@ Document de référence pour la release engineering. Aucun marqueur `TODO` / `FI
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests Python | voir `python3.12 -m pytest -q` (~574 pass, 1 skip) |
+| Tests Python | voir `python3.12 -m pytest -q` (~582 pass, 1 skip) |
 | Tests Swift | ~135 (macOS CI) |
 | Version cible release | 1.0.0 |
 | LICENSE | MIT |
