@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
+from playlist_builder.infrastructure.atomic_json import locked_json_document
+from playlist_builder.ui.shared.history.errors import UnsupportedSchemaVersionError
 from playlist_builder.ui.shared.history.models import SessionHistoryRecord
 from playlist_builder.ui.shared.history.serialization import SCHEMA_VERSION, record_from_dict, record_to_dict
 
@@ -17,13 +18,7 @@ class SessionHistoryRepository:
 
     def list_sessions(self) -> list[SessionHistoryRecord]:
         payload = self._read_payload()
-        sessions_raw = payload.get("sessions", [])
-        if not isinstance(sessions_raw, list):
-            return []
-        records: list[SessionHistoryRecord] = []
-        for item in sessions_raw:
-            if isinstance(item, dict):
-                records.append(record_from_dict(item))
+        records = self._records_from_payload(payload)
         records.sort(key=lambda item: item.started_at_iso, reverse=True)
         return records
 
@@ -34,54 +29,66 @@ class SessionHistoryRepository:
         return None
 
     def upsert(self, record: SessionHistoryRecord) -> SessionHistoryRecord:
-        sessions = self.list_sessions()
-        replaced = False
-        updated: list[SessionHistoryRecord] = []
-        for item in sessions:
-            if item.session_id == record.session_id:
+        def mutate(sessions: list[SessionHistoryRecord]) -> list[SessionHistoryRecord]:
+            replaced = False
+            updated: list[SessionHistoryRecord] = []
+            for item in sessions:
+                if item.session_id == record.session_id:
+                    updated.append(record)
+                    replaced = True
+                else:
+                    updated.append(item)
+            if not replaced:
                 updated.append(record)
-                replaced = True
-            else:
-                updated.append(item)
-        if not replaced:
-            updated.append(record)
-        self._write_payload(updated)
+            return updated
+
+        self._mutate_sessions(mutate)
         return record
 
     def delete_session(self, session_id: str) -> bool:
-        sessions = self.list_sessions()
-        kept = [item for item in sessions if item.session_id != session_id]
-        if len(kept) == len(sessions):
+        if not any(item.session_id == session_id for item in self.list_sessions()):
             return False
-        self._write_payload(kept)
+
+        def mutate(sessions: list[SessionHistoryRecord]) -> list[SessionHistoryRecord]:
+            return [item for item in sessions if item.session_id != session_id]
+
+        self._mutate_sessions(mutate)
         return True
 
     def clear(self) -> None:
-        self._write_payload([])
+        self._mutate_sessions(lambda _sessions: [])
+
+    def _records_from_payload(self, payload: dict[str, object]) -> list[SessionHistoryRecord]:
+        sessions_raw = payload.get("sessions", [])
+        if not isinstance(sessions_raw, list):
+            return []
+        return [record_from_dict(item) for item in sessions_raw if isinstance(item, dict)]
+
+    def _mutate_sessions(self, mutator) -> None:
+        with locked_json_document(self._path) as locked:
+            payload = self._normalize_payload(locked)
+            updated = mutator(self._records_from_payload(payload))
+            locked.clear()
+            locked.update(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "sessions": [record_to_dict(item) for item in updated],
+                }
+            )
 
     def _read_payload(self) -> dict[str, object]:
         if not self._path.exists():
             return {"schema_version": SCHEMA_VERSION, "sessions": []}
         try:
-            payload = json.loads(self._path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            with locked_json_document(self._path) as payload:
+                return dict(self._normalize_payload(payload))
+        except OSError:
             return {"schema_version": SCHEMA_VERSION, "sessions": []}
-        if not isinstance(payload, dict):
-            return {"schema_version": SCHEMA_VERSION, "sessions": []}
+
+    def _normalize_payload(self, payload: dict[str, object]) -> dict[str, object]:
         version = int(payload.get("schema_version", SCHEMA_VERSION) or SCHEMA_VERSION)
         if version > SCHEMA_VERSION:
-            return {"schema_version": SCHEMA_VERSION, "sessions": []}
+            raise UnsupportedSchemaVersionError(version, SCHEMA_VERSION, str(self._path))
         payload.setdefault("schema_version", SCHEMA_VERSION)
         payload.setdefault("sessions", [])
         return payload
-
-    def _write_payload(self, sessions: list[SessionHistoryRecord]) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "schema_version": SCHEMA_VERSION,
-            "sessions": [record_to_dict(item) for item in sessions],
-        }
-        temp = self._path.with_suffix(".tmp")
-        temp.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-        temp.replace(self._path)
-

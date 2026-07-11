@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from playlist_builder.app.playlist_library.errors import UnsupportedSchemaVersionError
 from playlist_builder.app.playlist_sync_operations.serialization import (
     SCHEMA_VERSION,
     operation_from_dict,
@@ -94,7 +95,7 @@ class JsonPlaylistSyncOperationRepository:
     def _normalize_payload(self, payload: dict[str, object]) -> dict[str, object]:
         version = int(payload.get("schema_version", SCHEMA_VERSION) or SCHEMA_VERSION)
         if version > SCHEMA_VERSION:
-            return {"schema_version": SCHEMA_VERSION, "operations": []}
+            raise UnsupportedSchemaVersionError(version, SCHEMA_VERSION, str(self._path))
         payload.setdefault("schema_version", SCHEMA_VERSION)
         payload.setdefault("operations", [])
         return payload

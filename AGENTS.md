@@ -36,7 +36,7 @@ Short, authoritative instructions for AI agents and cloud workers. Details: [doc
 ```bash
 pip install -e ".[dev]"
 python3.12 scripts/check_environment.py
-python3.12 -m pytest -q                    # ~574 pass, 1 skip (~2 min)
+python3.12 -m pytest -q                    # ~582 pass, 1 skip (~2 min)
 
 # macOS full gate
 ./scripts/check_all.sh

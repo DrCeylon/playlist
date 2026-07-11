@@ -5,7 +5,7 @@ import json
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Iterator
 
 
 @contextmanager
@@ -61,22 +61,3 @@ def locked_json_document(path: Path) -> Iterator[dict[str, Any]]:
         handle.flush()
 
 
-def update_json_document(
-    path: Path,
-    *,
-    default: Callable[[], dict[str, Any]],
-    mutator: Callable[[dict[str, Any]], None],
-) -> dict[str, Any]:
-    """Apply a mutation to a JSON document atomically under file lock."""
-    with locked_json_document(path) as payload:
-        if not payload:
-            payload.update(default())
-        mutator(payload)
-        return payload
-
-
-def write_json_document_atomic(path: Path, payload: dict[str, Any]) -> None:
-    """Write a JSON document atomically with an exclusive lock."""
-    with locked_json_document(path) as locked:
-        locked.clear()
-        locked.update(payload)
