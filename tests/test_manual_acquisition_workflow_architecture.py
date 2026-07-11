@@ -40,6 +40,20 @@ def test_manual_workflow_phase_transition_matrix_is_explicit() -> None:
     )
 
 
+def test_manual_workflow_coordinator_reset_bypasses_transition_matrix() -> None:
+    coordinator = ManualAcquisitionWorkflowCoordinator(
+        context=MagicMock(),
+        session_store=MagicMock(),
+    )
+    coordinator._phase = ManualAcquisitionWorkflowPhase.COMPLETED
+    coordinator.reset()
+    assert coordinator.phase == ManualAcquisitionWorkflowPhase.WAITING_FOR_USER
+    assert not can_transition(
+        ManualAcquisitionWorkflowPhase.COMPLETED,
+        ManualAcquisitionWorkflowPhase.WAITING_FOR_USER,
+    )
+
+
 def test_manual_workflow_coordinator_rejects_illegal_transition(tmp_path) -> None:
     context = build_app_context(AppSettings(wait_for_manual_catalog_add=True))
     coordinator = ManualAcquisitionWorkflowCoordinator(

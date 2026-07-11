@@ -71,4 +71,43 @@ final class ManualAcquisitionWorkflowTests: XCTestCase {
         XCTAssertEqual(history.phase, .waitingForUser)
         XCTAssertTrue(history.pollStatus.contains("historique"))
     }
+
+    func testResetFromCompletedReinitializesSessionWithoutBusinessTransition() async {
+        await MainActor.run {
+            let coordinator = ManualAcquisitionWorkflowCoordinator()
+            _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
+            _ = coordinator.beginUserConfirmation()
+            let completed = ImportResultState(playlistName: "Demo", phase: .partialSuccess)
+            _ = coordinator.applyContinueResult(completed)
+            XCTAssertEqual(coordinator.phase, .completed)
+
+            coordinator.reset()
+
+            XCTAssertEqual(coordinator.phase, .waitingForUser)
+            XCTAssertEqual(coordinator.snapshot, ManualAcquisitionWorkflowSnapshot())
+            XCTAssertFalse(coordinator.snapshot.isBusy)
+        }
+    }
+
+    func testResetAfterCompletedAllowsNewAcquisitionCycle() async {
+        await MainActor.run {
+            let coordinator = ManualAcquisitionWorkflowCoordinator()
+            _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
+            _ = coordinator.beginUserConfirmation()
+            _ = coordinator.applyContinueResult(ImportResultState(playlistName: "Demo", phase: .completed))
+            coordinator.reset()
+
+            let waiting = coordinator.enterWaiting(importSessionID: "session-2", canResume: true, fromHistory: false)
+            XCTAssertEqual(waiting.phase, .waitingForUser)
+            let confirming = coordinator.beginUserConfirmation()
+            XCTAssertEqual(confirming.phase, .verifyingLibrary)
+        }
+    }
+
+    func testCompletedToWaitingForUserRemainsIllegalBusinessTransition() {
+        XCTAssertFalse(
+            ManualAcquisitionWorkflow.canTransition(from: .completed, to: .waitingForUser),
+            "Session reset must use reset(), not transition()"
+        )
+    }
 }

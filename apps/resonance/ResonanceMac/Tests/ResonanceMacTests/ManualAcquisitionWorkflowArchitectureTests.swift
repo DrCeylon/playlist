@@ -40,6 +40,21 @@ final class ManualAcquisitionWorkflowArchitectureTests: XCTestCase {
         XCTAssertTrue(source.contains("nextStepHint"))
     }
 
+    func testCoordinatorResetBypassesBusinessTransition() throws {
+        let source = try String(
+            contentsOf: sourceRoot()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("ResonanceCore/Sources/ResonanceCore/ManualAcquisitionWorkflow.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(source.contains("bypasses `transition(to:)`"))
+        XCTAssertFalse(
+            source.contains("public func reset() {\n        transition(to: .waitingForUser)"),
+            "reset() must not route through transition()"
+        )
+    }
+
     private func manualAcquisitionCardSourceURL() -> URL {
         sourceRoot().appendingPathComponent("Components/ManualAcquisitionCard.swift")
     }

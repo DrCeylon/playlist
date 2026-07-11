@@ -760,4 +760,113 @@ final class ImportViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.screenState, .report)
         XCTAssertEqual(viewModel.report?.phase, reportPhase)
     }
+
+    /// Regression: P0 crash when retrying a track after manual acquisition reached `.completed`
+    /// (`Illegal manual acquisition transition: completed → waiting_for_user`).
+    func testRetryImportTrackAfterManualAcquisitionPartialSuccessReport() async {
+        let seedOutcomes = [
+            ImportTrackOutcome(artist: "Artist A", title: "Track A", section: "Main", status: .added),
+            ImportTrackOutcome(artist: "Artist B", title: "Track B", section: "Main", status: .notFound),
+        ]
+
+        final class ManualPartialSuccessRetryService: PlaylistImportServing {
+            private(set) var retryCount = 0
+
+            func importPlaylist(
+                _ result: PlaylistGenerationResult,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                ImportResultState(
+                    playlistName: result.playlistName,
+                    outcomes: seedOutcomes,
+                    phase: .waitingForManualAcquisition,
+                    importSessionID: "manual-session-1",
+                    manualArtist: "Artist B",
+                    manualTitle: "Track B",
+                    manualInstructions: "Add in Music.app"
+                )
+            }
+
+            func continueManualAcquisition(importSessionID: String) async throws -> ImportResultState {
+                ImportResultState(
+                    playlistName: "Pool Party",
+                    outcomes: seedOutcomes,
+                    phase: .partialSuccess,
+                    importSessionID: importSessionID
+                )
+            }
+
+            func probeManualAcquisition(importSessionID: String) async throws -> ManualAcquisitionProbeResult {
+                ManualAcquisitionProbeResult(
+                    found: true,
+                    message: "Morceau détecté",
+                    diagnostics: ManualAcquisitionProbeDiagnostics(importSessionID: importSessionID)
+                )
+            }
+
+            func retryImportTracks(
+                _ generationResult: PlaylistGenerationResult,
+                trackIndices: [Int],
+                existingOutcomes: [ImportTrackOutcome]?,
+                historySessionID: String?,
+                onEvent: @escaping @Sendable (BridgeEventMessage) -> Void
+            ) async throws -> ImportResultState {
+                retryCount += 1
+                var updated = existingOutcomes ?? seedOutcomes
+                if let index = trackIndices.first, index < updated.count {
+                    updated[index] = ImportTrackOutcome(
+                        artist: updated[index].artist,
+                        title: updated[index].title,
+                        section: updated[index].section,
+                        status: .added,
+                        message: "Ajouté au réessai"
+                    )
+                }
+                return ImportResultState(
+                    playlistName: generationResult.playlistName,
+                    outcomes: updated,
+                    phase: .partialSuccess,
+                    historySessionID: historySessionID ?? generationResult.historySessionID
+                )
+            }
+        }
+
+        let service = ManualPartialSuccessRetryService()
+        let viewModel = ImportViewModel(service: service)
+        let generation = PlaylistGenerationResult(
+            playlistName: "Pool Party",
+            sections: [
+                GeneratedSectionPreview(
+                    name: "Main",
+                    tracks: seedOutcomes.map {
+                        GeneratedTrackPreview(
+                            artist: $0.artist,
+                            title: $0.title,
+                            section: $0.section,
+                            score: 80,
+                            confidence: .high,
+                            source: "test"
+                        )
+                    }
+                ),
+            ],
+            averageScore: 0.8,
+            providerID: .appleMusic,
+            historySessionID: "hist-manual-retry"
+        )
+
+        await viewModel.importPlaylist(generation)
+        XCTAssertEqual(viewModel.screenState, .waitingForManualAcquisition)
+
+        await viewModel.confirmManualAcquisition()
+        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertEqual(viewModel.report?.phase, .partialSuccess)
+
+        await viewModel.retryImportTrack(at: 1)
+
+        XCTAssertEqual(service.retryCount, 1)
+        XCTAssertEqual(viewModel.screenState, .report)
+        XCTAssertEqual(viewModel.report?.phase, .partialSuccess)
+        XCTAssertEqual(viewModel.report?.outcomes[1].status, .added)
+    }
 }

@@ -109,6 +109,7 @@ class ManualAcquisitionWorkflowCoordinator:
         return self._phase
 
     def reset(self) -> None:
+        """Reinitialize for a new import session — not a business transition."""
         self._phase = ManualAcquisitionWorkflowPhase.WAITING_FOR_USER
 
     def transition(self, target: ManualAcquisitionWorkflowPhase) -> None:
