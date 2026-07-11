@@ -770,7 +770,12 @@ final class ImportViewModelTests: XCTestCase {
         ]
 
         final class ManualPartialSuccessRetryService: PlaylistImportServing {
+            private let seedOutcomes: [ImportTrackOutcome]
             private(set) var retryCount = 0
+
+            init(seedOutcomes: [ImportTrackOutcome]) {
+                self.seedOutcomes = seedOutcomes
+            }
 
             func importPlaylist(
                 _ result: PlaylistGenerationResult,
@@ -831,7 +836,7 @@ final class ImportViewModelTests: XCTestCase {
             }
         }
 
-        let service = ManualPartialSuccessRetryService()
+        let service = ManualPartialSuccessRetryService(seedOutcomes: seedOutcomes)
         let viewModel = ImportViewModel(service: service)
         let generation = PlaylistGenerationResult(
             playlistName: "Pool Party",
