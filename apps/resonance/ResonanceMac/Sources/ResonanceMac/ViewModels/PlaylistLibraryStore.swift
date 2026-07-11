@@ -8,13 +8,9 @@ final class PlaylistLibraryStore: ObservableObject {
     @Published private(set) var isBusy = false
     @Published var actionFeedback: String?
 
-    private var service: any PlaylistLibraryServing
+    private let service: any PlaylistLibraryServing
 
-    init(service: any PlaylistLibraryServing = MockPlaylistLibraryService()) {
-        self.service = service
-    }
-
-    func replaceService(_ service: any PlaylistLibraryServing) {
+    init(service: any PlaylistLibraryServing) {
         self.service = service
     }
 
@@ -49,25 +45,5 @@ final class PlaylistLibraryStore: ObservableObject {
 
     func clearSelection() {
         selectedDetail = nil
-    }
-
-    func syncSelected(direction: PlaylistSyncDirection) async {
-        guard let summary = selectedDetail?.summary else { return }
-        isBusy = true
-        defer { isBusy = false }
-        do {
-            let result = try await service.syncManagedPlaylist(
-                PlaylistSyncRequest(
-                    localPlaylistID: summary.localPlaylistID,
-                    direction: direction,
-                    providerID: summary.providerID
-                )
-            )
-            await refresh()
-            await select(localPlaylistID: summary.localPlaylistID)
-            actionFeedback = result.message
-        } catch {
-            actionFeedback = "La synchronisation a échoué."
-        }
     }
 }

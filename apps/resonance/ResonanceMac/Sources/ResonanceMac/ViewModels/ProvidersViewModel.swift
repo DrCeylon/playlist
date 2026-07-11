@@ -11,14 +11,6 @@ final class ProvidersViewModel: ObservableObject {
     private let platformService: any ProviderPlatformServing
 
     init(
-        diagnosticsService: any DiagnosticsServing = MockDiagnosticsService(),
-        platformService: any ProviderPlatformServing = MockDiagnosticsService()
-    ) {
-        self.diagnosticsService = diagnosticsService
-        self.platformService = platformService
-    }
-
-    func replaceServices(
         diagnosticsService: any DiagnosticsServing,
         platformService: any ProviderPlatformServing
     ) {

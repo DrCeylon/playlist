@@ -4,7 +4,6 @@ public protocol PlaylistLibraryServing: Sendable {
     func listManagedPlaylists() async throws -> [ManagedPlaylistSummary]
     func getManagedPlaylist(localPlaylistID: String) async throws -> ManagedPlaylistDetail?
     func importRemotePlaylist(remotePlaylist: RemotePlaylistSnapshot, origin: PlaylistOrigin) async throws -> ManagedPlaylistDetail?
-    func syncManagedPlaylist(_ request: PlaylistSyncRequest) async throws -> PlaylistSyncResult
     func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlanResult?
     func resolveSyncConflicts(_ request: PlaylistSyncResolveRequest) async throws -> PlaylistSyncPlanResult?
     func applySync(_ request: PlaylistSyncApplyRequest) async throws -> PlaylistSyncApplyResult?
@@ -13,7 +12,6 @@ public protocol PlaylistLibraryServing: Sendable {
 }
 
 public protocol ProviderPlatformServing: Sendable {
-    func providerAuthStatus(providerID: ProviderID) async throws -> RemoteProviderAccount?
     func providerConnect(providerID: ProviderID, params: [String: String]) async throws -> RemoteProviderAccount?
     func providerDisconnect(providerID: ProviderID) async throws -> RemoteProviderAccount?
 }

@@ -24,7 +24,6 @@ struct AppShellView: View {
         .navigationSplitViewStyle(.balanced)
         .onAppear {
             themeManager.updateColorScheme(colorScheme)
-            workflow.libraryStore.replaceService(workflow.engineBridge)
             Task { await workflow.libraryStore.refresh() }
         }
         .onChange(of: colorScheme) { _, newValue in
@@ -64,11 +63,11 @@ struct AppShellView: View {
         case .playlists:
             PlaylistsView(selection: $selection)
         case .sync:
-            SyncView(selection: $selection)
+            SyncView(selection: $selection, syncModel: workflow.syncViewModel)
         case .providers:
-            ProvidersView()
+            ProvidersView(viewModel: workflow.providersViewModel)
         case .history:
-            HistoryView(selection: $selection)
+            HistoryView(viewModel: workflow.historyViewModel, selection: $selection)
         case .settings:
             SettingsView()
         }

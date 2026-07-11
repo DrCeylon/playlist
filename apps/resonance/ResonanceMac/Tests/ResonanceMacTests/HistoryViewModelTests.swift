@@ -6,14 +6,14 @@ import XCTest
 final class HistoryViewModelTests: XCTestCase {
     func testRefreshSuccessLoadsSessions() async {
         let service = StubHistoryService()
-        let viewModel = HistoryViewModel(service: service)
+        let viewModel = HistoryViewModel(service: service, importService: MockPlaylistImportService())
         await viewModel.refresh()
         XCTAssertEqual(viewModel.screenState, .ready)
         XCTAssertEqual(viewModel.sessions.count, 1)
     }
 
     func testRefreshErrorShowsFailure() async {
-        let viewModel = HistoryViewModel(service: FailingHistoryService())
+        let viewModel = HistoryViewModel(service: FailingHistoryService(), importService: MockPlaylistImportService())
         await viewModel.refresh()
         if case .failed = viewModel.screenState {
             XCTAssertTrue(true)
@@ -23,14 +23,14 @@ final class HistoryViewModelTests: XCTestCase {
     }
 
     func testRefreshEmptyHistoryShowsReadyState() async {
-        let viewModel = HistoryViewModel(service: EmptyHistoryService())
+        let viewModel = HistoryViewModel(service: EmptyHistoryService(), importService: MockPlaylistImportService())
         await viewModel.refresh()
         XCTAssertEqual(viewModel.screenState, .ready)
         XCTAssertTrue(viewModel.sessions.isEmpty)
     }
 
     func testBridgeUnavailableShowsUsefulMessage() async {
-        let viewModel = HistoryViewModel(service: UnavailableHistoryService())
+        let viewModel = HistoryViewModel(service: UnavailableHistoryService(), importService: MockPlaylistImportService())
         await viewModel.refresh()
         if case .failed(let message) = viewModel.screenState {
             XCTAssertTrue(message.contains("Moteur Python introuvable"))
@@ -41,7 +41,7 @@ final class HistoryViewModelTests: XCTestCase {
 
     func testResumeContentShowsPreviewForGeneratedSession() async {
         let service = StubHistoryService()
-        let viewModel = HistoryViewModel(service: service)
+        let viewModel = HistoryViewModel(service: service, importService: MockPlaylistImportService())
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
         if case .preview(let result) = viewModel.resumeContent {
@@ -56,7 +56,7 @@ final class HistoryViewModelTests: XCTestCase {
             status: .imported,
             importResult: StubHistoryService.sampleImportResult
         )
-        let viewModel = HistoryViewModel(service: service)
+        let viewModel = HistoryViewModel(service: service, importService: MockPlaylistImportService())
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
         if case .importReport(let report) = viewModel.resumeContent {
@@ -69,7 +69,7 @@ final class HistoryViewModelTests: XCTestCase {
 
     func testResumeContentUnavailableWithoutPreview() async {
         let service = StubHistoryService(generationResult: [:])
-        let viewModel = HistoryViewModel(service: service)
+        let viewModel = HistoryViewModel(service: service, importService: MockPlaylistImportService())
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
         if case .unavailable(let hasRequest, let playlistName) = viewModel.resumeContent {
@@ -82,7 +82,7 @@ final class HistoryViewModelTests: XCTestCase {
 
     func testEditRequestForSelectedSession() async {
         let service = StubHistoryService()
-        let viewModel = HistoryViewModel(service: service)
+        let viewModel = HistoryViewModel(service: service, importService: MockPlaylistImportService())
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
         XCTAssertEqual(viewModel.editRequestForSelectedSession()?.name, "Demo")
@@ -90,7 +90,7 @@ final class HistoryViewModelTests: XCTestCase {
 
     func testClearAllPreservesActiveSession() async {
         let service = MultiSessionHistoryService()
-        let viewModel = HistoryViewModel(service: service)
+        let viewModel = HistoryViewModel(service: service, importService: MockPlaylistImportService())
         await viewModel.refresh()
         XCTAssertEqual(viewModel.sessions.count, 2)
 
@@ -107,7 +107,7 @@ final class HistoryViewModelTests: XCTestCase {
 
     func testDeleteProtectedSessionShowsFailure() async {
         let service = MultiSessionHistoryService()
-        let viewModel = HistoryViewModel(service: service)
+        let viewModel = HistoryViewModel(service: service, importService: MockPlaylistImportService())
         await viewModel.refresh()
         let active = viewModel.sessions.first { $0.sessionID == "hist-active" }!
 
@@ -123,7 +123,7 @@ final class HistoryViewModelTests: XCTestCase {
 
     func testExportShowsSuccessFeedback() async {
         let service = StubHistoryService()
-        let viewModel = HistoryViewModel(service: service)
+        let viewModel = HistoryViewModel(service: service, importService: MockPlaylistImportService())
         await viewModel.refresh()
         await viewModel.select(session: viewModel.sessions.first!)
         await viewModel.exportSelection()
@@ -178,9 +178,6 @@ private struct MultiSessionHistoryService: SessionHistoryServing {
     func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? { nil }
     func deleteHistorySession(sessionID: String) async throws -> Bool { true }
     func clearHistory() async throws -> Bool { true }
-    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult {
-        throw NSError(domain: "test", code: 1)
-    }
     func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
 }
 
@@ -287,10 +284,6 @@ private struct StubHistoryService: SessionHistoryServing {
     func deleteHistorySession(sessionID: String) async throws -> Bool { true }
     func clearHistory() async throws -> Bool { true }
 
-    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult {
-        PlaylistGenerationResult(playlistName: "Replay Demo", sections: [], averageScore: 0.7, providerID: .appleMusic)
-    }
-
     func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? {
         SessionHistoryExport(
             sessionID: sessionID,
@@ -308,7 +301,6 @@ private struct FailingHistoryService: SessionHistoryServing {
     func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? { nil }
     func deleteHistorySession(sessionID: String) async throws -> Bool { false }
     func clearHistory() async throws -> Bool { false }
-    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult { throw NSError(domain: "test", code: 2) }
     func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
 }
 
@@ -317,7 +309,6 @@ private struct EmptyHistoryService: SessionHistoryServing {
     func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? { nil }
     func deleteHistorySession(sessionID: String) async throws -> Bool { false }
     func clearHistory() async throws -> Bool { false }
-    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult { throw NSError(domain: "test", code: 2) }
     func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
 }
 
@@ -328,6 +319,5 @@ private struct UnavailableHistoryService: SessionHistoryServing {
     func getHistorySession(sessionID: String) async throws -> SessionHistoryDetail? { nil }
     func deleteHistorySession(sessionID: String) async throws -> Bool { false }
     func clearHistory() async throws -> Bool { false }
-    func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult { throw SessionHistoryServiceError.bridgeUnavailable }
     func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? { nil }
 }

@@ -46,6 +46,7 @@ Or use the helper script:
 - No AppleScript or provider-specific UI code in screens/view models
 - Python engine via `PythonEngineBridgeService` when repo root is discoverable
 - Colors only via `ThemeManager` / design tokens
+- Screen ViewModels (`SyncViewModel`, `ProvidersViewModel`, `HistoryViewModel`, `DiagnosticsViewModel`) are owned by `AppWorkflowCoordinator` and receive protocol-typed services at construction — views use `@ObservedObject` from the coordinator, not late `replaceService` swaps
 
 ## Related
 

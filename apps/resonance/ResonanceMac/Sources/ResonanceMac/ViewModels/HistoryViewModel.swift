@@ -24,22 +24,14 @@ final class HistoryViewModel: ObservableObject {
     @Published var actionFeedback: ActionFeedback = .none
     @Published var architectErrorDetail: String?
 
-    private var service: any SessionHistoryServing
-    private var importService: any PlaylistImportServing
+    private let service: any SessionHistoryServing
+    private let importService: any PlaylistImportServing
 
     init(
-        service: any SessionHistoryServing = PythonEngineBridgeService(),
-        importService: any PlaylistImportServing = PythonEngineBridgeService()
-    ) {
-        self.service = service
-        self.importService = importService
-    }
-
-    func replaceServices(
-        historyService: any SessionHistoryServing,
+        service: any SessionHistoryServing,
         importService: any PlaylistImportServing
     ) {
-        self.service = historyService
+        self.service = service
         self.importService = importService
     }
 

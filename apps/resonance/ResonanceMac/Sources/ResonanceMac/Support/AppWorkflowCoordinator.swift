@@ -35,6 +35,10 @@ final class AppWorkflowCoordinator: ObservableObject {
     let smartInputEngines: SmartInputFormEngines
     let engineBridge: PythonEngineBridgeService
     let libraryStore: PlaylistLibraryStore
+    let syncViewModel: SyncViewModel
+    let providersViewModel: ProvidersViewModel
+    let historyViewModel: HistoryViewModel
+    let diagnosticsViewModel: DiagnosticsViewModel
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -44,6 +48,16 @@ final class AppWorkflowCoordinator: ObservableObject {
     ) {
         self.engineBridge = engineBridge
         self.libraryStore = PlaylistLibraryStore(service: engineBridge)
+        self.syncViewModel = SyncViewModel(service: engineBridge)
+        self.providersViewModel = ProvidersViewModel(
+            diagnosticsService: engineBridge,
+            platformService: engineBridge
+        )
+        self.historyViewModel = HistoryViewModel(
+            service: engineBridge,
+            importService: engineBridge
+        )
+        self.diagnosticsViewModel = DiagnosticsViewModel(service: engineBridge)
         let resolvedAutocomplete: any AutocompleteServing = autocompleteService
             ?? engineBridge
         playlistBuilder = PlaylistBuilderViewModel(service: engineBridge)
@@ -59,6 +73,16 @@ final class AppWorkflowCoordinator: ObservableObject {
     ) {
         self.engineBridge = PythonEngineBridgeService(configuration: nil, transport: nil)
         self.libraryStore = PlaylistLibraryStore(service: MockPlaylistLibraryService())
+        self.syncViewModel = SyncViewModel(service: MockPlaylistLibraryService())
+        self.providersViewModel = ProvidersViewModel(
+            diagnosticsService: MockDiagnosticsService(),
+            platformService: MockDiagnosticsService()
+        )
+        self.historyViewModel = HistoryViewModel(
+            service: MockSessionHistoryService(),
+            importService: MockPlaylistImportService()
+        )
+        self.diagnosticsViewModel = DiagnosticsViewModel(service: MockDiagnosticsService())
         let resolvedAutocomplete: any AutocompleteServing = autocompleteService
             ?? MockAutocompleteService()
         playlistBuilder = PlaylistBuilderViewModel(service: playlistGenerationService)
