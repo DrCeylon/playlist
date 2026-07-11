@@ -4,9 +4,9 @@ import SwiftUI
 
 struct SyncView: View {
     @Binding var selection: SidebarItem?
+    @ObservedObject var syncModel: SyncViewModel
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var workflow: AppWorkflowCoordinator
-    @StateObject private var syncModel = SyncViewModel()
 
     var body: some View {
         ThemedScreen {
@@ -35,7 +35,6 @@ struct SyncView: View {
         }
         .navigationTitle("Synchronisation")
         .onAppear {
-            syncModel.replaceService(workflow.engineBridge)
             if let selected = workflow.libraryStore.selectedDetail {
                 syncModel.selectPlaylist(selected.summary.localPlaylistID)
             }

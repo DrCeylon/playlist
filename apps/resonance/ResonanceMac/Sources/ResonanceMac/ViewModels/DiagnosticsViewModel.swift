@@ -31,13 +31,9 @@ final class DiagnosticsViewModel: ObservableObject {
     @Published var providers: [ProviderOption] = []
     @Published var architectErrorDetail: String?
 
-    private var service: any DiagnosticsServing
+    private let service: any DiagnosticsServing
 
-    init(service: any DiagnosticsServing = PythonEngineBridgeService()) {
-        self.service = service
-    }
-
-    func replaceService(_ service: any DiagnosticsServing) {
+    init(service: any DiagnosticsServing) {
         self.service = service
     }
 

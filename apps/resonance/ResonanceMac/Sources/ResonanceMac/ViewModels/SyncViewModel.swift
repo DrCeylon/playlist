@@ -23,11 +23,7 @@ final class SyncViewModel: ObservableObject {
 
     private let service: any PlaylistLibraryServing
 
-    init(service: any PlaylistLibraryServing = MockPlaylistLibraryService()) {
-        self.service = service
-    }
-
-    func replaceService(_ service: any PlaylistLibraryServing) {
+    init(service: any PlaylistLibraryServing) {
         self.service = service
     }
 

@@ -3,9 +3,8 @@ import ResonanceDesign
 import SwiftUI
 
 struct DiagnosticsView: View {
-    @StateObject private var viewModel = DiagnosticsViewModel(service: MockDiagnosticsService())
+    @ObservedObject var viewModel: DiagnosticsViewModel
     @EnvironmentObject private var themeManager: ThemeManager
-    @EnvironmentObject private var workflow: AppWorkflowCoordinator
 
     var body: some View {
         ThemedScreen {
@@ -21,9 +20,6 @@ struct DiagnosticsView: View {
             }
         }
         .navigationTitle("Laboratoire")
-        .onAppear {
-            viewModel.replaceService(workflow.engineBridge)
-        }
         .task {
             await viewModel.refresh()
         }

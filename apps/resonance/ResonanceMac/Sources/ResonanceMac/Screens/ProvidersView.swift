@@ -3,9 +3,8 @@ import ResonanceDesign
 import SwiftUI
 
 struct ProvidersView: View {
-    @StateObject private var viewModel = ProvidersViewModel()
+    @ObservedObject var viewModel: ProvidersViewModel
     @EnvironmentObject private var themeManager: ThemeManager
-    @EnvironmentObject private var workflow: AppWorkflowCoordinator
 
     var body: some View {
         ThemedScreen {
@@ -37,12 +36,6 @@ struct ProvidersView: View {
             }
         }
         .navigationTitle("Services musicaux")
-        .onAppear {
-            viewModel.replaceServices(
-                diagnosticsService: workflow.engineBridge,
-                platformService: workflow.engineBridge
-            )
-        }
         .task { await viewModel.refresh() }
         .refreshable { await viewModel.refresh() }
     }

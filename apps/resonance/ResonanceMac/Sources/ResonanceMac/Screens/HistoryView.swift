@@ -3,21 +3,11 @@ import ResonanceDesign
 import SwiftUI
 
 struct HistoryView: View {
-    @StateObject private var viewModel: HistoryViewModel
+    @ObservedObject var viewModel: HistoryViewModel
     @Binding var selection: SidebarItem?
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var workflow: AppWorkflowCoordinator
     @State private var showClearConfirmation = false
-
-    init(selection: Binding<SidebarItem?>) {
-        _selection = selection
-        _viewModel = StateObject(
-            wrappedValue: HistoryViewModel(
-                service: MockDiagnosticsService(),
-                importService: MockPlaylistImportService()
-            )
-        )
-    }
 
     var body: some View {
         ThemedScreen {
@@ -31,12 +21,6 @@ struct HistoryView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationTitle("Historique")
-        .onAppear {
-            viewModel.replaceServices(
-                historyService: workflow.engineBridge,
-                importService: workflow.engineBridge
-            )
-        }
         .task {
             await viewModel.refresh()
         }

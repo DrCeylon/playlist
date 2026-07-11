@@ -420,17 +420,6 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
         return response.result["cleared"]?.boolValue ?? false
     }
 
-    public func replayGeneration(sessionID: String) async throws -> PlaylistGenerationResult {
-        guard let transport else {
-            throw DiagnosticsServiceError.bridgeUnavailable
-        }
-        let (response, _) = try await transport.send(
-            command: .replayGeneration,
-            params: ["session_id": .string(sessionID)]
-        )
-        return try BridgePayloadBuilder.generationResult(from: response.result)
-    }
-
     public func exportHistorySession(sessionID: String) async throws -> SessionHistoryExport? {
         guard let transport else { return nil }
         let (response, _) = try await transport.send(
@@ -477,24 +466,6 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             ]
         )
         return BridgePayloadBuilder.managedPlaylistDetail(from: response.result)
-    }
-
-    public func syncManagedPlaylist(_ request: PlaylistSyncRequest) async throws -> PlaylistSyncResult {
-        guard let transport else {
-            return try await MockPlaylistLibraryService().syncManagedPlaylist(request)
-        }
-        let (response, _) = try await transport.send(
-            command: .syncManagedPlaylist,
-            params: [
-                "local_playlist_id": .string(request.localPlaylistID),
-                "direction": .string(request.direction.rawValue),
-                "provider_id": .string(request.providerID.rawValue),
-            ]
-        )
-        guard let result = BridgePayloadBuilder.playlistSyncResult(from: response.result) else {
-            throw PlaylistImportError.invalidResponse
-        }
-        return result
     }
 
     public func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlanResult? {
@@ -582,15 +553,6 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
             ]
         )
         return BridgePayloadBuilder.remotePlaylistSnapshot(from: response.result)
-    }
-
-    public func providerAuthStatus(providerID: ProviderID) async throws -> RemoteProviderAccount? {
-        guard let transport else { return nil }
-        let (response, _) = try await transport.send(
-            command: .providerAuthStatus,
-            params: ["provider_id": .string(providerID.rawValue)]
-        )
-        return BridgePayloadBuilder.remoteProviderAccount(from: response.result)
     }
 
     public func providerConnect(providerID: ProviderID, params connectParams: [String: String]) async throws -> RemoteProviderAccount? {

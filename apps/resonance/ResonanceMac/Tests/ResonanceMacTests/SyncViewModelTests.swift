@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class SyncViewModelTests: XCTestCase {
     func testSelectPlaylistResetsState() {
-        let model = SyncViewModel()
+        let model = SyncViewModel(service: MockPlaylistLibraryService())
         model.selectPlaylist("playlist-1")
         XCTAssertEqual(model.selectedPlaylistID, "playlist-1")
         model.reset()
@@ -14,7 +14,7 @@ final class SyncViewModelTests: XCTestCase {
     }
 
     func testUpdateResolutionStoresChoice() {
-        let model = SyncViewModel()
+        let model = SyncViewModel(service: MockPlaylistLibraryService())
         model.updateResolution(conflictID: "conflict-1", strategy: "keep_local")
         XCTAssertEqual(model.resolutionChoices["conflict-1"], "keep_local")
     }

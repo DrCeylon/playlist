@@ -27,14 +27,6 @@ public struct MockPlaylistLibraryService: PlaylistLibraryServing {
         return ManagedPlaylistDetail(summary: summary, tracks: [])
     }
 
-    public func syncManagedPlaylist(_ request: PlaylistSyncRequest) async throws -> PlaylistSyncResult {
-        PlaylistSyncResult(
-            localPlaylistID: request.localPlaylistID,
-            syncStatus: .pending,
-            message: "Synchronisation simulée — gateway provider en cours d'intégration."
-        )
-    }
-
     public func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlanResult? {
         nil
     }

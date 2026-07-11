@@ -66,7 +66,7 @@ struct SettingsView: View {
                 selectedThemeID = themeManager.selectedThemeID
             }
             .navigationDestination(isPresented: $showLaboratory) {
-                DiagnosticsView()
+                DiagnosticsView(viewModel: workflow.diagnosticsViewModel)
                     .navigationTitle("Laboratoire")
             }
         }
