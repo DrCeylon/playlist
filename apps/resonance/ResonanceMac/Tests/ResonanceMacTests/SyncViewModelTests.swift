@@ -64,8 +64,9 @@ private final class CapturingPlanSyncService: PlaylistLibraryServing, @unchecked
         return PlaylistSyncPlanResult(
             plan: PlaylistSyncPlan(
                 localPlaylistID: request.localPlaylistID,
-                providerID: request.providerID,
+                targetProviderID: request.providerID,
                 direction: request.direction,
+                syncMode: request.syncMode,
                 remotePlaylistID: request.remotePlaylistID,
                 actions: [],
                 conflicts: []
