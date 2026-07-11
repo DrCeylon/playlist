@@ -75,10 +75,7 @@ final class ManualAcquisitionWorkflowTests: XCTestCase {
     func testResetFromCompletedReinitializesSessionWithoutBusinessTransition() async {
         await MainActor.run {
             let coordinator = ManualAcquisitionWorkflowCoordinator()
-            _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
-            _ = coordinator.beginUserConfirmation()
-            let completed = ImportResultState(playlistName: "Demo", phase: .partialSuccess)
-            _ = coordinator.applyContinueResult(completed)
+            driveCoordinatorToCompleted(coordinator, resultPhase: .partialSuccess)
             XCTAssertEqual(coordinator.phase, .completed)
 
             coordinator.reset()
@@ -92,9 +89,7 @@ final class ManualAcquisitionWorkflowTests: XCTestCase {
     func testResetAfterCompletedAllowsNewAcquisitionCycle() async {
         await MainActor.run {
             let coordinator = ManualAcquisitionWorkflowCoordinator()
-            _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
-            _ = coordinator.beginUserConfirmation()
-            _ = coordinator.applyContinueResult(ImportResultState(playlistName: "Demo", phase: .completed))
+            driveCoordinatorToCompleted(coordinator, resultPhase: .completed)
             coordinator.reset()
 
             let waiting = coordinator.enterWaiting(importSessionID: "session-2", canResume: true, fromHistory: false)
@@ -110,4 +105,21 @@ final class ManualAcquisitionWorkflowTests: XCTestCase {
             "Session reset must use reset(), not transition()"
         )
     }
+}
+
+@MainActor
+private func driveCoordinatorToCompleted(
+    _ coordinator: ManualAcquisitionWorkflowCoordinator,
+    resultPhase: ImportPhase
+) {
+    _ = coordinator.enterWaiting(importSessionID: "session-1", canResume: true, fromHistory: false)
+    _ = coordinator.beginUserConfirmation()
+    let probe = ManualAcquisitionProbeResult(
+        found: true,
+        message: "Morceau détecté",
+        diagnostics: ManualAcquisitionProbeDiagnostics(importSessionID: "session-1")
+    )
+    _ = coordinator.applyProbeResult(probe, userInitiated: true)
+    _ = coordinator.beginResumingImport()
+    _ = coordinator.applyContinueResult(ImportResultState(playlistName: "Demo", phase: resultPhase))
 }

@@ -42,10 +42,7 @@ final class ManualAcquisitionWorkflowArchitectureTests: XCTestCase {
 
     func testCoordinatorResetBypassesBusinessTransition() throws {
         let source = try String(
-            contentsOf: sourceRoot()
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .appendingPathComponent("ResonanceCore/Sources/ResonanceCore/ManualAcquisitionWorkflow.swift"),
+            contentsOf: manualAcquisitionWorkflowSourceURL(),
             encoding: .utf8
         )
         XCTAssertTrue(source.contains("bypasses `transition(to:)`"))
@@ -53,6 +50,15 @@ final class ManualAcquisitionWorkflowArchitectureTests: XCTestCase {
             source.contains("public func reset() {\n        transition(to: .waitingForUser)"),
             "reset() must not route through transition()"
         )
+    }
+
+    private func manualAcquisitionWorkflowSourceURL() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("ResonanceCore/Sources/ResonanceCore/ManualAcquisitionWorkflow.swift")
     }
 
     private func manualAcquisitionCardSourceURL() -> URL {
