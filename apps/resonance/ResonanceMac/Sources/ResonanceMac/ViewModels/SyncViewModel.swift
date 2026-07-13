@@ -127,6 +127,11 @@ final class SyncViewModel: ObservableObject {
 
     func applyPlan(for detail: ManagedPlaylistDetail) async {
         guard let planResult else { return }
+        if direction == .pushToProvider,
+           !ProviderCapabilitySupport.supportsPushSync(providerID: detail.summary.providerID) {
+            actionFeedback = "Ce service ne supporte pas l'envoi vers le fournisseur distant."
+            return
+        }
         isBusy = true
         defer { isBusy = false }
         let summary = detail.summary

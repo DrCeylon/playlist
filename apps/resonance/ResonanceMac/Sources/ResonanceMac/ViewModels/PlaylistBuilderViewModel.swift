@@ -23,14 +23,29 @@ final class PlaylistBuilderViewModel: ObservableObject {
     @Published var previewResult: PlaylistGenerationResult?
     @Published var previewSourceLabel = "Aperçu mock"
     @Published var bridgeFallbackMessage: String?
+    @Published var selectedProviderID: ProviderID = .appleMusic
 
-    let providerOptions = DefaultProviders.options
-    let selectedProvider = DefaultProviders.options.first { $0.providerID == .appleMusic }
+    let providerOptions: [ProviderOption]
 
     private let service: any PlaylistGenerationServing
 
-    init(service: any PlaylistGenerationServing = MockPlaylistGenerationService()) {
+    init(
+        service: any PlaylistGenerationServing = MockPlaylistGenerationService(),
+        providerOptions: [ProviderOption] = DefaultProviders.options
+    ) {
         self.service = service
+        self.providerOptions = providerOptions
+    }
+
+    var selectableProviders: [ProviderOption] {
+        providerOptions.filter { option in
+            option.isAvailable && option.capabilities.contains(.catalogSearch)
+        }
+    }
+
+    var selectedProvider: ProviderOption? {
+        selectableProviders.first { $0.providerID == selectedProviderID }
+            ?? providerOptions.first { $0.providerID == selectedProviderID }
     }
 
     var isValid: Bool {
@@ -63,7 +78,7 @@ final class PlaylistBuilderViewModel: ObservableObject {
 
         return PlaylistGenerationRequest(
             name: name,
-            providerID: .appleMusic,
+            providerID: selectedProviderID,
             seeds: seeds,
             keywords: keywordLabels,
             description: descriptionText,
@@ -128,6 +143,7 @@ final class PlaylistBuilderViewModel: ObservableObject {
     }
 
     func loadFromHistory(_ request: PlaylistGenerationRequest) {
+        selectedProviderID = request.providerID
         name = request.name
         descriptionText = request.description
         targetTrackCountText = request.targetTrackCount.map(String.init) ?? targetTrackCountText

@@ -11,7 +11,6 @@ from playlist_builder.canonical.compat import canonical_playlist_from_legacy
 from playlist_builder.catalog.cache import JsonCache
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.core.models import PlaylistDefinition
-from playlist_builder.discovery.itunes_provider import ITunesCandidateProvider
 from playlist_builder.discovery.pipeline import DiscoveryPipeline
 from playlist_builder.discovery.providers import StaticCandidateProvider
 from playlist_builder.session.engine import GenerationSessionEngine
@@ -168,7 +167,7 @@ class RuntimeEngineBridgeBackend:
         ) as perf_session:
             try:
                 with perf_span("generate", "engine_generate", metadata={"target_track_count": target_count}):
-                    session = self._generation_engine.generate(playlist_request)
+                    session = self._generation_engine_for(request.provider_id).generate(playlist_request)
             except ValueError as exc:
                 raise BridgeError(BridgeErrorCode.VALIDATION_FAILED, str(exc)) from exc
             except Exception as exc:
@@ -570,14 +569,28 @@ class RuntimeEngineBridgeBackend:
 
     @staticmethod
     def _build_generation_engine(context: AppContext) -> GenerationSessionEngine:
-        settings = context.settings
+        return GenerationSessionEngine(DiscoveryPipeline([StaticCandidateProvider([])]))
+
+    def _generation_engine_for(self, provider_id: ProviderId) -> GenerationSessionEngine:
+        settings = self._context.settings
         if settings.use_catalog_cache:
             cache = JsonCache(settings.catalog_cache_path)
         else:
             cache = None
-        apple_gateway = context.registry.get(ProviderId.APPLE_MUSIC)
-        if apple_gateway is None or apple_gateway.catalog is None:
-            return GenerationSessionEngine(DiscoveryPipeline([StaticCandidateProvider([])]))
+        gateway = self._context.registry.get(provider_id)
+        if gateway is None or gateway.catalog is None:
+            return self._generation_engine
 
-        provider = ITunesCandidateProvider(apple_gateway.catalog, country_code=settings.country_code)
-        return GenerationSessionEngine(DiscoveryPipeline([provider]))
+        if provider_id == ProviderId.APPLE_MUSIC:
+            from playlist_builder.discovery.itunes_provider import ITunesCandidateProvider
+
+            provider = ITunesCandidateProvider(gateway.catalog, country_code=settings.country_code)
+            return GenerationSessionEngine(DiscoveryPipeline([provider]))
+        if provider_id == ProviderId.YOUTUBE_MUSIC:
+            from playlist_builder.discovery.youtube_provider import YouTubeCandidateProvider
+            from playlist_builder.integration.youtube_music.catalog import YouTubeMusicCatalogGateway
+
+            if isinstance(gateway.catalog, YouTubeMusicCatalogGateway):
+                provider = YouTubeCandidateProvider(gateway.catalog)
+                return GenerationSessionEngine(DiscoveryPipeline([provider]))
+        return self._generation_engine

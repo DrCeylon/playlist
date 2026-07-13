@@ -59,9 +59,18 @@ public enum DefaultProviders {
         ProviderOption(
             providerID: .youtubeMusic,
             displayName: "YouTube Music",
-            isAvailable: false,
-            unavailableReason: "Expérimental — gateway en cours d'intégration.",
-            capabilities: [.catalogSearch, .experimental, .authentication, .publicPlaylistImport],
+            isAvailable: true,
+            unavailableReason: "Connexion requise via fichier d'en-têtes ytmusicapi.",
+            capabilities: [
+                .catalogSearch,
+                .libraryResolve,
+                .playlistDelivery,
+                .playlistLibraryBrowse,
+                .playlistSync,
+                .publicPlaylistImport,
+                .authentication,
+                .experimental,
+            ],
             isExperimental: true
         ),
         ProviderOption(

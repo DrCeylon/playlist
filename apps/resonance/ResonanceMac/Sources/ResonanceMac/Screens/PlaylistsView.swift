@@ -8,6 +8,7 @@ struct PlaylistsView: View {
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var workflow: AppWorkflowCoordinator
     @State private var selectedPlaylistID: String?
+    @State private var showRemoteImport = false
 
     var body: some View {
         ThemedScreen {
@@ -40,6 +41,12 @@ struct PlaylistsView: View {
             Task { await libraryStore.select(localPlaylistID: playlistID) }
         }
         .refreshable { await libraryStore.refresh() }
+        .sheet(isPresented: $showRemoteImport) {
+            RemoteImportView(
+                viewModel: RemoteImportViewModel(libraryService: workflow.engineBridge)
+            )
+            .frame(minWidth: 520, minHeight: 480)
+        }
     }
 
     @ViewBuilder
@@ -48,6 +55,10 @@ struct PlaylistsView: View {
             Text("Mes playlists")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)
+            Button("Importer depuis un service") {
+                showRemoteImport = true
+            }
+            .buttonStyle(.bordered)
             if let feedback = libraryStore.actionFeedback {
                 Text(feedback)
                     .font(.caption)

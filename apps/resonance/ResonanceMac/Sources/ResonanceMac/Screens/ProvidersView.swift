@@ -1,10 +1,13 @@
 import ResonanceCore
 import ResonanceDesign
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ProvidersView: View {
     @ObservedObject var viewModel: ProvidersViewModel
     @EnvironmentObject private var themeManager: ThemeManager
+    @State private var youtubeHeadersImporter: ProviderID?
+    @State private var selectedHeadersURL: URL?
 
     var body: some View {
         ThemedScreen {
@@ -12,9 +15,14 @@ struct ProvidersView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     ProductSectionCard(title: "Services musicaux", palette: palette) {
-                        Text("Connecte tes comptes pour importer et synchroniser tes playlists.")
-                            .font(.callout)
-                            .foregroundStyle(palette.textSecondary)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Connecte tes comptes pour importer et synchroniser tes playlists.")
+                                .font(.callout)
+                                .foregroundStyle(palette.textSecondary)
+                            Text("YouTube Music utilise un fichier d'en-têtes exporté via ytmusicapi. L'API n'est pas officielle — fonctionnalité expérimentale.")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                        }
                     }
                     providerSection(
                         title: "Principaux",
@@ -38,6 +46,33 @@ struct ProvidersView: View {
         .navigationTitle("Services musicaux")
         .task { await viewModel.refresh() }
         .refreshable { await viewModel.refresh() }
+        .fileImporter(
+            isPresented: Binding(
+                get: { youtubeHeadersImporter != nil },
+                set: { if !$0 { youtubeHeadersImporter = nil } }
+            ),
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            guard let providerID = youtubeHeadersImporter else { return }
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                guard url.startAccessingSecurityScopedResource() else { return }
+                defer { url.stopAccessingSecurityScopedResource() }
+                Task {
+                    await viewModel.connect(
+                        providerID: providerID,
+                        params: [
+                            "headers_file_path": url.path,
+                            "display_name": "YouTube Music",
+                        ]
+                    )
+                }
+            case .failure:
+                viewModel.actionFeedback = "Sélection du fichier d'en-têtes annulée."
+            }
+        }
     }
 
     @ViewBuilder
@@ -85,6 +120,11 @@ struct ProvidersView: View {
                             Task { await viewModel.disconnect(providerID: provider.providerID) }
                         }
                         .buttonStyle(.bordered)
+                    } else if viewModel.requiresHeadersFile(provider) {
+                        Button("Choisir le fichier d'en-têtes") {
+                            youtubeHeadersImporter = provider.providerID
+                        }
+                        .buttonStyle(.borderedProminent)
                     } else {
                         Button("Connecter") {
                             Task { await viewModel.connect(providerID: provider.providerID) }

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from playlist_builder import __version__
+from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.core.models import PlaylistDefinition, PlaylistSection, TrackAddResult, TrackAddStatus, TrackRef
 from playlist_builder.ui.bridge.commands import (
     BridgeCommand,
@@ -374,6 +375,11 @@ class JsonRpcEngineBridge(EngineBridge):
         write_json_diagnostics = bool(params.get("write_json_diagnostics", True))
         history_session_id_raw = params.get("history_session_id")
         history_session_id = str(history_session_id_raw).strip() if history_session_id_raw else None
+        provider_raw = params.get("provider_id", ProviderId.APPLE_MUSIC.value)
+        try:
+            provider_id = ProviderId(str(provider_raw))
+        except ValueError as exc:
+            raise BridgeError(BridgeErrorCode.INVALID_REQUEST, f"provider_id invalide : {provider_raw!r}") from exc
         try:
             try:
                 yield from self.backend.import_playlist_stream(
@@ -382,6 +388,7 @@ class JsonRpcEngineBridge(EngineBridge):
                     write_json_diagnostics=write_json_diagnostics,
                     request_id=request_id,
                     history_session_id=history_session_id,
+                    provider_id=provider_id,
                 )
             except TypeError:
                 yield from self.backend.import_playlist_stream(

@@ -206,6 +206,7 @@ public final class PythonEngineBridgeService: PlaylistGenerationServing, Playlis
                     "sync": .bool(true),
                     "write_json_diagnostics": .bool(true),
                     "history_session_id": .string(result.historySessionID),
+                    "provider_id": .string(result.providerID.rawValue),
                 ],
                 onEvent: onEvent,
                 onDiagnostic: { line in

@@ -41,15 +41,19 @@ final class ProvidersViewModel: ObservableObject {
         }
     }
 
-    func connect(providerID: ProviderID) async {
+    func connect(providerID: ProviderID, params: [String: String] = [:]) async {
         isBusy = true
         defer { isBusy = false }
         do {
-            _ = try await platformService.providerConnect(providerID: providerID, params: [:])
-            actionFeedback = "Connexion demandée — suivez les instructions si nécessaire."
+            _ = try await platformService.providerConnect(providerID: providerID, params: params)
+            actionFeedback = providerID == .youtubeMusic
+                ? "YouTube Music connecté."
+                : "Connexion demandée — suivez les instructions si nécessaire."
             await refresh()
         } catch {
-            actionFeedback = "Connexion impossible pour le moment."
+            actionFeedback = providerID == .youtubeMusic
+                ? "Connexion YouTube impossible — vérifiez le fichier d'en-têtes."
+                : "Connexion impossible pour le moment."
         }
     }
 
@@ -67,5 +71,9 @@ final class ProvidersViewModel: ObservableObject {
 
     func supportsAuthentication(_ provider: ProviderOption) -> Bool {
         provider.capabilities.contains(.authentication)
+    }
+
+    func requiresHeadersFile(_ provider: ProviderOption) -> Bool {
+        provider.providerID == .youtubeMusic
     }
 }

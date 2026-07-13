@@ -419,7 +419,13 @@ private struct AdvancedOptionsSection: View {
                 )
                 NativeFormTextField(title: "Durée cible (min)", text: $draftDuration)
                 EnergyProfilePicker(selection: $viewModel.energyProfile)
-                if let provider = viewModel.selectedProvider {
+                if !viewModel.selectableProviders.isEmpty {
+                    Picker("Source musicale", selection: $viewModel.selectedProviderID) {
+                        ForEach(viewModel.selectableProviders) { provider in
+                            Text(provider.displayName).tag(provider.providerID)
+                        }
+                    }
+                } else if let provider = viewModel.selectedProvider {
                     LabeledContent("Source musicale", value: provider.displayName)
                 }
             }

@@ -51,6 +51,16 @@ class FakeYouTubeClient:
     def search_songs(self, query: str, *, limit: int = 10) -> list[dict]:
         return [{"videoId": "vid-2", "title": "Search Hit", "artists": [{"name": "Artist B"}]}]
 
+    def create_playlist(self, title: str, *, description: str = "") -> str:
+        del description
+        return f"PL-new-{title}"
+
+    def add_playlist_items(self, playlist_id: str, video_ids: list[str]) -> None:
+        del playlist_id, video_ids
+
+    def remove_playlist_items(self, playlist_id: str, video_ids: list[str]) -> None:
+        del playlist_id, video_ids
+
 
 @pytest.fixture
 def youtube_registry(tmp_path: Path, monkeypatch) -> ProviderGatewayRegistry:
@@ -90,6 +100,22 @@ def test_youtube_gateway_registered_on_app_context(tmp_path: Path, monkeypatch) 
     assert ProviderCapability.EXPERIMENTAL in gateway.capabilities
     assert gateway.playlist_write is None
     assert ProviderCapability.PLAYLIST_SYNC not in gateway.capabilities
+
+
+def test_youtube_gateway_exposes_write_and_sync_when_connected(tmp_path: Path, youtube_registry: ProviderGatewayRegistry) -> None:
+    headers_path = tmp_path / "headers.json"
+    headers_path.write_text(json.dumps({"Cookie": "test-cookie"}), encoding="utf-8")
+    provider_connect(
+        youtube_registry,
+        provider_id=ProviderId.YOUTUBE_MUSIC,
+        params={"headers_file_path": str(headers_path), "display_name": "Demo"},
+    )
+    gateway = youtube_registry.get(ProviderId.YOUTUBE_MUSIC)
+    assert gateway is not None
+    assert ProviderCapability.PLAYLIST_SYNC in gateway.capabilities
+    assert ProviderCapability.PLAYLIST_DELIVERY in gateway.capabilities
+    assert gateway.playlist_write is not None
+    assert gateway.import_port is not None
 
 
 def test_youtube_dependency_absent_reports_experimental_unavailable(tmp_path: Path, monkeypatch) -> None:
