@@ -31,8 +31,15 @@ class ProviderRemotePlaylistLinker:
         provider_id: ProviderId,
         playlist_name: str,
         existing_remote_id: str = "",
+        prefer_refresh: bool = False,
     ) -> RemotePlaylistLinkResult:
         del provider_id
+        name = playlist_name.strip()
+        if prefer_refresh and read_port is not None and name:
+            refreshed = self._resolve_by_name(read_port, name)
+            if refreshed.status in {RemoteLinkStatus.LINKED, RemoteLinkStatus.AMBIGUOUS}:
+                return refreshed
+
         existing = existing_remote_id.strip()
         if existing:
             return self._resolve_existing(read_port, existing)
@@ -43,13 +50,19 @@ class ProviderRemotePlaylistLinker:
                 message="Lecture provider indisponible pour lier la playlist distante.",
             )
 
-        name = playlist_name.strip()
         if not name:
             return RemotePlaylistLinkResult(
                 status=RemoteLinkStatus.UNLINKED,
                 message="Nom de playlist manquant pour lier la playlist distante.",
             )
 
+        return self._resolve_by_name(read_port, name)
+
+    def _resolve_by_name(
+        self,
+        read_port: ProviderPlaylistReadPort,
+        name: str,
+    ) -> RemotePlaylistLinkResult:
         try:
             matches = [item for item in read_port.list_playlists() if item.name == name]
         except (OSError, RuntimeError, ValueError):
@@ -92,8 +105,10 @@ class ProviderRemotePlaylistLinker:
             snapshot = read_port.get_playlist(remote_id)
         except (OSError, RuntimeError, ValueError) as exc:
             return RemotePlaylistLinkResult(
-                status=RemoteLinkStatus.UNLINKED,
-                message=f"Playlist distante introuvable pour l'identifiant {remote_id!r} : {exc}",
+                status=RemoteLinkStatus.LINKED,
+                remote_playlist_id=remote_id,
+                snapshot_checksum="",
+                message=f"Snapshot distant indisponible pour {remote_id!r} : {exc}",
             )
         return RemotePlaylistLinkResult(
             status=RemoteLinkStatus.LINKED,

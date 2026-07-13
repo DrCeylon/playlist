@@ -204,6 +204,46 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.libraryStore.playlists.count, 1)
         XCTAssertEqual(coordinator.libraryStore.playlists.first?.name, "Library Refresh")
     }
+
+    func testPlaylistLibrarySurvivesCoordinatorReinitAfterImport() async {
+        let importService = ControllableImportService()
+        let libraryService = SpyPlaylistLibraryService()
+        let coordinator = AppWorkflowCoordinator(
+            playlistGenerationService: MockPlaylistGenerationService(),
+            importService: importService,
+            libraryService: libraryService
+        )
+        let generation = PlaylistGenerationResult(
+            playlistName: "Persisted Playlist",
+            sections: [],
+            averageScore: 0.8,
+            providerID: .appleMusic,
+            historySessionID: "hist-persist"
+        )
+
+        let importTask = Task {
+            await coordinator.startImport(from: generation)
+        }
+        await importService.waitUntilImportStarted()
+        importService.finish(
+            with: ImportResultState(
+                playlistName: "Persisted Playlist",
+                outcomes: [],
+                phase: .completed
+            )
+        )
+        _ = await importTask.result
+        XCTAssertEqual(libraryService.listCallCount, 1)
+
+        let relaunched = AppWorkflowCoordinator(
+            playlistGenerationService: MockPlaylistGenerationService(),
+            importService: MockPlaylistImportService(),
+            libraryService: libraryService
+        )
+        await relaunched.libraryStore.refresh()
+        XCTAssertEqual(relaunched.libraryStore.playlists.count, 1)
+        XCTAssertEqual(relaunched.libraryStore.playlists.first?.localPlaylistID, "hist-persist")
+    }
 }
 
 @MainActor
