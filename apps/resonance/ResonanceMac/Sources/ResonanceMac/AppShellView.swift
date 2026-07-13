@@ -61,7 +61,7 @@ struct AppShellView: View {
         case .newPlaylist:
             PlaylistBuilderView(selection: $selection)
         case .playlists:
-            PlaylistsView(selection: $selection)
+            PlaylistsView(selection: $selection, libraryStore: workflow.libraryStore)
         case .sync:
             SyncView(selection: $selection, syncModel: workflow.syncViewModel)
         case .providers:

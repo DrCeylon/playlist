@@ -1,5 +1,6 @@
 import ResonanceCore
 @testable import ResonanceMac
+import Combine
 import XCTest
 
 @MainActor
@@ -205,6 +206,87 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.libraryStore.playlists.first?.name, "Library Refresh")
     }
 
+    func testCoordinatorPublishesWhenLibraryStoreSelectionChanges() async {
+        let summary = ManagedPlaylistSummary(
+            localPlaylistID: "playlist-observation",
+            name: "Observation",
+            providerID: .appleMusic,
+            trackCount: 1,
+            syncStatus: .synced
+        )
+        let coordinator = AppWorkflowCoordinator(
+            playlistGenerationService: MockPlaylistGenerationService(),
+            importService: MockPlaylistImportService(),
+            libraryService: MockPlaylistLibraryService(playlists: [summary])
+        )
+        await coordinator.libraryStore.refresh()
+
+        var publishCount = 0
+        let subscription = coordinator.objectWillChange.sink { publishCount += 1 }
+        defer { subscription.cancel() }
+
+        let before = publishCount
+        await coordinator.libraryStore.select(localPlaylistID: summary.localPlaylistID)
+
+        XCTAssertGreaterThan(publishCount, before)
+        XCTAssertEqual(coordinator.libraryStore.selectedDetail?.summary.localPlaylistID, summary.localPlaylistID)
+    }
+
+    func testFirstOpenPlaylistSelectionScenario() async {
+        let summary = ManagedPlaylistSummary(
+            localPlaylistID: "playlist-first-open",
+            name: "First Open",
+            providerID: .appleMusic,
+            trackCount: 2,
+            syncStatus: .synced
+        )
+        let libraryService = DelayedCoordinatorPlaylistLibraryService(
+            playlists: [summary],
+            listDelayNanoseconds: 200_000_000
+        )
+        let coordinator = AppWorkflowCoordinator(
+            playlistGenerationService: MockPlaylistGenerationService(),
+            importService: MockPlaylistImportService(),
+            libraryService: libraryService
+        )
+
+        async let refreshTask: Void = coordinator.libraryStore.refresh()
+        await Task.yield()
+        await coordinator.libraryStore.select(localPlaylistID: summary.localPlaylistID)
+        await refreshTask
+
+        XCTAssertEqual(coordinator.libraryStore.playlists.count, 1)
+        XCTAssertEqual(
+            coordinator.libraryStore.selectedDetail?.summary.localPlaylistID,
+            summary.localPlaylistID
+        )
+    }
+
+    func testRepeatedLibraryRefreshPreservesSelection() async {
+        let summary = ManagedPlaylistSummary(
+            localPlaylistID: "playlist-refresh-nav",
+            name: "Refresh Nav",
+            providerID: .appleMusic,
+            trackCount: 4,
+            syncStatus: .synced
+        )
+        let coordinator = AppWorkflowCoordinator(
+            playlistGenerationService: MockPlaylistGenerationService(),
+            importService: MockPlaylistImportService(),
+            libraryService: MockPlaylistLibraryService(playlists: [summary])
+        )
+
+        await coordinator.libraryStore.refresh()
+        await coordinator.libraryStore.select(localPlaylistID: summary.localPlaylistID)
+        await coordinator.libraryStore.refresh()
+        await coordinator.libraryStore.refresh()
+
+        XCTAssertEqual(
+            coordinator.libraryStore.selectedDetail?.summary.localPlaylistID,
+            summary.localPlaylistID
+        )
+    }
+
     func testPlaylistLibrarySurvivesCoordinatorReinitAfterImport() async {
         let importService = ControllableImportService()
         let libraryService = SpyPlaylistLibraryService()
@@ -308,6 +390,38 @@ private final class SpyPlaylistLibraryService: PlaylistLibraryServing, @unchecke
                 ]
             ),
         ]
+    }
+
+    func getManagedPlaylist(localPlaylistID: String) async throws -> ManagedPlaylistDetail? {
+        guard let summary = playlists.first(where: { $0.localPlaylistID == localPlaylistID }) else {
+            return nil
+        }
+        return ManagedPlaylistDetail(summary: summary, tracks: [])
+    }
+
+    func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlanResult? { nil }
+    func resolveSyncConflicts(_ request: PlaylistSyncResolveRequest) async throws -> PlaylistSyncPlanResult? { nil }
+    func applySync(_ request: PlaylistSyncApplyRequest) async throws -> PlaylistSyncApplyResult? { nil }
+    func listRemotePlaylists(providerID: ProviderID) async throws -> [RemotePlaylist] { [] }
+    func getRemotePlaylist(providerID: ProviderID, remotePlaylistID: String) async throws -> RemotePlaylistSnapshot? { nil }
+    func importRemotePlaylist(remotePlaylist: RemotePlaylistSnapshot, origin: PlaylistOrigin) async throws -> ManagedPlaylistDetail? { nil }
+}
+
+@MainActor
+private final class DelayedCoordinatorPlaylistLibraryService: PlaylistLibraryServing, @unchecked Sendable {
+    let playlists: [ManagedPlaylistSummary]
+    let listDelayNanoseconds: UInt64
+
+    init(playlists: [ManagedPlaylistSummary], listDelayNanoseconds: UInt64) {
+        self.playlists = playlists
+        self.listDelayNanoseconds = listDelayNanoseconds
+    }
+
+    func listManagedPlaylists() async throws -> [ManagedPlaylistSummary] {
+        if listDelayNanoseconds > 0 {
+            try await Task.sleep(nanoseconds: listDelayNanoseconds)
+        }
+        return playlists
     }
 
     func getManagedPlaylist(localPlaylistID: String) async throws -> ManagedPlaylistDetail? {

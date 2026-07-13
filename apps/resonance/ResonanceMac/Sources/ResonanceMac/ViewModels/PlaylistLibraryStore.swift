@@ -9,6 +9,7 @@ final class PlaylistLibraryStore: ObservableObject {
     @Published var actionFeedback: String?
 
     private let service: any PlaylistLibraryServing
+    private var inFlightOperations = 0
 
     init(service: any PlaylistLibraryServing) {
         self.service = service
@@ -23,8 +24,8 @@ final class PlaylistLibraryStore: ObservableObject {
     }
 
     func refresh() async {
-        isBusy = true
-        defer { isBusy = false }
+        beginOperation()
+        defer { endOperation() }
         do {
             playlists = try await service.listManagedPlaylists()
             actionFeedback = nil
@@ -34,8 +35,8 @@ final class PlaylistLibraryStore: ObservableObject {
     }
 
     func select(localPlaylistID: String) async {
-        isBusy = true
-        defer { isBusy = false }
+        beginOperation()
+        defer { endOperation() }
         do {
             selectedDetail = try await service.getManagedPlaylist(localPlaylistID: localPlaylistID)
         } catch {
@@ -45,5 +46,15 @@ final class PlaylistLibraryStore: ObservableObject {
 
     func clearSelection() {
         selectedDetail = nil
+    }
+
+    private func beginOperation() {
+        inFlightOperations += 1
+        isBusy = true
+    }
+
+    private func endOperation() {
+        inFlightOperations = max(0, inFlightOperations - 1)
+        isBusy = inFlightOperations > 0
     }
 }

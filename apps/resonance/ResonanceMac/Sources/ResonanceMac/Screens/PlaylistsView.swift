@@ -4,8 +4,10 @@ import SwiftUI
 
 struct PlaylistsView: View {
     @Binding var selection: SidebarItem?
+    @ObservedObject var libraryStore: PlaylistLibraryStore
     @EnvironmentObject private var themeManager: ThemeManager
     @EnvironmentObject private var workflow: AppWorkflowCoordinator
+    @State private var selectedPlaylistID: String?
 
     var body: some View {
         ThemedScreen {
@@ -19,7 +21,25 @@ struct PlaylistsView: View {
             .padding(24)
         }
         .navigationTitle("Playlists")
-        .refreshable { await workflow.libraryStore.refresh() }
+        .onAppear {
+            syncListSelectionFromStore()
+        }
+        .onChange(of: libraryStore.selectedDetail?.summary.localPlaylistID) { _, _ in
+            syncListSelectionFromStore()
+        }
+        .onChange(of: selectedPlaylistID) { _, playlistID in
+            guard let playlistID else {
+                if libraryStore.selectedDetail != nil {
+                    libraryStore.clearSelection()
+                }
+                return
+            }
+            if libraryStore.selectedDetail?.summary.localPlaylistID == playlistID {
+                return
+            }
+            Task { await libraryStore.select(localPlaylistID: playlistID) }
+        }
+        .refreshable { await libraryStore.refresh() }
     }
 
     @ViewBuilder
@@ -28,14 +48,14 @@ struct PlaylistsView: View {
             Text("Mes playlists")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)
-            if let feedback = workflow.libraryStore.actionFeedback {
+            if let feedback = libraryStore.actionFeedback {
                 Text(feedback)
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
             }
-            if workflow.libraryStore.isBusy && workflow.libraryStore.playlists.isEmpty {
+            if libraryStore.isBusy && libraryStore.playlists.isEmpty {
                 ProgressView()
-            } else if workflow.libraryStore.playlists.isEmpty {
+            } else if libraryStore.playlists.isEmpty {
                 ProductEmptyState(
                     title: "Aucune playlist",
                     message: "Crée ou importe une playlist pour commencer.",
@@ -43,26 +63,22 @@ struct PlaylistsView: View {
                     palette: palette
                 )
             } else {
-                List(workflow.libraryStore.playlists) { playlist in
-                    Button {
-                        Task { await workflow.libraryStore.select(localPlaylistID: playlist.localPlaylistID) }
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(playlist.name)
-                                    .font(.headline)
-                                Text("\(PlaylistLibraryDisplay.providerLabel(playlist.providerID)) · \(playlist.trackCount) morceaux")
-                                    .font(.caption)
-                                    .foregroundStyle(palette.textSecondary)
-                            }
-                            Spacer()
-                            StatusChip(
-                                label: PlaylistLibraryDisplay.syncStatusLabel(playlist.syncStatus),
-                                color: palette.accentPrimary
-                            )
+                List(libraryStore.playlists, selection: $selectedPlaylistID) { playlist in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(playlist.name)
+                                .font(.headline)
+                            Text("\(PlaylistLibraryDisplay.providerLabel(playlist.providerID)) · \(playlist.trackCount) morceaux")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
                         }
+                        Spacer()
+                        StatusChip(
+                            label: PlaylistLibraryDisplay.syncStatusLabel(playlist.syncStatus),
+                            color: palette.accentPrimary
+                        )
                     }
-                    .buttonStyle(.plain)
+                    .tag(playlist.localPlaylistID)
                 }
                 .listStyle(.sidebar)
             }
@@ -72,7 +88,7 @@ struct PlaylistsView: View {
 
     @ViewBuilder
     private func playlistDetail(palette: ThemePalette) -> some View {
-        if let detail = workflow.libraryStore.selectedDetail {
+        if let detail = libraryStore.selectedDetail {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(detail.summary.name)
@@ -118,12 +134,12 @@ struct PlaylistsView: View {
         HStack(spacing: 12) {
             Button("Synchroniser") {
                 Task {
-                    await workflow.libraryStore.select(localPlaylistID: summary.localPlaylistID)
+                    await libraryStore.select(localPlaylistID: summary.localPlaylistID)
                     selection = .sync
                 }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(workflow.libraryStore.isBusy)
+            .disabled(libraryStore.isBusy)
             Button("Historique") { selection = .history }
                 .buttonStyle(.bordered)
         }
@@ -180,6 +196,13 @@ struct PlaylistsView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func syncListSelectionFromStore() {
+        let detailID = libraryStore.selectedDetail?.summary.localPlaylistID
+        if selectedPlaylistID != detailID {
+            selectedPlaylistID = detailID
         }
     }
 }

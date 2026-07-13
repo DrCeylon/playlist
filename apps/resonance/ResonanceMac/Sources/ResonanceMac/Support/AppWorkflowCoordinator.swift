@@ -202,6 +202,12 @@ final class AppWorkflowCoordinator: ObservableObject {
     }
 
     private func bindWorkflowObservation() {
+        libraryStore.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+
         importWorkflow.$screenState
             .combineLatest(importWorkflow.$progress, importWorkflow.$report)
             .sink { [weak self] state, progress, report in
