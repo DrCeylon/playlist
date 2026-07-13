@@ -6,6 +6,7 @@ from typing import Any
 
 from playlist_builder.canonical.enums import ProviderId
 from playlist_builder.canonical.provider_ids import parse_provider_id
+from playlist_builder.ui.shared.playlist_ids import managed_local_playlist_id_from_history
 from playlist_builder.ui.shared.dto.sync_conflict import (
     ConflictKind,
     ConflictResolutionStrategy,
@@ -213,7 +214,7 @@ def managed_playlist_from_history_session(session: dict[str, Any]) -> ManagedPla
     sync_status = "synced" if status == "imported" else "partial" if status == "partial_success" else "pending"
     finished_at = str(session.get("finished_at_iso", "") or "")
     return ManagedPlaylistSummary(
-        local_playlist_id=f"hist-{session_id}",
+        local_playlist_id=managed_local_playlist_id_from_history(session_id),
         name=playlist_name,
         provider_id=provider_id,
         track_count=int(session.get("track_count", 0) or 0),

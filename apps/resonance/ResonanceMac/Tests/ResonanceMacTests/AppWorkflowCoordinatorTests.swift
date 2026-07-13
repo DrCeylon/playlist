@@ -167,6 +167,162 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.banner?.substeps.count, 2)
         XCTAssertEqual(coordinator.banner?.playlistName, "Diagnostics Demo")
     }
+
+    func testImportReportRefreshesPlaylistLibrary() async {
+        let importService = ControllableImportService()
+        let libraryService = SpyPlaylistLibraryService()
+        let coordinator = AppWorkflowCoordinator(
+            playlistGenerationService: MockPlaylistGenerationService(),
+            importService: importService,
+            libraryService: libraryService
+        )
+        let generation = PlaylistGenerationResult(
+            playlistName: "Library Refresh",
+            sections: [],
+            averageScore: 0.8,
+            providerID: .appleMusic,
+            historySessionID: "hist-library-refresh"
+        )
+
+        let importTask = Task {
+            await coordinator.startImport(from: generation)
+        }
+        await importService.waitUntilImportStarted()
+        importService.finish(
+            with: ImportResultState(
+                playlistName: "Library Refresh",
+                outcomes: [
+                    ImportTrackOutcome(artist: "A", title: "B", section: "Main", status: .added),
+                ],
+                phase: .partialSuccess
+            )
+        )
+        _ = await importTask.result
+
+        XCTAssertEqual(coordinator.importWorkflow.screenState, .report)
+        XCTAssertEqual(libraryService.listCallCount, 1)
+        XCTAssertEqual(coordinator.libraryStore.playlists.count, 1)
+        XCTAssertEqual(coordinator.libraryStore.playlists.first?.name, "Library Refresh")
+    }
+
+    func testPlaylistLibrarySurvivesCoordinatorReinitAfterImport() async {
+        let importService = ControllableImportService()
+        let libraryService = SpyPlaylistLibraryService()
+        let coordinator = AppWorkflowCoordinator(
+            playlistGenerationService: MockPlaylistGenerationService(),
+            importService: importService,
+            libraryService: libraryService
+        )
+        let generation = PlaylistGenerationResult(
+            playlistName: "Persisted Playlist",
+            sections: [],
+            averageScore: 0.8,
+            providerID: .appleMusic,
+            historySessionID: "hist-persist"
+        )
+
+        let importTask = Task {
+            await coordinator.startImport(from: generation)
+        }
+        await importService.waitUntilImportStarted()
+        importService.finish(
+            with: ImportResultState(
+                playlistName: "Persisted Playlist",
+                outcomes: [],
+                phase: .completed
+            )
+        )
+        _ = await importTask.result
+        XCTAssertEqual(libraryService.listCallCount, 1)
+        libraryService.setPersistedPlaylist(
+            localPlaylistID: managedLocalPlaylistID(from: "hist-persist"),
+            name: "Persisted Playlist"
+        )
+
+        let relaunched = AppWorkflowCoordinator(
+            playlistGenerationService: MockPlaylistGenerationService(),
+            importService: MockPlaylistImportService(),
+            libraryService: libraryService
+        )
+        await relaunched.libraryStore.refresh()
+        XCTAssertEqual(relaunched.libraryStore.playlists.count, 1)
+        XCTAssertEqual(
+            relaunched.libraryStore.playlists.first?.localPlaylistID,
+            managedLocalPlaylistID(from: "hist-persist")
+        )
+    }
+}
+
+private func managedLocalPlaylistID(from historySessionID: String) -> String {
+    "hist-\(historySessionID)"
+}
+
+@MainActor
+private final class SpyPlaylistLibraryService: PlaylistLibraryServing, @unchecked Sendable {
+    private(set) var listCallCount = 0
+    private var playlists: [ManagedPlaylistSummary]
+
+    init(playlists: [ManagedPlaylistSummary] = []) {
+        self.playlists = playlists
+    }
+
+    func listManagedPlaylists() async throws -> [ManagedPlaylistSummary] {
+        listCallCount += 1
+        if playlists.isEmpty {
+            playlists = [
+                ManagedPlaylistSummary(
+                    localPlaylistID: "hist-library-refresh",
+                    name: "Library Refresh",
+                    providerID: .appleMusic,
+                    trackCount: 1,
+                    syncStatus: .partial,
+                    providerPlaylistID: "remote-1",
+                    linkedRemoteRefs: [
+                        LinkedRemoteRef(
+                            providerID: .appleMusic,
+                            remotePlaylistID: "remote-1",
+                            snapshotChecksum: "checksum-1"
+                        ),
+                    ]
+                ),
+            ]
+        }
+        return playlists
+    }
+
+    func setPersistedPlaylist(localPlaylistID: String, name: String) {
+        playlists = [
+            ManagedPlaylistSummary(
+                localPlaylistID: localPlaylistID,
+                name: name,
+                providerID: .appleMusic,
+                trackCount: 1,
+                syncStatus: .synced,
+                providerPlaylistID: "remote-persist",
+                linkedRemoteRefs: [
+                    LinkedRemoteRef(
+                        providerID: .appleMusic,
+                        remotePlaylistID: "remote-persist",
+                        snapshotChecksum: "checksum-persist"
+                    ),
+                ]
+            ),
+        ]
+    }
+
+    func getManagedPlaylist(localPlaylistID: String) async throws -> ManagedPlaylistDetail? {
+        guard let summary = playlists.first(where: { $0.localPlaylistID == localPlaylistID }) else {
+            return nil
+        }
+        return ManagedPlaylistDetail(summary: summary, tracks: [])
+    }
+
+    func planSync(_ request: PlaylistSyncPlanRequest) async throws -> PlaylistSyncPlanResult? { nil }
+    func resolveSyncConflicts(_ request: PlaylistSyncResolveRequest) async throws -> PlaylistSyncPlanResult? { nil }
+    func applySync(_ request: PlaylistSyncApplyRequest) async throws -> PlaylistSyncApplyResult? { nil }
+    func listRemotePlaylists(providerID: ProviderID) async throws -> [RemotePlaylist] { [] }
+    func getRemotePlaylist(providerID: ProviderID, remotePlaylistID: String) async throws -> RemotePlaylistSnapshot? { nil }
+    func importRemotePlaylist(remotePlaylist: RemotePlaylistSnapshot, origin: PlaylistOrigin) async throws -> ManagedPlaylistDetail? { nil }
 }
 
 @MainActor

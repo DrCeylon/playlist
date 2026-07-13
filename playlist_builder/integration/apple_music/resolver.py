@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 
 from dataclasses import dataclass
@@ -36,6 +37,7 @@ ManualAcquisitionHook = Callable[["CanonicalTrack", "CanonicalCandidate", str], 
 
 _MANUAL_ACQUISITION_LIBRARY_ATTEMPTS = 4
 _MANUAL_ACQUISITION_RETRY_DELAY_SECONDS = 5.0
+logger = logging.getLogger(__name__)
 _AUTOMATIC_ACQUISITION_LIBRARY_ATTEMPTS = 6
 
 
@@ -476,17 +478,19 @@ class AppleMusicResolver:
             candidates = self._refresh_library_candidates(legacy, catalog_candidate)
             if candidates:
                 if show_progress and attempt > 1:
-                    print(
-                        f"✅ Morceau détecté en bibliothèque (tentative {attempt}/{max_attempts}).",
-                        flush=True,
+                    logger.info(
+                        "Morceau détecté en bibliothèque (tentative %s/%s).",
+                        attempt,
+                        max_attempts,
                     )
                 return candidates
             if attempt < max_attempts and show_progress:
-                print(
-                    f"⏳ Morceau pas encore visible en bibliothèque "
-                    f"(tentative {attempt}/{max_attempts}) — "
-                    f"nouvelle recherche dans {_MANUAL_ACQUISITION_RETRY_DELAY_SECONDS:.0f}s...",
-                    flush=True,
+                logger.info(
+                    "Morceau pas encore visible en bibliothèque "
+                    "(tentative %s/%s) — nouvelle recherche dans %.0fs...",
+                    attempt,
+                    max_attempts,
+                    _MANUAL_ACQUISITION_RETRY_DELAY_SECONDS,
                 )
                 time.sleep(_MANUAL_ACQUISITION_RETRY_DELAY_SECONDS)
         return []

@@ -69,11 +69,13 @@ final class AppWorkflowCoordinator: ObservableObject {
     init(
         playlistGenerationService: any PlaylistGenerationServing,
         importService: any PlaylistImportServing,
+        libraryService: (any PlaylistLibraryServing)? = nil,
         autocompleteService: (any AutocompleteServing)? = nil
     ) {
         self.engineBridge = PythonEngineBridgeService(configuration: nil, transport: nil)
-        self.libraryStore = PlaylistLibraryStore(service: MockPlaylistLibraryService())
-        self.syncViewModel = SyncViewModel(service: MockPlaylistLibraryService())
+        let resolvedLibrary: any PlaylistLibraryServing = libraryService ?? MockPlaylistLibraryService()
+        self.libraryStore = PlaylistLibraryStore(service: resolvedLibrary)
+        self.syncViewModel = SyncViewModel(service: resolvedLibrary)
         self.providersViewModel = ProvidersViewModel(
             diagnosticsService: MockDiagnosticsService(),
             platformService: MockDiagnosticsService()
@@ -204,6 +206,16 @@ final class AppWorkflowCoordinator: ObservableObject {
             .combineLatest(importWorkflow.$progress, importWorkflow.$report)
             .sink { [weak self] state, progress, report in
                 self?.syncBannerFromImport(state: state, progress: progress, report: report)
+            }
+            .store(in: &cancellables)
+
+        importWorkflow.$screenState
+            .removeDuplicates()
+            .sink { [weak self] state in
+                guard let self else { return }
+                if case .report = state {
+                    Task { await self.libraryStore.refresh() }
+                }
             }
             .store(in: &cancellables)
 
