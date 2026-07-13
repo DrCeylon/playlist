@@ -234,6 +234,10 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         )
         _ = await importTask.result
         XCTAssertEqual(libraryService.listCallCount, 1)
+        libraryService.setPersistedPlaylist(
+            localPlaylistID: managedLocalPlaylistID(from: "hist-persist"),
+            name: "Persisted Playlist"
+        )
 
         let relaunched = AppWorkflowCoordinator(
             playlistGenerationService: MockPlaylistGenerationService(),
@@ -242,8 +246,15 @@ final class AppWorkflowCoordinatorTests: XCTestCase {
         )
         await relaunched.libraryStore.refresh()
         XCTAssertEqual(relaunched.libraryStore.playlists.count, 1)
-        XCTAssertEqual(relaunched.libraryStore.playlists.first?.localPlaylistID, "hist-persist")
+        XCTAssertEqual(
+            relaunched.libraryStore.playlists.first?.localPlaylistID,
+            managedLocalPlaylistID(from: "hist-persist")
+        )
     }
+}
+
+private func managedLocalPlaylistID(from historySessionID: String) -> String {
+    "hist-\(historySessionID)"
 }
 
 @MainActor
@@ -277,6 +288,26 @@ private final class SpyPlaylistLibraryService: PlaylistLibraryServing, @unchecke
             ]
         }
         return playlists
+    }
+
+    func setPersistedPlaylist(localPlaylistID: String, name: String) {
+        playlists = [
+            ManagedPlaylistSummary(
+                localPlaylistID: localPlaylistID,
+                name: name,
+                providerID: .appleMusic,
+                trackCount: 1,
+                syncStatus: .synced,
+                providerPlaylistID: "remote-persist",
+                linkedRemoteRefs: [
+                    LinkedRemoteRef(
+                        providerID: .appleMusic,
+                        remotePlaylistID: "remote-persist",
+                        snapshotChecksum: "checksum-persist"
+                    ),
+                ]
+            ),
+        ]
     }
 
     func getManagedPlaylist(localPlaylistID: String) async throws -> ManagedPlaylistDetail? {
